@@ -1,28 +1,29 @@
 """
-Nifty OI Bias Monitor — Kite WebSocket Bridge (Railway / PostgreSQL edition)
-=============================================================================
-Identical behaviour to the local CSV version, but:
-  • Data is stored in PostgreSQL (DATABASE_URL from Railway env)
-  • Flask also serves index.html at GET /
-  • API_KEY / ACCESS_TOKEN come from environment variables (never hard-coded)
+Nifty + Sensex OI Bias Monitor — Railway Bridge
+================================================
+Tracks BOTH Nifty (NSE) and Sensex (BSE) simultaneously.
+Each index has its own state, minute buffer, and DB table:
+    nifty_oi_history   — Nifty 1-min candle rows
+    sensex_oi_history  — Sensex 1-min candle rows
 
 Railway setup
 ─────────────
-1.  Add a Postgres plugin → DATABASE_URL is injected automatically.
-2.  Set env vars:
-        KITE_API_KEY
-        KITE_ACCESS_TOKEN
-3.  Deploy from GitHub — Railway will run:  python kite_oi_bridge.py
+Environment variables required:
+    KITE_API_KEY       your Zerodha API key
+    KITE_ACCESS_TOKEN  daily access token (update each morning)
+    DATABASE_URL       auto-set by Railway Postgres plugin
+    PORT               auto-set by Railway
 
-Endpoints (unchanged):
-    GET  /                 → serves the dashboard HTML
-    GET  /oi               → snapshot for ALL 11 strikes + active bear/bull
-    GET  /ltp              → live LTP for all 22 tokens
-    GET  /oi/history       → 1-min rows for today (all 11 strikes + OHLC)
-    GET  /oi/live-candle   → currently forming 1-min candle
-    GET  /strikes          → strike list
-    GET  /health           → status + OHLC buffer
-    POST /reset-csv        → wipe today's rows, start fresh
+Endpoints:
+    GET  /                        serves dashboard HTML
+    GET  /oi?index=nifty          live snapshot  (index = nifty | sensex)
+    GET  /ltp?index=nifty         live LTP
+    GET  /oi/history?index=nifty  1-min rows for today
+    GET  /oi/live-candle?index=nifty  forming candle
+    GET  /strikes?index=nifty     strike list
+    GET  /health                  both indices status
+    POST /reset-csv?index=nifty   wipe today's rows for one index
+    POST /reset-csv?index=all     wipe today's rows for both indices
 """
 
 import collections
@@ -44,14 +45,28 @@ from kiteconnect import KiteTicker, KiteConnect
 API_KEY      = os.environ["KITE_API_KEY"]
 ACCESS_TOKEN = os.environ["KITE_ACCESS_TOKEN"]
 DATABASE_URL = os.environ["DATABASE_URL"]
+FLASK_PORT   = int(os.environ.get("PORT", 5000))
 
-NIFTY_TOKEN       = 256265
-FLASK_PORT        = int(os.environ.get("PORT", 5000))   # Railway sets PORT
+# Nifty
+NIFTY_SPOT_TOKEN  = 256265
+NIFTY_SPOT_SYMBOL = "NSE:NIFTY 50"
+NIFTY_EXCHANGE    = "NFO"
+NIFTY_NAME        = "NIFTY"
+NIFTY_STRIKE_STEP = 50
+NIFTY_ROLL_THR    = 100        # bear/bull roll threshold (points)
+NIFTY_DB_TABLE    = "nifty_oi_history"
+
+# Sensex
+SENSEX_SPOT_TOKEN  = 265
+SENSEX_SPOT_SYMBOL = "BSE:SENSEX"
+SENSEX_EXCHANGE    = "BFO"
+SENSEX_NAME        = "SENSEX"
+SENSEX_STRIKE_STEP = 100
+SENSEX_ROLL_THR    = 200
+SENSEX_DB_TABLE    = "sensex_oi_history"
+
+NUM_STRIKES       = 11          # ATM ± 5 for each index
 OI_HISTORY_MAXLEN = 500
-
-NUM_STRIKES    = 11
-STRIKE_STEP    = 50
-ROLL_THRESHOLD = 100
 
 
 # ── APP ───────────────────────────────────────────────────────────────────────
@@ -66,225 +81,250 @@ kite.set_access_token(ACCESS_TOKEN)
 # ── DATABASE ──────────────────────────────────────────────────────────────────
 
 def get_db():
-    """Return a new psycopg2 connection. Call .close() when done."""
     return psycopg2.connect(DATABASE_URL, sslmode="require")
 
 
 def init_db():
-    """
-    Create the oi_history table if it doesn't exist.
-    Uses a JSONB 'data' column so the schema is always flexible —
-    no ALTER TABLE needed when the strike window changes.
-    """
+    """Create both OI history tables if they don't exist."""
     with get_db() as conn:
         with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS oi_history (
-                    id          SERIAL PRIMARY KEY,
-                    ts          DOUBLE PRECISION NOT NULL,
-                    time_label  TEXT,
-                    session_id  INTEGER,
-                    trade_date  DATE DEFAULT CURRENT_DATE,
-                    data        JSONB NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_oi_history_date
-                    ON oi_history (trade_date);
-            """)
+            for table in (NIFTY_DB_TABLE, SENSEX_DB_TABLE):
+                cur.execute(f"""
+                    CREATE TABLE IF NOT EXISTS {table} (
+                        id          SERIAL PRIMARY KEY,
+                        ts          DOUBLE PRECISION NOT NULL,
+                        time_label  TEXT,
+                        session_id  INTEGER,
+                        trade_date  DATE DEFAULT CURRENT_DATE,
+                        data        JSONB NOT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_{table}_date
+                        ON {table} (trade_date);
+                """)
         conn.commit()
-    print("DB initialised — table oi_history ready.")
+    print(f"DB initialised — tables {NIFTY_DB_TABLE}, {SENSEX_DB_TABLE} ready.")
 
 
-def db_write_row(row: dict):
-    """Insert one 1-min completed candle row into PostgreSQL."""
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO oi_history (ts, time_label, session_id, trade_date, data)
-                VALUES (%s, %s, %s, CURRENT_DATE, %s)
-                """,
-                (
-                    row.get("ts"),
-                    row.get("time_label"),
-                    row.get("session_id"),
-                    json.dumps(row),
-                ),
-            )
-        conn.commit()
+def db_write_row(table: str, row: dict):
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    INSERT INTO {table} (ts, time_label, session_id, trade_date, data)
+                    VALUES (%s, %s, %s, CURRENT_DATE, %s)
+                    """,
+                    (row.get("ts"), row.get("time_label"), row.get("session_id"), json.dumps(row)),
+                )
+            conn.commit()
+    except Exception as e:
+        print(f"DB write error ({table}): {e}")
 
 
-def db_read_today() -> list:
-    """Return all 1-min rows for today as a list of dicts."""
-    with get_db() as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                "SELECT data FROM oi_history WHERE trade_date = CURRENT_DATE ORDER BY ts ASC"
-            )
-            rows = [dict(r["data"]) for r in cur.fetchall()]
-    return rows
+def db_read_today(table: str) -> list:
+    try:
+        with get_db() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    f"SELECT data FROM {table} WHERE trade_date = CURRENT_DATE ORDER BY ts ASC"
+                )
+                return [dict(r["data"]) for r in cur.fetchall()]
+    except Exception as e:
+        print(f"DB read error ({table}): {e}")
+        return []
 
 
-def db_reset_today():
-    """Delete all rows for today (equivalent to /reset-csv)."""
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM oi_history WHERE trade_date = CURRENT_DATE")
-        conn.commit()
+def db_reset_today(table: str):
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"DELETE FROM {table} WHERE trade_date = CURRENT_DATE")
+            conn.commit()
+    except Exception as e:
+        print(f"DB reset error ({table}): {e}")
 
 
-# ── STATE ─────────────────────────────────────────────────────────────────────
+# ── PER-INDEX STATE FACTORY ───────────────────────────────────────────────────
 
-state = {
-    "spot":           None,
-    "last_anchored":  None,
-    "atm_strike":     None,
-    "strikes":        [],
-    "bear_strike":    None,
-    "bull_strike":    None,
-    "session_id":     0,
-    "tokens":         {},
-    "oi":             {},
-    "oi_baseline":    {},
-    "oi_prev_snap":   {},
-    "roll_log":       [],
+def make_state():
+    return {
+        "spot":          None,
+        "last_anchored": None,
+        "atm_strike":    None,
+        "strikes":       [],
+        "bear_strike":   None,
+        "bull_strike":   None,
+        "session_id":    0,
+        "tokens":        {},   # instrument_token -> instrument dict
+        "oi":            {},   # instrument_token -> {"oi": int, "ltp": float}
+        "oi_baseline":   {},   # instrument_token -> baseline OI at session start
+        "oi_prev_snap":  {},   # instrument_token -> OI at last /oi poll
+        "roll_log":      [],
+    }
+
+
+def make_buffer():
+    return {
+        "start_ts":   None,
+        "start_snap": None,
+        "spot_open":  None,
+        "spot_high":  None,
+        "spot_low":   None,
+        "spot_close": None,
+        "ltp_ohlc":   {},   # token -> {"open","high","low","close"}
+    }
+
+
+# ── GLOBAL STATE ──────────────────────────────────────────────────────────────
+
+nifty_state  = make_state()
+sensex_state = make_state()
+
+nifty_buf    = make_buffer()
+sensex_buf   = make_buffer()
+
+# in-memory fallback deques (used if DB is temporarily unavailable)
+nifty_mem    = collections.deque(maxlen=OI_HISTORY_MAXLEN)
+sensex_mem   = collections.deque(maxlen=OI_HISTORY_MAXLEN)
+
+state_lock   = threading.Lock()
+
+# quick lookup: spot token → (state, buffer, db_table, mem_deque, cfg)
+INDEX_CFG = {
+    NIFTY_SPOT_TOKEN: {
+        "state": nifty_state, "buf": nifty_buf,
+        "table": NIFTY_DB_TABLE, "mem": nifty_mem,
+        "strike_step": NIFTY_STRIKE_STEP, "roll_thr": NIFTY_ROLL_THR,
+        "name": "nifty",
+    },
+    SENSEX_SPOT_TOKEN: {
+        "state": sensex_state, "buf": sensex_buf,
+        "table": SENSEX_DB_TABLE, "mem": sensex_mem,
+        "strike_step": SENSEX_STRIKE_STEP, "roll_thr": SENSEX_ROLL_THR,
+        "name": "sensex",
+    },
 }
 
-minute_buffer = {
-    "start_ts":   None,
-    "start_snap": None,
-    "spot_open":  None,
-    "spot_high":  None,
-    "spot_low":   None,
-    "spot_close": None,
-    "ltp_ohlc":   {},
-}
-
-state_lock = threading.Lock()
-oi_history = collections.deque(maxlen=OI_HISTORY_MAXLEN)   # in-memory fallback
+# reverse lookup: option token → spot token (populated during initialise)
+option_to_spot = {}
 
 
 # ── INSTRUMENT HELPERS ────────────────────────────────────────────────────────
 
-def round_to_nearest_50(price):
-    return round(price / 50) * 50
+def round_to_nearest(price, step):
+    return round(price / step) * step
 
 
-def compute_strikes_window(atm):
+def compute_strikes_window(atm, step):
     half = NUM_STRIKES // 2
-    return [atm + (i - half) * STRIKE_STEP for i in range(NUM_STRIKES)]
+    return [atm + (i - half) * step for i in range(NUM_STRIKES)]
 
 
-def compute_bear_bull(spot):
-    base = round_to_nearest_50(spot)
-    return base - 100, base + 100
+def compute_bear_bull(spot, step):
+    base = round_to_nearest(spot, step)
+    return base - 2 * step, base + 2 * step
 
 
-def get_instruments_for_strikes(strikes):
-    instruments = kite.instruments("NFO")
-    nifty_opts = [
+def get_instruments_for_strikes(strikes, exchange, name):
+    instruments = kite.instruments(exchange)
+    opts = [
         i for i in instruments
-        if i["name"] == "NIFTY" and i["instrument_type"] in ("CE", "PE")
+        if i["name"] == name and i["instrument_type"] in ("CE", "PE")
     ]
-    expiries = sorted(set(i["expiry"] for i in nifty_opts))
-    front = expiries[0]
+    expiries   = sorted(set(i["expiry"] for i in opts))
+    front      = expiries[0]
     strike_set = set(strikes)
-    result = []
-    for i in nifty_opts:
+    result     = []
+    for i in opts:
         if i["expiry"] != front or i["strike"] not in strike_set:
             continue
         k = str(int(i["strike"]))
         t = i["instrument_type"].lower()
         i["role_key"] = f"s{k}_{t}"
         result.append(i)
-    found = {i["strike"] for i in result}
+    found   = {i["strike"] for i in result}
     missing = strike_set - found
     if missing:
-        print(f"  Warning: strikes not found in NFO: {sorted(missing)}")
+        print(f"  [{name}] Warning: strikes not in {exchange}: {sorted(missing)}")
     return result
 
 
-def get_live_spot():
-    quote = kite.quote("NSE:NIFTY 50")
-    return quote["NSE:NIFTY 50"]["last_price"]
+def get_live_spot(symbol):
+    q = kite.quote(symbol)
+    return q[symbol]["last_price"]
 
 
 # ── SNAPSHOT ──────────────────────────────────────────────────────────────────
 
-def _current_snap(ts):
-    snap = {"ts": ts, "spot": state["spot"]}
-    for token, meta in state["tokens"].items():
-        entry = state["oi"].get(token, {})
-        rk = meta["role_key"]
+def _current_snap(st, ts):
+    snap = {"ts": ts, "spot": st["spot"]}
+    for token, meta in st["tokens"].items():
+        entry = st["oi"].get(token, {})
+        rk    = meta["role_key"]
         snap[rk + "_oi"]       = entry.get("oi", 0)
         snap[rk + "_ltp"]      = entry.get("ltp", 0)
-        snap[rk + "_baseline"] = state["oi_baseline"].get(token, 0)
+        snap[rk + "_baseline"] = st["oi_baseline"].get(token, 0)
     return snap
 
 
 # ── SPOT / LTP OHLC ───────────────────────────────────────────────────────────
 
-def _update_spot_ohlc(spot):
+def _update_spot_ohlc(buf, spot):
     if spot is None:
         return
-    if minute_buffer["spot_open"] is None:
-        minute_buffer["spot_open"]  = spot
-        minute_buffer["spot_high"]  = spot
-        minute_buffer["spot_low"]   = spot
+    if buf["spot_open"] is None:
+        buf["spot_open"] = buf["spot_high"] = buf["spot_low"] = spot
     else:
-        if spot > minute_buffer["spot_high"]:
-            minute_buffer["spot_high"] = spot
-        if spot < minute_buffer["spot_low"]:
-            minute_buffer["spot_low"] = spot
-    minute_buffer["spot_close"] = spot
+        if spot > buf["spot_high"]: buf["spot_high"] = spot
+        if spot < buf["spot_low"]:  buf["spot_low"]  = spot
+    buf["spot_close"] = spot
 
 
-def _update_ltp_ohlc(token, ltp):
-    if ltp is None or ltp == 0:
+def _update_ltp_ohlc(buf, token, ltp):
+    if not ltp:
         return
-    buf = minute_buffer["ltp_ohlc"]
-    if token not in buf:
-        buf[token] = {"open": ltp, "high": ltp, "low": ltp, "close": ltp}
+    b = buf["ltp_ohlc"]
+    if token not in b:
+        b[token] = {"open": ltp, "high": ltp, "low": ltp, "close": ltp}
     else:
-        if ltp > buf[token]["high"]:
-            buf[token]["high"] = ltp
-        if ltp < buf[token]["low"]:
-            buf[token]["low"] = ltp
-        buf[token]["close"] = ltp
+        if ltp > b[token]["high"]: b[token]["high"] = ltp
+        if ltp < b[token]["low"]:  b[token]["low"]  = ltp
+        b[token]["close"] = ltp
 
 
 # ── 1-MINUTE AGGREGATOR ───────────────────────────────────────────────────────
 
-def _append_history():
+def _append_history(st, buf, table, mem):
     now          = time.time()
-    current_snap = _current_snap(now)
+    current_snap = _current_snap(st, now)
 
-    if minute_buffer["start_ts"] is None:
-        minute_buffer["start_ts"]   = now
-        minute_buffer["start_snap"] = current_snap
+    if buf["start_ts"] is None:
+        buf["start_ts"]   = now
+        buf["start_snap"] = current_snap
         return
 
-    if now - minute_buffer["start_ts"] < 60:
+    if now - buf["start_ts"] < 60:
         return
 
-    start = minute_buffer["start_snap"]
+    start = buf["start_snap"]
     close = current_snap
 
     row = {
-        "ts":          minute_buffer["start_ts"],
-        "time_label":  datetime.fromtimestamp(minute_buffer["start_ts"]).strftime("%H:%M"),
-        "session_id":  state["session_id"],
-        "bear_strike": state["bear_strike"],
-        "bull_strike": state["bull_strike"],
-        "spot_open":   round(minute_buffer["spot_open"])  if minute_buffer["spot_open"]  else 0,
-        "spot_high":   round(minute_buffer["spot_high"])  if minute_buffer["spot_high"]  else 0,
-        "spot_low":    round(minute_buffer["spot_low"])   if minute_buffer["spot_low"]   else 0,
-        "spot_close":  round(minute_buffer["spot_close"]) if minute_buffer["spot_close"] else 0,
+        "ts":          buf["start_ts"],
+        "time_label":  datetime.fromtimestamp(buf["start_ts"]).strftime("%H:%M"),
+        "session_id":  st["session_id"],
+        "bear_strike": st["bear_strike"],
+        "bull_strike": st["bull_strike"],
+        "spot_open":   round(buf["spot_open"])  if buf["spot_open"]  else 0,
+        "spot_high":   round(buf["spot_high"])  if buf["spot_high"]  else 0,
+        "spot_low":    round(buf["spot_low"])   if buf["spot_low"]   else 0,
+        "spot_close":  round(buf["spot_close"]) if buf["spot_close"] else 0,
     }
 
-    for token, meta in state["tokens"].items():
-        rk = meta["role_key"]
+    for token, meta in st["tokens"].items():
+        rk        = meta["role_key"]
         close_ltp = close.get(rk + "_ltp", 0)
-        ohlc = minute_buffer["ltp_ohlc"].get(token, {})
+        ohlc      = buf["ltp_ohlc"].get(token, {})
         row[rk + "_oi"]        = close.get(rk + "_oi", 0)
         row[rk + "_ltp"]       = close_ltp
         row[rk + "_ltp_open"]  = ohlc.get("open",  close_ltp)
@@ -294,26 +334,75 @@ def _append_history():
         row[rk + "_baseline"]  = close.get(rk + "_baseline", 0)
         row[rk + "_delta"]     = close.get(rk + "_oi", 0) - start.get(rk + "_oi", 0)
 
-    # Write to PostgreSQL (non-blocking — do it in a thread to avoid holding state_lock)
-    threading.Thread(target=db_write_row, args=(row,), daemon=True).start()
-    oi_history.append(row)
+    # non-blocking DB write
+    threading.Thread(target=db_write_row, args=(table, row), daemon=True).start()
+    mem.append(row)
 
     print(
-        f"[{row['time_label']}] "
+        f"[{table[:5].upper()} {row['time_label']}] "
         f"O={row['spot_open']} H={row['spot_high']} L={row['spot_low']} C={row['spot_close']}  "
         f"bear={row['bear_strike']} bull={row['bull_strike']} session={row['session_id']}"
     )
 
-    minute_buffer["start_ts"]   = now
-    minute_buffer["start_snap"] = current_snap
-    minute_buffer["spot_open"]  = minute_buffer["spot_close"]
-    minute_buffer["spot_high"]  = minute_buffer["spot_close"]
-    minute_buffer["spot_low"]   = minute_buffer["spot_close"]
-    new_ltp_ohlc = {}
-    for token in minute_buffer["ltp_ohlc"]:
-        last_close = minute_buffer["ltp_ohlc"][token]["close"]
-        new_ltp_ohlc[token] = {"open": last_close, "high": last_close, "low": last_close, "close": last_close}
-    minute_buffer["ltp_ohlc"] = new_ltp_ohlc
+    # roll buffer forward
+    buf["start_ts"]   = now
+    buf["start_snap"] = current_snap
+    buf["spot_open"]  = buf["spot_close"]
+    buf["spot_high"]  = buf["spot_close"]
+    buf["spot_low"]   = buf["spot_close"]
+    new_ohlc = {}
+    for token in buf["ltp_ohlc"]:
+        lc = buf["ltp_ohlc"][token]["close"]
+        new_ohlc[token] = {"open": lc, "high": lc, "low": lc, "close": lc}
+    buf["ltp_ohlc"] = new_ohlc
+
+
+# ── STRIKE ROLL ───────────────────────────────────────────────────────────────
+
+def _check_roll(st, new_spot, strike_step, roll_thr):
+    if st["last_anchored"] is None or new_spot is None:
+        return
+    if abs(new_spot - st["last_anchored"]) < roll_thr:
+        return
+
+    bear, bull   = compute_bear_bull(new_spot, strike_step)
+    min_s, max_s = min(st["strikes"]), max(st["strikes"])
+    bear = max(min_s, min(bear, max_s))
+    bull = max(min_s, min(bull, max_s))
+
+    if bear >= bull:
+        ss    = sorted(st["strikes"])
+        below = [s for s in ss if s <= new_spot]
+        above = [s for s in ss if s >  new_spot]
+        bear  = below[-1] if below else ss[0]
+        bull  = above[0]  if above else ss[-1]
+        if bear == bull and len(ss) > 1:
+            idx  = ss.index(bear)
+            bear = ss[max(0, idx - 1)]
+            bull = ss[min(len(ss) - 1, idx + 1)]
+
+    if bear == st["bear_strike"] and bull == st["bull_strike"]:
+        st["last_anchored"] = new_spot
+        return
+
+    prev_bear, prev_bull = st["bear_strike"], st["bull_strike"]
+    st["session_id"]   += 1
+    st["bear_strike"]   = bear
+    st["bull_strike"]   = bull
+    st["last_anchored"] = new_spot
+    st["roll_log"].append({
+        "time":       datetime.now().strftime("%H:%M:%S"),
+        "session_id": st["session_id"],
+        "from_spot":  round(new_spot),
+        "from_bear":  prev_bear,
+        "from_bull":  prev_bull,
+        "to_bear":    bear,
+        "to_bull":    bull,
+    })
+    print(
+        f"Roll → Bear {prev_bear}→{bear}  Bull {prev_bull}→{bull}  "
+        f"Session {st['session_id']}"
+    )
 
 
 # ── TICKER ────────────────────────────────────────────────────────────────────
@@ -337,39 +426,57 @@ def build_ticker():
             for tick in ticks:
                 token = tick["instrument_token"]
 
-                if token == NIFTY_TOKEN:
-                    new_spot = tick.get("last_price", state["spot"])
-                    state["spot"] = new_spot
-                    _update_spot_ohlc(new_spot)
-                    _check_roll(new_spot)
+                # ── Spot index ticks ──────────────────────────────────────
+                if token in INDEX_CFG:
+                    cfg      = INDEX_CFG[token]
+                    st       = cfg["state"]
+                    buf      = cfg["buf"]
+                    new_spot = tick.get("last_price", st["spot"])
+                    st["spot"] = new_spot
+                    _update_spot_ohlc(buf, new_spot)
+                    _check_roll(st, new_spot, cfg["strike_step"], cfg["roll_thr"])
                     continue
 
-                if token not in state["tokens"]:
+                # ── Option ticks ──────────────────────────────────────────
+                spot_token = option_to_spot.get(token)
+                if spot_token is None:
                     continue
 
-                current_oi  = tick.get("oi", 0)
-                current_ltp = tick.get("last_price", 0)
+                cfg        = INDEX_CFG[spot_token]
+                st         = cfg["state"]
+                buf        = cfg["buf"]
+                current_oi = tick.get("oi", 0)
+                current_ltp= tick.get("last_price", 0)
 
                 if current_oi == 0:
                     continue
 
-                if token not in state["oi_baseline"]:
-                    state["oi_baseline"][token] = current_oi
-                    state["oi_prev_snap"][token] = current_oi
-                    rk = state["tokens"][token]["role_key"]
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Baseline — {rk}: OI={current_oi:,}")
+                if token not in st["oi_baseline"]:
+                    st["oi_baseline"][token] = current_oi
+                    st["oi_prev_snap"][token]= current_oi
+                    rk = st["tokens"][token]["role_key"]
+                    print(f"[{cfg['name'].upper()} baseline] {rk}: OI={current_oi:,}")
 
-                state["oi"][token] = {"oi": current_oi, "ltp": current_ltp}
-                _update_ltp_ohlc(token, current_ltp)
+                st["oi"][token] = {"oi": current_oi, "ltp": current_ltp}
+                _update_ltp_ohlc(buf, token, current_ltp)
 
-            _append_history()
+            # ── Candle aggregation for each index ─────────────────────────
+            for cfg in INDEX_CFG.values():
+                _append_history(cfg["state"], cfg["buf"], cfg["table"], cfg["mem"])
 
     def on_connect(ws, response):
         with state_lock:
-            all_tokens = [NIFTY_TOKEN] + list(state["tokens"].keys())
+            all_tokens = (
+                list(INDEX_CFG.keys())                    # both spot tokens
+                + list(nifty_state["tokens"].keys())      # nifty options
+                + list(sensex_state["tokens"].keys())     # sensex options
+            )
         ws.subscribe(all_tokens)
         ws.set_mode(ws.MODE_FULL, all_tokens)
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Subscribed: Nifty + {len(state['tokens'])} option tokens")
+        print(
+            f"Subscribed: {len(all_tokens)} tokens total "
+            f"(2 spot + {len(nifty_state['tokens'])} nifty + {len(sensex_state['tokens'])} sensex)"
+        )
 
     def on_error(ws, code, reason):
         print(f"Ticker error {code}: {reason}")
@@ -386,124 +493,104 @@ def build_ticker():
     ticker_instance.connect(threaded=True)
 
 
-# ── STRIKE ROLL ───────────────────────────────────────────────────────────────
-
-def _check_roll(new_spot):
-    if state["last_anchored"] is None or new_spot is None:
-        return
-    if abs(new_spot - state["last_anchored"]) < ROLL_THRESHOLD:
-        return
-
-    bear, bull = compute_bear_bull(new_spot)
-    min_s = min(state["strikes"])
-    max_s = max(state["strikes"])
-    bear  = max(min_s, min(bear, max_s))
-    bull  = max(min_s, min(bull, max_s))
-
-    if bear >= bull:
-        strikes_sorted = sorted(state["strikes"])
-        below = [s for s in strikes_sorted if s <= new_spot]
-        above = [s for s in strikes_sorted if s > new_spot]
-        bear  = below[-1] if below else strikes_sorted[0]
-        bull  = above[0]  if above else strikes_sorted[-1]
-        if bear == bull and len(strikes_sorted) > 1:
-            idx  = strikes_sorted.index(bear)
-            bear = strikes_sorted[max(0, idx - 1)]
-            bull = strikes_sorted[min(len(strikes_sorted) - 1, idx + 1)]
-
-    if bear == state["bear_strike"] and bull == state["bull_strike"]:
-        state["last_anchored"] = new_spot
-        return
-
-    prev_bear = state["bear_strike"]
-    prev_bull = state["bull_strike"]
-
-    state["session_id"]   += 1
-    state["bear_strike"]   = bear
-    state["bull_strike"]   = bull
-    state["last_anchored"] = new_spot
-
-    state["roll_log"].append({
-        "time":       datetime.now().strftime("%H:%M:%S"),
-        "session_id": state["session_id"],
-        "from_spot":  round(new_spot),
-        "from_bear":  prev_bear,
-        "from_bull":  prev_bull,
-        "to_bear":    bear,
-        "to_bull":    bull,
-    })
-
-    print(
-        f"[{datetime.now().strftime('%H:%M:%S')}] "
-        f"Roll → Bear {prev_bear}→{bear}  Bull {prev_bull}→{bull}  "
-        f"Session {state['session_id']}"
-    )
-
-
 # ── STARTUP ───────────────────────────────────────────────────────────────────
 
-def initialise(seed_spot):
-    atm     = round_to_nearest_50(seed_spot)
-    strikes = compute_strikes_window(atm)
-    bear, bull = compute_bear_bull(seed_spot)
+def initialise_index(spot_token, spot_symbol, exchange, name, strike_step, roll_thr, st):
+    """Fetch live spot, compute window, find instruments, populate state."""
+    print(f"\n{'─'*50}")
+    print(f"Initialising {name} ...")
+    seed_spot = get_live_spot(spot_symbol)
+    print(f"  Live spot: {seed_spot:,.2f}")
+
+    atm     = round_to_nearest(seed_spot, strike_step)
+    strikes = compute_strikes_window(atm, strike_step)
+    bear, bull = compute_bear_bull(seed_spot, strike_step)
     bear = max(min(strikes), min(bear, max(strikes)))
     bull = max(min(strikes), min(bull, max(strikes)))
 
     if bear >= bull:
-        strikes_sorted = sorted(strikes)
-        below = [s for s in strikes_sorted if s <= seed_spot]
-        above = [s for s in strikes_sorted if s > seed_spot]
-        bear  = below[-1] if below else strikes_sorted[0]
-        bull  = above[0]  if above else strikes_sorted[-1]
+        ss    = sorted(strikes)
+        below = [s for s in ss if s <= seed_spot]
+        above = [s for s in ss if s >  seed_spot]
+        bear  = below[-1] if below else ss[0]
+        bull  = above[0]  if above else ss[-1]
 
-    print(f"\nATM: {atm}  |  Window: {strikes[0]} – {strikes[-1]}")
-    print(f"Initial bear: {bear}  bull: {bull}")
+    print(f"  ATM: {atm}  |  Window: {strikes[0]} – {strikes[-1]}")
+    print(f"  Initial bear: {bear}  bull: {bull}")
 
-    instruments = get_instruments_for_strikes(strikes)
-    print(f"\nInstruments found: {len(instruments)} (expected {len(strikes) * 2})")
+    instruments = get_instruments_for_strikes(strikes, exchange, name)
+    print(f"  Instruments found: {len(instruments)} (expected {len(strikes)*2})")
     for i in instruments:
-        print(f"  {i['role_key']:15s}: {i['tradingsymbol']:25s}  token={i['instrument_token']}  expiry={i['expiry']}")
+        print(f"    {i['role_key']:15s}: {i['tradingsymbol']:25s}  token={i['instrument_token']}  expiry={i['expiry']}")
 
     token_map = {i["instrument_token"]: i for i in instruments}
 
     with state_lock:
-        state["atm_strike"]    = atm
-        state["strikes"]       = strikes
-        state["bear_strike"]   = bear
-        state["bull_strike"]   = bull
-        state["last_anchored"] = seed_spot
-        state["tokens"]        = token_map
+        st["atm_strike"]    = atm
+        st["strikes"]       = strikes
+        st["bear_strike"]   = bear
+        st["bull_strike"]   = bull
+        st["last_anchored"] = seed_spot
+        st["tokens"]        = token_map
 
+        # register option → spot_token mapping for tick routing
+        for tok in token_map:
+            option_to_spot[tok] = spot_token
+
+
+def initialise_all():
+    initialise_index(
+        NIFTY_SPOT_TOKEN, NIFTY_SPOT_SYMBOL,
+        NIFTY_EXCHANGE, NIFTY_NAME,
+        NIFTY_STRIKE_STEP, NIFTY_ROLL_THR,
+        nifty_state,
+    )
+    initialise_index(
+        SENSEX_SPOT_TOKEN, SENSEX_SPOT_SYMBOL,
+        SENSEX_EXCHANGE, SENSEX_NAME,
+        SENSEX_STRIKE_STEP, SENSEX_ROLL_THR,
+        sensex_state,
+    )
     build_ticker()
+
+
+# ── HELPERS FOR ENDPOINTS ─────────────────────────────────────────────────────
+
+def _resolve_index(req):
+    """Return (state, buf, table, mem) for ?index= param. Defaults to nifty."""
+    idx = req.args.get("index", "nifty").lower()
+    if idx == "sensex":
+        return sensex_state, sensex_buf, SENSEX_DB_TABLE, sensex_mem
+    return nifty_state, nifty_buf, NIFTY_DB_TABLE, nifty_mem
 
 
 # ── API ENDPOINTS ─────────────────────────────────────────────────────────────
 
 @app.route("/")
 def serve_dashboard():
-    """Serve the dashboard HTML — the public URL entry point."""
     return send_from_directory("static", "index.html")
 
 
 @app.route("/oi")
 def get_oi():
+    st, buf, table, mem = _resolve_index(request)
     with state_lock:
         result = {
-            "spot":        round(state["spot"]) if state["spot"] else None,
-            "session_id":  state["session_id"],
-            "atm_strike":  state["atm_strike"],
-            "bear_strike": state["bear_strike"],
-            "bull_strike": state["bull_strike"],
-            "strikes":     state["strikes"],
-            "roll_log":    list(state["roll_log"]),
+            "spot":        round(st["spot"]) if st["spot"] else None,
+            "session_id":  st["session_id"],
+            "atm_strike":  st["atm_strike"],
+            "bear_strike": st["bear_strike"],
+            "bull_strike": st["bull_strike"],
+            "strikes":     st["strikes"],
+            "roll_log":    list(st["roll_log"]),
             "as_of":       datetime.now().strftime("%H:%M:%S"),
             "options":     {},
         }
-        for token, meta in state["tokens"].items():
-            snap       = state["oi"].get(token, {})
+        for token, meta in st["tokens"].items():
+            snap       = st["oi"].get(token, {})
             current_oi = snap.get("oi", 0)
-            baseline   = state["oi_baseline"].get(token, current_oi)
-            prev_snap  = state["oi_prev_snap"].get(token, current_oi)
+            baseline   = st["oi_baseline"].get(token, current_oi)
+            prev_snap  = st["oi_prev_snap"].get(token, current_oi)
             rk         = meta["role_key"]
             result["options"][rk] = {
                 "strike":                    meta["strike"],
@@ -515,20 +602,21 @@ def get_oi():
                 "oi_change_since_last_poll": current_oi - prev_snap,
                 "baseline_oi":               baseline,
             }
-            state["oi_prev_snap"][token] = current_oi
+            st["oi_prev_snap"][token] = current_oi
     return jsonify(result)
 
 
 @app.route("/ltp")
 def get_ltp():
+    st, buf, table, mem = _resolve_index(request)
     with state_lock:
         result = {
-            "spot":    state["spot"],
+            "spot":    st["spot"],
             "as_of":   datetime.now().strftime("%H:%M:%S"),
             "options": {},
         }
-        for token, meta in state["tokens"].items():
-            snap = state["oi"].get(token, {})
+        for token, meta in st["tokens"].items():
+            snap = st["oi"].get(token, {})
             result["options"][meta["role_key"]] = {
                 "strike": meta["strike"],
                 "type":   meta["instrument_type"],
@@ -540,62 +628,55 @@ def get_ltp():
 
 @app.route("/strikes")
 def get_strikes():
+    st, buf, table, mem = _resolve_index(request)
     with state_lock:
         return jsonify({
-            "atm_strike":  state["atm_strike"],
-            "bear_strike": state["bear_strike"],
-            "bull_strike": state["bull_strike"],
-            "strikes":     state["strikes"],
-            "session_id":  state["session_id"],
+            "atm_strike":  st["atm_strike"],
+            "bear_strike": st["bear_strike"],
+            "bull_strike": st["bull_strike"],
+            "strikes":     st["strikes"],
+            "session_id":  st["session_id"],
         })
 
 
 @app.route("/oi/history")
 def get_history():
-    """
-    Returns ALL 1-min rows for today.
-    Reads from PostgreSQL — falls back to in-memory deque if DB unavailable.
-    """
-    try:
-        rows = db_read_today()
-        return jsonify(rows)
-    except Exception as e:
-        print(f"DB read error, falling back to memory: {e}")
-        return jsonify(list(oi_history))
+    st, buf, table, mem = _resolve_index(request)
+    rows = db_read_today(table)
+    if not rows:
+        rows = list(mem)   # fallback to in-memory
+    return jsonify(rows)
 
 
 @app.route("/oi/live-candle")
 def live_candle():
+    st, buf, table, mem = _resolve_index(request)
     with state_lock:
-        if minute_buffer["start_ts"] is None or minute_buffer["start_snap"] is None:
+        if buf["start_ts"] is None or buf["start_snap"] is None:
             return jsonify({"available": False})
 
         now          = time.time()
-        current_snap = _current_snap(now)
-        start        = minute_buffer["start_snap"]
-        elapsed      = round(now - minute_buffer["start_ts"])
+        current_snap = _current_snap(st, now)
+        start        = buf["start_snap"]
+        elapsed      = round(now - buf["start_ts"])
 
         result = {
             "available":   True,
             "elapsed_sec": elapsed,
-            "time_label":  datetime.fromtimestamp(minute_buffer["start_ts"]).strftime("%H:%M") + "*",
-            "spot_open":   round(minute_buffer["spot_open"])  if minute_buffer["spot_open"]  else 0,
-            "spot_high":   round(minute_buffer["spot_high"])  if minute_buffer["spot_high"]  else 0,
-            "spot_low":    round(minute_buffer["spot_low"])   if minute_buffer["spot_low"]   else 0,
-            "spot_close":  round(minute_buffer["spot_close"]) if minute_buffer["spot_close"] else 0,
-            "bear_strike": state["bear_strike"],
-            "bull_strike": state["bull_strike"],
+            "time_label":  datetime.fromtimestamp(buf["start_ts"]).strftime("%H:%M") + "*",
+            "spot_open":   round(buf["spot_open"])  if buf["spot_open"]  else 0,
+            "spot_high":   round(buf["spot_high"])  if buf["spot_high"]  else 0,
+            "spot_low":    round(buf["spot_low"])   if buf["spot_low"]   else 0,
+            "spot_close":  round(buf["spot_close"]) if buf["spot_close"] else 0,
+            "bear_strike": st["bear_strike"],
+            "bull_strike": st["bull_strike"],
             "deltas":      {},
         }
-
-        for token, meta in state["tokens"].items():
+        for token, meta in st["tokens"].items():
             rk         = meta["role_key"]
-            current_oi = state["oi"].get(token, {}).get("oi", 0)
+            current_oi = st["oi"].get(token, {}).get("oi", 0)
             start_oi   = start.get(rk + "_oi", current_oi)
-            result["deltas"][rk] = {
-                "oi":    current_oi,
-                "delta": current_oi - start_oi,
-            }
+            result["deltas"][rk] = {"oi": current_oi, "delta": current_oi - start_oi}
 
     return jsonify(result)
 
@@ -603,73 +684,84 @@ def live_candle():
 @app.route("/health")
 def health():
     with state_lock:
+        def _snap(st, buf):
+            return {
+                "spot":         st["spot"],
+                "session_id":   st["session_id"],
+                "atm_strike":   st["atm_strike"],
+                "bear_strike":  st["bear_strike"],
+                "bull_strike":  st["bull_strike"],
+                "strikes":      st["strikes"],
+                "tokens":       len(st["tokens"]),
+                "roll_count":   len(st["roll_log"]),
+                "spot_ohlc": {
+                    "open":  buf["spot_open"],
+                    "high":  buf["spot_high"],
+                    "low":   buf["spot_low"],
+                    "close": buf["spot_close"],
+                },
+            }
         return jsonify({
-            "status":           "ok",
-            "spot":             state["spot"],
-            "session_id":       state["session_id"],
-            "atm_strike":       state["atm_strike"],
-            "bear_strike":      state["bear_strike"],
-            "bull_strike":      state["bull_strike"],
-            "strikes":          state["strikes"],
-            "tokens_tracked":   len(state["tokens"]),
-            "history_rows":     len(oi_history),
-            "roll_count":       len(state["roll_log"]),
-            "spot_ohlc_buffer": {
-                "open":  minute_buffer["spot_open"],
-                "high":  minute_buffer["spot_high"],
-                "low":   minute_buffer["spot_low"],
-                "close": minute_buffer["spot_close"],
-            },
+            "status":  "ok",
+            "nifty":   _snap(nifty_state,  nifty_buf),
+            "sensex":  _snap(sensex_state, sensex_buf),
         })
 
 
 @app.route("/reset-csv", methods=["POST"])
 def reset_csv():
-    """Wipe today's rows from DB + in-memory buffer. Call each morning."""
-    try:
-        db_reset_today()
-    except Exception as e:
-        print(f"DB reset error: {e}")
-    oi_history.clear()
-    with state_lock:
-        state["session_id"]            = 0
-        minute_buffer["start_ts"]      = None
-        minute_buffer["start_snap"]    = None
-        minute_buffer["spot_open"]     = None
-        minute_buffer["spot_high"]     = None
-        minute_buffer["spot_low"]      = None
-        minute_buffer["spot_close"]    = None
-        minute_buffer["ltp_ohlc"]      = {}
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] DB reset. Session 0.")
-    return jsonify({"status": "ok", "message": "Today's rows cleared. Session reset to 0."})
+    idx = request.args.get("index", "nifty").lower()
+
+    def _reset(st, buf, table, mem):
+        db_reset_today(table)
+        mem.clear()
+        with state_lock:
+            st["session_id"]  = 0
+            buf["start_ts"]   = None
+            buf["start_snap"] = None
+            buf["spot_open"]  = None
+            buf["spot_high"]  = None
+            buf["spot_low"]   = None
+            buf["spot_close"] = None
+            buf["ltp_ohlc"]   = {}
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] {table} reset.")
+
+    if idx == "all":
+        _reset(nifty_state,  nifty_buf,  NIFTY_DB_TABLE,  nifty_mem)
+        _reset(sensex_state, sensex_buf, SENSEX_DB_TABLE, sensex_mem)
+        msg = "Both nifty_oi_history and sensex_oi_history cleared."
+    elif idx == "sensex":
+        _reset(sensex_state, sensex_buf, SENSEX_DB_TABLE, sensex_mem)
+        msg = "sensex_oi_history cleared."
+    else:
+        _reset(nifty_state, nifty_buf, NIFTY_DB_TABLE, nifty_mem)
+        msg = "nifty_oi_history cleared."
+
+    return jsonify({"status": "ok", "message": msg})
 
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Nifty OI Bias Monitor — Bridge (Railway / PostgreSQL edition)")
+    print("Nifty + Sensex OI Monitor — Railway Bridge")
     print("=" * 60)
 
-    print("\nInitialising database...")
+    print("\nInitialising database tables...")
     init_db()
 
-    print("\nFetching live Nifty spot...")
-    seed_spot = get_live_spot()
-    print(f"Live spot: {seed_spot:,.2f}")
+    print("\nInitialising strike windows + WebSocket...")
+    initialise_all()
 
-    print("\nInitialising 11-strike window...")
-    initialise(seed_spot)
-
-    print(f"\nFlask listening on port {FLASK_PORT}")
-    print(f"  GET  /                serves dashboard HTML")
-    print(f"  GET  /oi              all strikes snapshot")
-    print(f"  GET  /ltp             live LTP all tokens (2s)")
-    print(f"  GET  /oi/live-candle  forming candle (5s)")
-    print(f"  GET  /strikes         strike list")
-    print(f"  GET  /oi/history      1-min rows + spot OHLC")
-    print(f"  GET  /health          status + OHLC buffer")
-    print(f"  POST /reset-csv       wipe today's rows")
+    print(f"\nFlask listening on 0.0.0.0:{FLASK_PORT}")
+    print(f"  GET  /                         dashboard HTML")
+    print(f"  GET  /oi?index=nifty|sensex    live OI snapshot")
+    print(f"  GET  /ltp?index=nifty|sensex   live LTP")
+    print(f"  GET  /oi/history?index=...     1-min rows today")
+    print(f"  GET  /oi/live-candle?index=... forming candle")
+    print(f"  GET  /strikes?index=...        strike list")
+    print(f"  GET  /health                   both indices status")
+    print(f"  POST /reset-csv?index=nifty|sensex|all")
     print("\nPress Ctrl+C to stop.\n")
 
     app.run(host="0.0.0.0", port=FLASK_PORT, debug=False, use_reloader=False)

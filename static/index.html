@@ -188,6 +188,11 @@ tr.row-bull{background:rgba(29,158,117,.04);}
     <span class="pill" data-min="10" onclick="setIv(this)">10m</span>
     <span class="pill" data-min="15" onclick="setIv(this)">15m</span>
   </div>
+  <div class="pill-group" style="margin-left:8px;border-left:0.5px solid #ddd;padding-left:12px;">
+    <span class="pill-label" style="font-size:12px;color:#666;">Index:</span>
+    <span class="pill active" id="pill-nifty"   onclick="setIndex('nifty',this)">Nifty</span>
+    <span class="pill"        id="pill-sensex"  onclick="setIndex('sensex',this)">Sensex</span>
+  </div>
 </div>
 
 <!-- Strike selector -->
@@ -412,7 +417,8 @@ tr.row-bull{background:rgba(29,158,117,.04);}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────
-const BRIDGE       = '';  // served from same origin on Railway
+const BRIDGE = '';
+let activeIndex = 'nifty';   // 'nifty' | 'sensex'
 const POLL_OI_SEC  = 30;
 const POLL_HX_SEC  = 60;
 const POLL_LTP_SEC = 2;
@@ -557,6 +563,36 @@ function resetToDefault() {
   chipClickState='bear'; refreshDisplay();
 }
 
+function setIndex(idx, el) {
+  activeIndex = idx;
+  document.querySelectorAll('.pill').forEach(p => {
+    if(p.id === 'pill-nifty' || p.id === 'pill-sensex') p.classList.remove('active');
+  });
+  el.classList.add('active');
+  document.title = (idx === 'sensex' ? 'Sensex' : 'Nifty') + ' OI Bias Monitor';
+  document.querySelector('h1').textContent = (idx === 'sensex' ? 'Sensex' : 'Nifty') + ' OI Bias Monitor';
+  // Reset ALL strike + chart state so new index populates fresh
+  allStrikes    = [];       // key fix — allows fetchOI to re-populate strikes
+  atmStrike     = null;
+  defaultBear   = null;
+  defaultBull   = null;
+  selectedBear  = null;
+  selectedBull  = null;
+  lastOIData    = null;
+  minuteRows    = [];
+  biasStreak    = [];
+  currentBias   = null;
+  liveCandle    = null;
+  latestCandles = [];
+  // Clear UI immediately so stale strikes don't show
+  document.getElementById('strike-chips').innerHTML = '';
+  document.getElementById('bear-select').innerHTML  = '<option>—</option>';
+  document.getElementById('bull-select').innerHTML  = '<option>—</option>';
+  fetchOI().then(() => fetchHistory());
+  fetchLTP();
+  fetchLiveCandle();
+}
+
 function refreshDisplay() {
   populateStrikeSelectors(allStrikes,atmStrike,defaultBear,defaultBull);
   if(lastOIData) processSnapshot(lastOIData);
@@ -565,7 +601,7 @@ function refreshDisplay() {
 
 // ── LTP ───────────────────────────────────────────────────────────
 async function fetchLTP() {
-  try{const res=await fetch(BRIDGE+'/ltp');if(!res.ok)return;updateLTP(await res.json());}catch(e){}
+  try{const res=await fetch(BRIDGE+'/ltp?index='+activeIndex);if(!res.ok)return;updateLTP(await res.json());}catch(e){}
 }
 
 function updateLTP(data) {
@@ -594,7 +630,7 @@ function updateLTP(data) {
 // ── FETCH /oi ─────────────────────────────────────────────────────
 async function fetchOI() {
   try{
-    const res=await fetch(BRIDGE+'/oi');
+    const res=await fetch(BRIDGE+'/oi?index='+activeIndex);
     if(!res.ok) throw new Error('HTTP '+res.status);
     const data=await res.json();
     document.getElementById('conn-dot').style.background='#1D9E75';
@@ -621,7 +657,7 @@ async function fetchOI() {
 async function fetchHistory() {
   cdHX=POLL_HX_SEC;
   try{
-    const res=await fetch(BRIDGE+'/oi/history');if(!res.ok)return;
+    const res=await fetch(BRIDGE+'/oi/history?index='+activeIndex);if(!res.ok)return;
     minuteRows=await res.json();
     document.getElementById('rows-info').textContent=minuteRows.length+' 1-min rows (full day)';
     rebuildCharts();
@@ -633,7 +669,7 @@ async function fetchAll(){await fetchOI();await fetchHistory();}
 // ── FETCH /oi/live-candle (every 5s) ─────────────────────────────
 async function fetchLiveCandle() {
   try {
-    const res = await fetch(BRIDGE + '/oi/live-candle');
+    const res = await fetch(BRIDGE + '/oi/live-candle?index=' + activeIndex);
     if (!res.ok) return;
     const data = await res.json();
     if (!data.available || !selectedBear || !selectedBull) {
