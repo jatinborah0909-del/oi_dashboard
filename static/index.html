@@ -1275,7 +1275,7 @@ function _doRebuild(){
   // ── Draw strike activity charts (option LTP price + activity type) ──
   latestCandles = candles;   // store for live candle overlay
   const bearWithLive = liveCandle ? [...candles, liveCandle] : candles;
-  const bullWithLive = bearWithLive;
+  const bullWithLive = liveCandle ? [...candles, liveCandle] : candles;  // independent copy
   const bearSigs = drawStrikeActivityChart(
     'svgBear', bearWithLive,
     c=>c.bce_ltp_open, c=>c.bce_ltp_high, c=>c.bce_ltp_low, c=>c.bce_ltp_close,
