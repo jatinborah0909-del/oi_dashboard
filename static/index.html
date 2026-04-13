@@ -697,8 +697,8 @@ function _redrawSVGOnly() {
   );
   const bullSigs = drawStrikeActivityChart(
     'svgBull', allWithLive,
-    c=>c.uce_ltp_open, c=>c.uce_ltp_high, c=>c.uce_ltp_low, c=>c.uce_ltp_close,
-    c=>c.uce_oi_delta,
+    c=>c.upe_ltp_open, c=>c.upe_ltp_high, c=>c.upe_ltp_low, c=>c.upe_ltp_close,
+    c=>c.upe_oi_delta,
     'bull-activity-badge'
   );
   buildStrip('bear-strip', bearSigs);
@@ -739,8 +739,8 @@ function processSnapshot(data){
   document.getElementById('bull-chart-title').textContent='Bull strike '+selectedBull+' — CE vs PE OI delta';
   document.getElementById('bear-conf-title').textContent='Bear strike lens — '+selectedBear;
   document.getElementById('bull-conf-title').textContent='Bull strike lens — '+selectedBull;
-  document.getElementById('bear-conf-sub').textContent='Same Nifty price · colour = '+selectedBear+' CE & PE OI signal';
-  document.getElementById('bull-conf-sub').textContent='Same Nifty price · colour = '+selectedBull+' CE & PE OI signal';
+  document.getElementById('bear-conf-sub').textContent='Bear strike CE LTP · colour = '+selectedBear+' CE activity (Long/Short Buildup/Covering/Unwinding)';
+  document.getElementById('bull-conf-sub').textContent='Bull strike PE LTP · colour = '+selectedBull+' PE activity (Long/Short Buildup/Covering/Unwinding)';
   document.getElementById('bc-lbl').textContent=selectedBear+' CE';
   document.getElementById('bp-lbl').textContent=selectedBear+' PE';
   document.getElementById('uc-lbl').textContent=selectedBull+' CE';
@@ -1284,8 +1284,8 @@ function _doRebuild(){
   );
   const bullSigs = drawStrikeActivityChart(
     'svgBull', bullWithLive,
-    c=>c.uce_ltp_open, c=>c.uce_ltp_high, c=>c.uce_ltp_low, c=>c.uce_ltp_close,
-    c=>c.uce_oi_delta,
+    c=>c.upe_ltp_open, c=>c.upe_ltp_high, c=>c.upe_ltp_low, c=>c.upe_ltp_close,
+    c=>c.upe_oi_delta,
     'bull-activity-badge'
   );
   buildStrip('bear-strip', bearSigs);
