@@ -30,7 +30,11 @@ import json
 import os
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+IST = timezone(timedelta(hours=5, minutes=30))
+def now_ist(): return datetime.now(IST)
+def ts_to_ist(ts): return datetime.fromtimestamp(ts, tz=IST)
 
 import psycopg2
 import psycopg2.extras
@@ -271,7 +275,7 @@ def _append_history():
 
     row = {
         "ts":          minute_buffer["start_ts"],
-        "time_label":  datetime.fromtimestamp(minute_buffer["start_ts"]).strftime("%H:%M"),
+        "time_label":  ts_to_ist(minute_buffer["start_ts"]).strftime("%H:%M"),
         "session_id":  state["session_id"],
         "bear_strike": state["bear_strike"],
         "bull_strike": state["bull_strike"],
@@ -357,7 +361,7 @@ def build_ticker():
                     state["oi_baseline"][token] = current_oi
                     state["oi_prev_snap"][token] = current_oi
                     rk = state["tokens"][token]["role_key"]
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Baseline — {rk}: OI={current_oi:,}")
+                    print(f"[{now_ist().strftime('%H:%M:%S')}] Baseline — {rk}: OI={current_oi:,}")
 
                 state["oi"][token] = {"oi": current_oi, "ltp": current_ltp}
                 _update_ltp_ohlc(token, current_ltp)
@@ -369,7 +373,7 @@ def build_ticker():
             all_tokens = [NIFTY_TOKEN] + list(state["tokens"].keys())
         ws.subscribe(all_tokens)
         ws.set_mode(ws.MODE_FULL, all_tokens)
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Subscribed: Nifty + {len(state['tokens'])} option tokens")
+        print(f"[{now_ist().strftime('%H:%M:%S')}] Subscribed: Nifty + {len(state['tokens'])} option tokens")
 
     def on_error(ws, code, reason):
         print(f"Ticker error {code}: {reason}")
@@ -424,7 +428,7 @@ def _check_roll(new_spot):
     state["last_anchored"] = new_spot
 
     state["roll_log"].append({
-        "time":       datetime.now().strftime("%H:%M:%S"),
+        "time":       now_ist().strftime("%H:%M:%S"),
         "session_id": state["session_id"],
         "from_spot":  round(new_spot),
         "from_bear":  prev_bear,
@@ -434,7 +438,7 @@ def _check_roll(new_spot):
     })
 
     print(
-        f"[{datetime.now().strftime('%H:%M:%S')}] "
+        f"[{now_ist().strftime('%H:%M:%S')}] "
         f"Roll → Bear {prev_bear}→{bear}  Bull {prev_bull}→{bull}  "
         f"Session {state['session_id']}"
     )
@@ -496,7 +500,7 @@ def get_oi():
             "bull_strike": state["bull_strike"],
             "strikes":     state["strikes"],
             "roll_log":    list(state["roll_log"]),
-            "as_of":       datetime.now().strftime("%H:%M:%S"),
+            "as_of":       now_ist().strftime("%H:%M:%S"),
             "options":     {},
         }
         for token, meta in state["tokens"].items():
@@ -524,7 +528,7 @@ def get_ltp():
     with state_lock:
         result = {
             "spot":    state["spot"],
-            "as_of":   datetime.now().strftime("%H:%M:%S"),
+            "as_of":   now_ist().strftime("%H:%M:%S"),
             "options": {},
         }
         for token, meta in state["tokens"].items():
@@ -578,7 +582,7 @@ def live_candle():
         result = {
             "available":   True,
             "elapsed_sec": elapsed,
-            "time_label":  datetime.fromtimestamp(minute_buffer["start_ts"]).strftime("%H:%M") + "*",
+            "time_label":  ts_to_ist(minute_buffer["start_ts"]).strftime("%H:%M") + "*",
             "spot_open":   round(minute_buffer["spot_open"])  if minute_buffer["spot_open"]  else 0,
             "spot_high":   round(minute_buffer["spot_high"])  if minute_buffer["spot_high"]  else 0,
             "spot_low":    round(minute_buffer["spot_low"])   if minute_buffer["spot_low"]   else 0,
@@ -640,7 +644,7 @@ def reset_csv():
         minute_buffer["spot_low"]      = None
         minute_buffer["spot_close"]    = None
         minute_buffer["ltp_ohlc"]      = {}
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] DB reset. Session 0.")
+    print(f"[{now_ist().strftime('%H:%M:%S')}] DB reset. Session 0.")
     return jsonify({"status": "ok", "message": "Today's rows cleared. Session reset to 0."})
 
 
