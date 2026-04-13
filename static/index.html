@@ -84,14 +84,7 @@ select{font-size:13px;padding:5px 10px;border:0.5px solid #ccc;border-radius:6px
 .conf-legend{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
 .cl-item{display:flex;align-items:center;gap:3px;font-size:10px;color:#666;}
 .cl-sq{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
-.conf-chart-scroll{overflow-x:auto;overflow-y:hidden;width:100%;border-radius:4px;margin-bottom:6px;}
-.conf-chart-wrap{position:relative;width:100%;margin-bottom:6px;}
-.yaxis-overlay{position:absolute;top:0;left:0;pointer-events:none;z-index:10;background:transparent;}
-.conf-chart-area{overflow:visible;display:block;}
-.chart-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:11px;color:#666;background:#f8f8f5;border:0.5px solid #eee;border-radius:8px;padding:6px 12px;margin-bottom:10px;}
-.chart-controls label{color:#888;}
-.chart-controls input[type=range]{width:80px;cursor:pointer;accent-color:#185FA5;}
-.chart-controls span{font-weight:500;color:#1a1a1a;min-width:28px;display:inline-block;}
+.conf-chart-area{width:100%;overflow:hidden;}
 .signal-strip{display:flex;gap:2px;margin-top:6px;align-items:center;}
 .sig-block{flex:1;height:7px;border-radius:2px;}
 .sig-strip-label{font-size:10px;color:#888;margin-left:5px;white-space:nowrap;}
@@ -268,32 +261,12 @@ tr.row-bull{background:rgba(29,158,117,.04);}
     <span class="il-item"><span class="il-sq" style="background:#97C459;"></span>CE unwinding (weak bull)</span>
     <span class="il-item"><span class="il-sq" style="background:#888;"></span>Neutral</span>
   </div>
-  <div class="conf-chart-wrap">
-    <div class="conf-chart-scroll" id="index-scroll">
-      <div class="conf-chart-area" id="index-chart-area">
-        <svg id="svgIndex" style="display:block;"></svg>
-      </div>
-    </div>
-    <svg id="svgIndexYAxis" class="yaxis-overlay" style="display:block;"></svg>
+  <div class="conf-chart-area">
+    <svg id="svgIndex" width="100%" style="display:block;"></svg>
   </div>
   <div class="signal-strip" id="index-strip"></div>
 </div>
 
-<!-- ── CHART SIZE CONTROLS ── -->
-<div class="chart-controls">
-  <label>Candle width:</label>
-  <input type="range" id="ctrl-cw" min="8" max="60" value="20" oninput="onCtrlChange()">
-  <span id="ctrl-cw-val">20</span>px
-  <label style="margin-left:10px;">Chart height:</label>
-  <input type="range" id="ctrl-ch" min="150" max="600" value="240" step="10" oninput="onCtrlChange()">
-  <span id="ctrl-ch-val">240</span>px
-  <label style="margin-left:10px;">Index height:</label>
-  <input type="range" id="ctrl-ih" min="100" max="400" value="200" step="10" oninput="onCtrlChange()">
-  <span id="ctrl-ih-val">200</span>px
-  <label style="margin-left:10px;">Index candle width:</label>
-  <input type="range" id="ctrl-icw" min="4" max="40" value="12" oninput="onCtrlChange()">
-  <span id="ctrl-icw-val">12</span>px
-</div>
 <!-- ── DUAL CONFLUENCE CANDLESTICK CHARTS ── -->
 <div class="dual-grid">
 
@@ -308,13 +281,8 @@ tr.row-bull{background:rgba(29,158,117,.04);}
       <span class="cl-item"><span class="cl-sq" style="background:#97C459;"></span>Long Unwinding ⚠️ (↓price ↓OI)</span>
       <span class="cl-item"><span class="cl-sq" style="background:#888;"></span>Neutral</span>
     </div>
-    <div class="conf-chart-wrap">
-      <div class="conf-chart-scroll" id="bear-conf-scroll">
-        <div class="conf-chart-area" id="bear-chart-area">
-          <svg id="svgBear" style="display:block;"></svg>
-        </div>
-      </div>
-      <svg id="svgBearYAxis" class="yaxis-overlay" style="display:block;"></svg>
+    <div class="conf-chart-area">
+      <svg id="svgBear" width="100%" style="display:block;"></svg>
     </div>
     <div class="signal-strip" id="bear-strip"></div>
     <div id="bear-conf-badge" class="conf-badge cb-n" style="margin-top:8px;">Waiting for data...</div>
@@ -332,13 +300,8 @@ tr.row-bull{background:rgba(29,158,117,.04);}
       <span class="cl-item"><span class="cl-sq" style="background:#97C459;"></span>Long Unwinding ⚠️ (↓price ↓OI)</span>
       <span class="cl-item"><span class="cl-sq" style="background:#888;"></span>Neutral</span>
     </div>
-    <div class="conf-chart-wrap">
-      <div class="conf-chart-scroll" id="bull-conf-scroll">
-        <div class="conf-chart-area" id="bull-chart-area">
-          <svg id="svgBull" style="display:block;"></svg>
-        </div>
-      </div>
-      <svg id="svgBullYAxis" class="yaxis-overlay" style="display:block;"></svg>
+    <div class="conf-chart-area">
+      <svg id="svgBull" width="100%" style="display:block;"></svg>
     </div>
     <div class="signal-strip" id="bull-strip"></div>
     <div id="bull-conf-badge" class="conf-badge cb-n" style="margin-top:8px;">Waiting for data...</div>
@@ -455,22 +418,6 @@ const POLL_HX_SEC  = 60;
 const POLL_LTP_SEC = 2;
 const POLL_LIVE_SEC = 5;   // live forming candle refresh
 const MIN_BAR_PX   = 32;
-let CANDLE_W_PX    = 20;   // candle width for SVG bear/bull charts
-let INDEX_CANDLE_W = 12;   // candle width for index (Nifty) chart
-let CHART_H        = 240;  // height of bear/bull SVG charts
-let INDEX_H        = 200;  // height of index SVG chart
-
-function onCtrlChange() {
-  CANDLE_W_PX    = parseInt(document.getElementById('ctrl-cw').value);
-  CHART_H        = parseInt(document.getElementById('ctrl-ch').value);
-  INDEX_H        = parseInt(document.getElementById('ctrl-ih').value);
-  INDEX_CANDLE_W = parseInt(document.getElementById('ctrl-icw').value);
-  document.getElementById('ctrl-cw-val').textContent  = CANDLE_W_PX;
-  document.getElementById('ctrl-ch-val').textContent  = CHART_H;
-  document.getElementById('ctrl-ih-val').textContent  = INDEX_H;
-  document.getElementById('ctrl-icw-val').textContent = INDEX_CANDLE_W;
-  rebuildCharts();
-}
 
 // ── SIGNAL COLOURS ────────────────────────────────────────────────
 // SB=strong bear, WB=weak bear, SG=strong bull, WG=weak bull, N=neutral
@@ -551,7 +498,7 @@ const fmtD  = n => (n>0?'+':'')+fmt(n);
 const dcls  = n => n>0?'ddn':n<0?'dup':'dfl';
 const dhtml = n => `<span class="${dcls(n)}">${fmtD(n)}</span>`;
 const pf    = v => parseFloat(v)||0;
-const rk    = (strike,type) => `s${strike}_${type.toLowerCase()}`;
+const rk    = (strike,type) => `s${Math.round(strike)}_${type.toLowerCase()}`;  // integer keys
 
 // ── SIGNAL LOGIC ─────────────────────────────────────────────────
 
@@ -658,12 +605,13 @@ async function fetchOI() {
     currentSession=data.session_id??0;
     if(allStrikes.length===0&&data.strikes){
       allStrikes=data.strikes.map(Number).sort((a,b)=>a-b);
-      atmStrike=data.atm_strike; defaultBear=data.bear_strike; defaultBull=data.bull_strike;
+      atmStrike=data.atm_strike;
+      defaultBear=Math.round(data.bear_strike); defaultBull=Math.round(data.bull_strike);
       if(!selectedBear) selectedBear=defaultBear;
       if(!selectedBull) selectedBull=defaultBull;
       populateStrikeSelectors(allStrikes,atmStrike,defaultBear,defaultBull);
     }
-    defaultBear=data.bear_strike; defaultBull=data.bull_strike;
+    defaultBear=Math.round(data.bear_strike); defaultBull=Math.round(data.bull_strike);
     lastOIData=data; processSnapshot(data); return data;
   }catch(e){
     document.getElementById('conn-dot').style.background='#D85A30';
@@ -888,8 +836,9 @@ function updateRollLog(rolls){
 // ── CANDLE BUILDER ────────────────────────────────────────────────
 function buildCandles(rows,mins,bear,bull){
   if(!rows.length||!bear||!bull) return[];
-  const bCeK=`s${bear}_ce`,bPeK=`s${bear}_pe`;
-  const uCeK=`s${bull}_ce`,uPeK=`s${bull}_pe`;
+  const bInt=Math.round(bear), uInt=Math.round(bull);  // ensure integer keys — no '23950.0'
+  const bCeK=`s${bInt}_ce`,bPeK=`s${bInt}_pe`;
+  const uCeK=`s${uInt}_ce`,uPeK=`s${uInt}_pe`;
   const candles=[];
   for(let i=0;i<rows.length;i+=mins){
     const slice=rows.slice(i,i+mins);
@@ -969,53 +918,15 @@ function buildStrip(stripId, signals){
 }
 
 // ── INDEX CHART — Nifty price, coloured by dominant OI activity ───
-// ── STICKY Y-AXIS OVERLAY ─────────────────────────────────────────────────
-function drawYAxisOverlay(yAxisSvgId, H, padL, padT, padB, yMin, yMax, ticks) {
-  const ya = document.getElementById(yAxisSvgId);
-  if (!ya) return;
-  ya.innerHTML = '';
-  ya.setAttribute('width',  padL);
-  ya.setAttribute('height', H);
-  ya.setAttribute('viewBox', `0 0 ${padL} ${H}`);
-  const ns = 'http://www.w3.org/2000/svg';
-  const aH = H - padT - padB;
-  const yS = v => padT + aH * (1 - (v - yMin) / (yMax - yMin));
-  // white background so labels sit cleanly over scrolled content
-  const bg = document.createElementNS(ns, 'rect');
-  bg.setAttribute('x', 0); bg.setAttribute('y', 0);
-  bg.setAttribute('width', padL); bg.setAttribute('height', H);
-  bg.setAttribute('fill', '#fff'); bg.setAttribute('opacity', '0.92');
-  ya.appendChild(bg);
-  ticks.forEach(price => {
-    const y = yS(price);
-    const txt = document.createElementNS(ns, 'text');
-    txt.setAttribute('x', padL - 4); txt.setAttribute('y', y + 4);
-    txt.setAttribute('text-anchor', 'end'); txt.setAttribute('font-size', '9');
-    txt.setAttribute('fill', '#888780'); txt.textContent = price;
-    ya.appendChild(txt);
-    // small tick mark
-    const tk = document.createElementNS(ns, 'line');
-    tk.setAttribute('x1', padL - 3); tk.setAttribute('x2', padL);
-    tk.setAttribute('y1', y); tk.setAttribute('y2', y);
-    tk.setAttribute('stroke', 'rgba(136,135,128,0.4)'); tk.setAttribute('stroke-width', '0.5');
-    ya.appendChild(tk);
-  });
-}
-
 function drawIndexChart(candles) {
   const svgEl = document.getElementById('svgIndex');
   svgEl.innerHTML = '';
   if (!candles.length) { svgEl.setAttribute('height','60'); return []; }
 
-  const scrollEl   = document.getElementById('index-scroll');
-  const containerW = scrollEl ? scrollEl.offsetWidth : 600;
-  const H = INDEX_H;
-  const slotPx = Math.max(INDEX_CANDLE_W + 4, 8);
-  const W = Math.max(candles.length * slotPx + 60, containerW);
-  svgEl.setAttribute('width', W);
+  const W = svgEl.parentElement.offsetWidth || 600;
+  const H = 200;
   svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svgEl.setAttribute('height', H);
-  svgEl.parentElement.style.width = W + 'px';
 
   const padL=48, padR=12, padT=10, padB=26;
   const aW = W - padL - padR, aH = H - padT - padB;
@@ -1042,8 +953,8 @@ function drawIndexChart(candles) {
     svgEl.appendChild(txt);
   }
 
-  const slot = slotPx;
-  const cW = Math.min(INDEX_CANDLE_W, slot - 2);
+  const slot = aW / candles.length;
+  const cW = Math.min(slot - 4, 24);
   const actSigs = [];
 
   candles.forEach((c, i) => {
@@ -1116,11 +1027,6 @@ function drawIndexChart(candles) {
     svgEl.appendChild(pt);
   }
 
-  // draw sticky y-axis overlay
-  const indexTicks = Array.from({length:4}, (_,i) => Math.round(yMax - i*(yMax-yMin)/3));
-  drawYAxisOverlay('svgIndexYAxis', H, padL, padT, padB, yMin, yMax, indexTicks);
-  document.getElementById('svgIndexYAxis').style.height = H + 'px';
-
   // build signal strip for index
   const strip = document.getElementById('index-strip');
   strip.innerHTML = '';
@@ -1144,14 +1050,10 @@ function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpL
   svgEl.innerHTML = '';
   if (!candles.length) { svgEl.setAttribute('height', '60'); return []; }
 
-  const containerW = svgEl.parentElement.offsetWidth || 400;
-  const H = CHART_H;
-  const slotPx = Math.max(CANDLE_W_PX + 4, 12);
-  const W = Math.max(candles.length * slotPx + 60, containerW);
-  svgEl.setAttribute('width', W);
+  const W = svgEl.parentElement.offsetWidth || 400;
+  const H = 240;
   svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svgEl.setAttribute('height', H);
-  svgEl.parentElement.style.width = W + 'px';
 
   const padL=48, padR=12, padT=10, padB=26;
   const aW = W - padL - padR, aH = H - padT - padB;
@@ -1177,8 +1079,8 @@ function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpL
     svgEl.appendChild(txt);
   }
 
-  const slot = slotPx;
-  const cW = Math.min(CANDLE_W_PX, slot - 2);
+  const slot = aW / candles.length;
+  const cW = Math.min(slot - 4, 24);
   const actSigs = [];
 
   candles.forEach((c, i) => {
@@ -1241,12 +1143,6 @@ function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpL
       svgEl.appendChild(lbl);
     }
   });
-
-  // draw sticky y-axis overlay
-  const yAxisId = svgId === 'svgBear' ? 'svgBearYAxis' : 'svgBullYAxis';
-  const strikeTicks = Array.from({length:4}, (_,i) => parseFloat((yMax - i*(yMax-yMin)/3).toFixed(1)));
-  drawYAxisOverlay(yAxisId, H, padL, padT, padB, yMin, yMax, strikeTicks);
-  document.getElementById(yAxisId).style.height = H + 'px';
 
   // current LTP dashed line
   const lastC = candles[candles.length - 1];
@@ -1357,10 +1253,6 @@ function setCanvas(id,w,h){
 }
 
 function scrollToLatest(){
-  ['index-scroll','bear-conf-scroll','bull-conf-scroll'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.scrollLeft = el.scrollWidth;
-  });
   setTimeout(()=>{
     ['bear-scroll','bull-scroll'].forEach(id=>document.getElementById(id)?.scrollTo({left:99999,behavior:'smooth'}));
   },300);
@@ -1385,7 +1277,7 @@ function _doRebuild(){
   // ── Draw strike activity charts (option LTP price + activity type) ──
   latestCandles = candles;   // store for live candle overlay
   const bearWithLive = liveCandle ? [...candles, liveCandle] : candles;
-  const bullWithLive = liveCandle ? [...candles, liveCandle] : candles;  // independent copy
+  const bullWithLive = bearWithLive;
   const bearSigs = drawStrikeActivityChart(
     'svgBear', bearWithLive,
     c=>c.bce_ltp_open, c=>c.bce_ltp_high, c=>c.bce_ltp_low, c=>c.bce_ltp_close,
