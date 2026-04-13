@@ -300,7 +300,7 @@ tr.row-bull{background:rgba(29,158,117,.04);}
   <!-- Bear lens -->
   <div class="conf-card bear-card">
     <div class="conf-title bear" id="bear-conf-title">Bear strike lens — 24,050</div>
-    <div class="conf-sub" id="bear-conf-sub">Strike LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)</div>
+    <div class="conf-sub" id="bear-conf-sub">Bear strike CE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)</div>
     <div class="conf-legend">
       <span class="cl-item"><span class="cl-sq" style="background:#0F6E56;"></span>Long Buildup 🔥 (↑price ↑OI)</span>
       <span class="cl-item"><span class="cl-sq" style="background:#8B1A1A;"></span>Short Buildup 🔥 (↓price ↑OI)</span>
@@ -324,7 +324,7 @@ tr.row-bull{background:rgba(29,158,117,.04);}
   <!-- Bull lens -->
   <div class="conf-card bull-card">
     <div class="conf-title bull" id="bull-conf-title">Bull strike lens — 24,150</div>
-    <div class="conf-sub" id="bull-conf-sub">Strike LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)</div>
+    <div class="conf-sub" id="bull-conf-sub">Bull strike CE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)</div>
     <div class="conf-legend">
       <span class="cl-item"><span class="cl-sq" style="background:#0F6E56;"></span>Long Buildup 🔥 (↑price ↑OI)</span>
       <span class="cl-item"><span class="cl-sq" style="background:#8B1A1A;"></span>Short Buildup 🔥 (↓price ↑OI)</span>
@@ -792,8 +792,8 @@ function processSnapshot(data){
   document.getElementById('bull-chart-title').textContent='Bull strike '+selectedBull+' — CE vs PE OI delta';
   document.getElementById('bear-conf-title').textContent='Bear strike lens — '+selectedBear;
   document.getElementById('bull-conf-title').textContent='Bull strike lens — '+selectedBull;
-  document.getElementById('bear-conf-sub').textContent='Same Nifty price · colour = '+selectedBear+' CE & PE OI signal';
-  document.getElementById('bull-conf-sub').textContent='Same Nifty price · colour = '+selectedBull+' CE & PE OI signal';
+  document.getElementById('bear-conf-sub').textContent=selectedBear+' CE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)';
+  document.getElementById('bull-conf-sub').textContent=selectedBull+' CE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)';
   document.getElementById('bc-lbl').textContent=selectedBear+' CE';
   document.getElementById('bp-lbl').textContent=selectedBear+' PE';
   document.getElementById('uc-lbl').textContent=selectedBull+' CE';
