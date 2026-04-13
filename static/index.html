@@ -324,7 +324,7 @@ tr.row-bull{background:rgba(29,158,117,.04);}
   <!-- Bull lens -->
   <div class="conf-card bull-card">
     <div class="conf-title bull" id="bull-conf-title">Bull strike lens — 24,150</div>
-    <div class="conf-sub" id="bull-conf-sub">Bull strike CE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)</div>
+    <div class="conf-sub" id="bull-conf-sub">Bull strike PE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)</div>
     <div class="conf-legend">
       <span class="cl-item"><span class="cl-sq" style="background:#0F6E56;"></span>Long Buildup 🔥 (↑price ↑OI)</span>
       <span class="cl-item"><span class="cl-sq" style="background:#8B1A1A;"></span>Short Buildup 🔥 (↓price ↑OI)</span>
@@ -750,8 +750,8 @@ function _redrawSVGOnly() {
   );
   const bullSigs = drawStrikeActivityChart(
     'svgBull', allWithLive,
-    c=>c.uce_ltp_open, c=>c.uce_ltp_high, c=>c.uce_ltp_low, c=>c.uce_ltp_close,
-    c=>c.uce_oi_delta,
+    c=>c.upe_ltp_open, c=>c.upe_ltp_high, c=>c.upe_ltp_low, c=>c.upe_ltp_close,
+    c=>c.upe_oi_delta,
     'bull-activity-badge'
   );
   buildStrip('bear-strip', bearSigs);
@@ -793,7 +793,7 @@ function processSnapshot(data){
   document.getElementById('bear-conf-title').textContent='Bear strike lens — '+selectedBear;
   document.getElementById('bull-conf-title').textContent='Bull strike lens — '+selectedBull;
   document.getElementById('bear-conf-sub').textContent=selectedBear+' CE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)';
-  document.getElementById('bull-conf-sub').textContent=selectedBull+' CE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)';
+  document.getElementById('bull-conf-sub').textContent=selectedBull+' PE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)';
   document.getElementById('bc-lbl').textContent=selectedBear+' CE';
   document.getElementById('bp-lbl').textContent=selectedBear+' PE';
   document.getElementById('uc-lbl').textContent=selectedBull+' CE';
@@ -1292,7 +1292,7 @@ function updateConfluenceSummary(candles, bearSigs, bullSigs){
 
   document.getElementById('conf-sum-title').textContent='Confluence reading — '+last.label+' (Nifty price '+pDir+')';
   document.getElementById('bear-sum-label').textContent='Bear '+selectedBear+' CE';
-  document.getElementById('bull-sum-label').textContent='Bull '+selectedBull+' CE';
+  document.getElementById('bull-sum-label').textContent='Bull '+selectedBull+' PE';
 
   const bBadge=document.getElementById('bear-sum-badge');
   bBadge.textContent=bAct.label;
@@ -1394,8 +1394,8 @@ function _doRebuild(){
   );
   const bullSigs = drawStrikeActivityChart(
     'svgBull', bullWithLive,
-    c=>c.uce_ltp_open, c=>c.uce_ltp_high, c=>c.uce_ltp_low, c=>c.uce_ltp_close,
-    c=>c.uce_oi_delta,
+    c=>c.upe_ltp_open, c=>c.upe_ltp_high, c=>c.upe_ltp_low, c=>c.upe_ltp_close,
+    c=>c.upe_oi_delta,
     'bull-activity-badge'
   );
   buildStrip('bear-strip', bearSigs);
