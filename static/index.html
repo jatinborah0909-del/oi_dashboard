@@ -84,7 +84,12 @@ select{font-size:13px;padding:5px 10px;border:0.5px solid #ccc;border-radius:6px
 .conf-legend{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
 .cl-item{display:flex;align-items:center;gap:3px;font-size:10px;color:#666;}
 .cl-sq{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
-.conf-chart-area{width:100%;overflow:hidden;}
+.conf-chart-scroll{overflow-x:auto;overflow-y:hidden;width:100%;border-radius:4px;margin-bottom:6px;}
+.conf-chart-area{overflow:visible;display:block;}
+.chart-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:11px;color:#666;background:#f8f8f5;border:0.5px solid #eee;border-radius:8px;padding:6px 12px;margin-bottom:10px;}
+.chart-controls label{color:#888;}
+.chart-controls input[type=range]{width:80px;cursor:pointer;accent-color:#185FA5;}
+.chart-controls span{font-weight:500;color:#1a1a1a;min-width:28px;display:inline-block;}
 .signal-strip{display:flex;gap:2px;margin-top:6px;align-items:center;}
 .sig-block{flex:1;height:7px;border-radius:2px;}
 .sig-strip-label{font-size:10px;color:#888;margin-left:5px;white-space:nowrap;}
@@ -261,12 +266,26 @@ tr.row-bull{background:rgba(29,158,117,.04);}
     <span class="il-item"><span class="il-sq" style="background:#97C459;"></span>CE unwinding (weak bull)</span>
     <span class="il-item"><span class="il-sq" style="background:#888;"></span>Neutral</span>
   </div>
-  <div class="conf-chart-area">
-    <svg id="svgIndex" width="100%" style="display:block;"></svg>
+  <div class="conf-chart-scroll" id="index-scroll">
+    <div class="conf-chart-area" id="index-chart-area">
+      <svg id="svgIndex" style="display:block;"></svg>
+    </div>
   </div>
   <div class="signal-strip" id="index-strip"></div>
 </div>
 
+<!-- ── CHART SIZE CONTROLS ── -->
+<div class="chart-controls">
+  <label>Candle width:</label>
+  <input type="range" id="ctrl-cw" min="8" max="60" value="20" oninput="onCtrlChange()">
+  <span id="ctrl-cw-val">20</span>px
+  <label style="margin-left:10px;">Chart height:</label>
+  <input type="range" id="ctrl-ch" min="150" max="600" value="240" step="10" oninput="onCtrlChange()">
+  <span id="ctrl-ch-val">240</span>px
+  <label style="margin-left:10px;">Index height:</label>
+  <input type="range" id="ctrl-ih" min="100" max="400" value="200" step="10" oninput="onCtrlChange()">
+  <span id="ctrl-ih-val">200</span>px
+</div>
 <!-- ── DUAL CONFLUENCE CANDLESTICK CHARTS ── -->
 <div class="dual-grid">
 
@@ -281,8 +300,10 @@ tr.row-bull{background:rgba(29,158,117,.04);}
       <span class="cl-item"><span class="cl-sq" style="background:#97C459;"></span>Long Unwinding ⚠️ (↓price ↓OI)</span>
       <span class="cl-item"><span class="cl-sq" style="background:#888;"></span>Neutral</span>
     </div>
-    <div class="conf-chart-area">
-      <svg id="svgBear" width="100%" style="display:block;"></svg>
+    <div class="conf-chart-scroll" id="bear-conf-scroll">
+      <div class="conf-chart-area" id="bear-chart-area">
+        <svg id="svgBear" style="display:block;"></svg>
+      </div>
     </div>
     <div class="signal-strip" id="bear-strip"></div>
     <div id="bear-conf-badge" class="conf-badge cb-n" style="margin-top:8px;">Waiting for data...</div>
@@ -300,8 +321,10 @@ tr.row-bull{background:rgba(29,158,117,.04);}
       <span class="cl-item"><span class="cl-sq" style="background:#97C459;"></span>Long Unwinding ⚠️ (↓price ↓OI)</span>
       <span class="cl-item"><span class="cl-sq" style="background:#888;"></span>Neutral</span>
     </div>
-    <div class="conf-chart-area">
-      <svg id="svgBull" width="100%" style="display:block;"></svg>
+    <div class="conf-chart-scroll" id="bull-conf-scroll">
+      <div class="conf-chart-area" id="bull-chart-area">
+        <svg id="svgBull" style="display:block;"></svg>
+      </div>
     </div>
     <div class="signal-strip" id="bull-strip"></div>
     <div id="bull-conf-badge" class="conf-badge cb-n" style="margin-top:8px;">Waiting for data...</div>
@@ -418,6 +441,19 @@ const POLL_HX_SEC  = 60;
 const POLL_LTP_SEC = 2;
 const POLL_LIVE_SEC = 5;   // live forming candle refresh
 const MIN_BAR_PX   = 32;
+let CANDLE_W_PX  = 20;   // candle width for SVG confluence charts
+let CHART_H      = 240;  // height of bear/bull SVG charts
+let INDEX_H      = 200;  // height of index SVG chart
+
+function onCtrlChange() {
+  CANDLE_W_PX = parseInt(document.getElementById('ctrl-cw').value);
+  CHART_H     = parseInt(document.getElementById('ctrl-ch').value);
+  INDEX_H     = parseInt(document.getElementById('ctrl-ih').value);
+  document.getElementById('ctrl-cw-val').textContent = CANDLE_W_PX;
+  document.getElementById('ctrl-ch-val').textContent = CHART_H;
+  document.getElementById('ctrl-ih-val').textContent = INDEX_H;
+  rebuildCharts();
+}
 
 // ── SIGNAL COLOURS ────────────────────────────────────────────────
 // SB=strong bear, WB=weak bear, SG=strong bull, WG=weak bull, N=neutral
@@ -697,8 +733,8 @@ function _redrawSVGOnly() {
   );
   const bullSigs = drawStrikeActivityChart(
     'svgBull', allWithLive,
-    c=>c.upe_ltp_open, c=>c.upe_ltp_high, c=>c.upe_ltp_low, c=>c.upe_ltp_close,
-    c=>c.upe_oi_delta,
+    c=>c.uce_ltp_open, c=>c.uce_ltp_high, c=>c.uce_ltp_low, c=>c.uce_ltp_close,
+    c=>c.uce_oi_delta,
     'bull-activity-badge'
   );
   buildStrip('bear-strip', bearSigs);
@@ -739,8 +775,8 @@ function processSnapshot(data){
   document.getElementById('bull-chart-title').textContent='Bull strike '+selectedBull+' — CE vs PE OI delta';
   document.getElementById('bear-conf-title').textContent='Bear strike lens — '+selectedBear;
   document.getElementById('bull-conf-title').textContent='Bull strike lens — '+selectedBull;
-  document.getElementById('bear-conf-sub').textContent='Bear strike CE LTP · colour = '+selectedBear+' CE activity (Long/Short Buildup/Covering/Unwinding)';
-  document.getElementById('bull-conf-sub').textContent='Bull strike PE LTP · colour = '+selectedBull+' PE activity (Long/Short Buildup/Covering/Unwinding)';
+  document.getElementById('bear-conf-sub').textContent='Same Nifty price · colour = '+selectedBear+' CE & PE OI signal';
+  document.getElementById('bull-conf-sub').textContent='Same Nifty price · colour = '+selectedBull+' CE & PE OI signal';
   document.getElementById('bc-lbl').textContent=selectedBear+' CE';
   document.getElementById('bp-lbl').textContent=selectedBear+' PE';
   document.getElementById('uc-lbl').textContent=selectedBull+' CE';
@@ -921,10 +957,14 @@ function drawIndexChart(candles) {
   svgEl.innerHTML = '';
   if (!candles.length) { svgEl.setAttribute('height','60'); return []; }
 
-  const W = svgEl.parentElement.offsetWidth || 600;
-  const H = 200;
+  const containerW = svgEl.parentElement.offsetWidth || 600;
+  const H = INDEX_H;
+  const slotPx = Math.max(CANDLE_W_PX + 4, 12);
+  const W = Math.max(candles.length * slotPx + 60, containerW);
+  svgEl.setAttribute('width', W);
   svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svgEl.setAttribute('height', H);
+  svgEl.parentElement.style.width = W + 'px';
 
   const padL=48, padR=12, padT=10, padB=26;
   const aW = W - padL - padR, aH = H - padT - padB;
@@ -951,8 +991,8 @@ function drawIndexChart(candles) {
     svgEl.appendChild(txt);
   }
 
-  const slot = aW / candles.length;
-  const cW = Math.min(slot - 4, 24);
+  const slot = slotPx;
+  const cW = Math.min(CANDLE_W_PX, slot - 2);
   const actSigs = [];
 
   candles.forEach((c, i) => {
@@ -1048,10 +1088,14 @@ function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpL
   svgEl.innerHTML = '';
   if (!candles.length) { svgEl.setAttribute('height', '60'); return []; }
 
-  const W = svgEl.parentElement.offsetWidth || 400;
-  const H = 240;
+  const containerW = svgEl.parentElement.offsetWidth || 400;
+  const H = CHART_H;
+  const slotPx = Math.max(CANDLE_W_PX + 4, 12);
+  const W = Math.max(candles.length * slotPx + 60, containerW);
+  svgEl.setAttribute('width', W);
   svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svgEl.setAttribute('height', H);
+  svgEl.parentElement.style.width = W + 'px';
 
   const padL=48, padR=12, padT=10, padB=26;
   const aW = W - padL - padR, aH = H - padT - padB;
@@ -1077,8 +1121,8 @@ function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpL
     svgEl.appendChild(txt);
   }
 
-  const slot = aW / candles.length;
-  const cW = Math.min(slot - 4, 24);
+  const slot = slotPx;
+  const cW = Math.min(CANDLE_W_PX, slot - 2);
   const actSigs = [];
 
   candles.forEach((c, i) => {
@@ -1251,6 +1295,10 @@ function setCanvas(id,w,h){
 }
 
 function scrollToLatest(){
+  ['index-scroll','bear-conf-scroll','bull-conf-scroll'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.scrollLeft = el.scrollWidth;
+  });
   setTimeout(()=>{
     ['bear-scroll','bull-scroll'].forEach(id=>document.getElementById(id)?.scrollTo({left:99999,behavior:'smooth'}));
   },300);
@@ -1284,8 +1332,8 @@ function _doRebuild(){
   );
   const bullSigs = drawStrikeActivityChart(
     'svgBull', bullWithLive,
-    c=>c.upe_ltp_open, c=>c.upe_ltp_high, c=>c.upe_ltp_low, c=>c.upe_ltp_close,
-    c=>c.upe_oi_delta,
+    c=>c.uce_ltp_open, c=>c.uce_ltp_high, c=>c.uce_ltp_low, c=>c.uce_ltp_close,
+    c=>c.uce_oi_delta,
     'bull-activity-badge'
   );
   buildStrip('bear-strip', bearSigs);
