@@ -53,7 +53,12 @@ NIFTY_TOKEN       = 256265
 FLASK_PORT        = int(os.environ.get("PORT", 5000))   # Railway sets PORT
 OI_HISTORY_MAXLEN = 500
 
-NUM_STRIKES    = 11
+# OI_NUM_STRIKES: total strikes to track (must be odd so ATM sits in the middle).
+# Default 11 = ATM ±5 strikes. Set e.g. OI_NUM_STRIKES=21 for ATM ±10 strikes.
+NUM_STRIKES    = int(os.environ.get("OI_NUM_STRIKES", 11))
+if NUM_STRIKES % 2 == 0:
+    NUM_STRIKES += 1          # force odd so ATM is centred
+    print(f"Warning: OI_NUM_STRIKES must be odd — bumped to {NUM_STRIKES}")
 STRIKE_STEP    = 50
 ROLL_THRESHOLD = 100
 
@@ -662,7 +667,8 @@ if __name__ == "__main__":
     seed_spot = get_live_spot()
     print(f"Live spot: {seed_spot:,.2f}")
 
-    print("\nInitialising 11-strike window...")
+    half = NUM_STRIKES // 2
+    print(f"\nInitialising {NUM_STRIKES}-strike window (ATM ±{half} strikes)...")
     initialise(seed_spot)
 
     print(f"\nFlask listening on port {FLASK_PORT}")
