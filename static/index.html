@@ -64,6 +64,20 @@ select{font-size:13px;padding:5px 10px;border:0.5px solid #ccc;border-radius:6px
 .il-item{display:flex;align-items:center;gap:4px;font-size:10px;color:#555;}
 .il-sq{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
 
+/* ── OI Movers panel ── */
+.mover-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid #eee;font-size:12px;}
+.mover-row:last-child{border-bottom:none;}
+.mover-rank{font-size:11px;color:#bbb;min-width:16px;text-align:right;}
+.mover-strike{font-weight:500;color:#1a1a1a;min-width:52px;}
+.mover-type-badge{font-size:10px;padding:1px 7px;border-radius:10px;font-weight:500;white-space:nowrap;}
+.mover-bar-wrap{flex:1;height:5px;background:#f0f0ec;border-radius:3px;overflow:hidden;min-width:40px;}
+.mover-bar{height:100%;border-radius:3px;transition:width .4s;}
+.mover-delta{font-size:11px;font-weight:500;min-width:70px;text-align:right;font-variant-numeric:tabular-nums;}
+.mover-oi{font-size:10px;color:#aaa;min-width:70px;text-align:right;font-variant-numeric:tabular-nums;}
+.badge-atm{background:#EEEDFE;color:#534AB7;}
+.badge-otm{background:#f0f0ec;color:#666;}
+.badge-itm{background:#E6F1FB;color:#185FA5;}
+
 /* ── Strike activity badge ── */
 .activity-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:6px;margin-top:6px;}
 .act-lb{background:#E1F5EE;color:#085041;}   /* Long Buildup */
@@ -302,6 +316,37 @@ tr.row-bull{background:rgba(29,158,117,.04);}
   </div>
 </div>
 
+<!-- ── OI MOVERS PANEL ── -->
+<div class="index-chart-card" id="oi-movers-card">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+    <div>
+      <div class="index-chart-title">Top OI Movers — All Strikes</div>
+      <div class="index-chart-sub" id="movers-sub">Strikes with biggest OI increase in selected interval · ranked by absolute change</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;font-size:11px;color:#888;">
+      <span>Total CE Δ: <span id="movers-ce-total" style="font-weight:500;color:#1a1a1a;">—</span></span>
+      <span>Total PE Δ: <span id="movers-pe-total" style="font-weight:500;color:#1a1a1a;">—</span></span>
+      <span>PCR: <span id="movers-pcr" style="font-weight:500;color:#1a1a1a;">—</span></span>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <!-- CE Movers -->
+    <div>
+      <div style="font-size:11px;font-weight:500;color:#712B13;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;padding-bottom:5px;border-bottom:1.5px solid #D85A30;">
+        📞 CE — Calls (Resistance / Short side)
+      </div>
+      <div id="ce-movers-list"></div>
+    </div>
+    <!-- PE Movers -->
+    <div>
+      <div style="font-size:11px;font-weight:500;color:#085041;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;padding-bottom:5px;border-bottom:1.5px solid #1D9E75;">
+        📤 PE — Puts (Support / Long side)
+      </div>
+      <div id="pe-movers-list"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ── CHART SIZE CONTROLS ── -->
 <div class="chart-controls">
   <label>Candle width:</label>
@@ -444,30 +489,7 @@ tr.row-bull{background:rgba(29,158,117,.04);}
   <div id="roll-log-body" style="font-size:12px;color:#888;">No rolls today.</div>
 </div>
 
-<!-- Table -->
-<div class="table-card">
-  <div class="card-title" style="margin-bottom:8px;">
-    Interval log — <span id="iv-label">3m</span> candles
-    <span style="font-size:11px;color:#aaa;" id="log-meta"></span>
-  </div>
-  <div class="overflow-x">
-    <table>
-      <thead>
-        <tr>
-          <th>Time</th><th>O</th><th>H</th><th>L</th><th>C</th>
-          <th>Price</th>
-          <th>Bear CE Activity</th><th>Bull CE Activity</th><th>Confluence</th>
-          <th>Bear CE OI</th><th>CE Δ</th><th>Bear PE OI</th><th>PE Δ</th>
-          <th>Bull CE Δ</th><th>Bull PE Δ</th>
-          <th>Bias</th>
-        </tr>
-      </thead>
-      <tbody id="log-body">
-        <tr><td colspan="16" style="color:#888;text-align:center;padding:1rem;">Waiting for first 1-min candle...</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
+<!-- Table removed -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
@@ -1390,10 +1412,8 @@ function scrollToLatest(){
 }
 
 // ── CUMULATIVE OI CHANGE CHART ────────────────────────────────────
-// Sums *all* CE and PE OI deltas from the minute rows across every strike
-// tracked in the row (i.e. all s<strike>_ce_delta / s<strike>_pe_delta keys).
 function drawCumOIChart(rows) {
-  const svgEl   = document.getElementById('svgCumOI');
+  const svgEl    = document.getElementById('svgCumOI');
   const scrollEl = document.getElementById('cumoi-scroll');
   if (!svgEl) return;
   svgEl.innerHTML = '';
@@ -1416,12 +1436,11 @@ function drawCumOIChart(rows) {
   // Update summary row
   const lastCe = points[points.length-1].ce;
   const lastPe = points[points.length-1].pe;
-  const fmtOI  = v => { const s = Math.abs(v) >= 1e7 ? (v/1e7).toFixed(2)+' Cr' : Math.abs(v) >= 1e5 ? (v/1e5).toFixed(1)+' L' : Math.round(v).toLocaleString('en-IN'); return (v > 0 ? '+' : '') + s; };
+  const fmtOI  = v => { const a=Math.abs(v); const s=a>=1e7?(v/1e7).toFixed(2)+' Cr':a>=1e5?(v/1e5).toFixed(1)+' L':Math.round(v).toLocaleString('en-IN'); return (v>0?'+':'')+s; };
   const ceEl = document.getElementById('cumoi-ce-total');
   const peEl = document.getElementById('cumoi-pe-total');
   if (ceEl) { ceEl.textContent = fmtOI(lastCe); ceEl.style.color = lastCe > 0 ? '#D85A30' : '#1D9E75'; }
   if (peEl) { peEl.textContent = fmtOI(lastPe); peEl.style.color = lastPe > 0 ? '#1D9E75' : '#D85A30'; }
-  // Update PCR-like ratio (total PE OI / total CE OI from latest row)
   const pcrEl = document.getElementById('cumoi-pcr');
   if (pcrEl) {
     let totalCeOI = 0, totalPeOI = 0;
@@ -1434,7 +1453,7 @@ function drawCumOIChart(rows) {
   }
 
   const containerW = scrollEl ? scrollEl.offsetWidth : 700;
-  const H = INDEX_H + 40; // slightly taller for OI values
+  const H = INDEX_H + 40;
   const slotPx = Math.max(INDEX_CANDLE_W + 4, 8);
   const W = Math.max(points.length * slotPx + 60, containerW);
   svgEl.setAttribute('width', W);
@@ -1442,7 +1461,7 @@ function drawCumOIChart(rows) {
   svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svgEl.parentElement.style.width = W + 'px';
 
-  const padL = 58, padR = 12, padT = 10, padB = 26;
+  const padL = 8, padR = 60, padT = 10, padB = 32;
   const aW = W - padL - padR, aH = H - padT - padB;
   const ns = 'http://www.w3.org/2000/svg';
 
@@ -1451,16 +1470,16 @@ function drawCumOIChart(rows) {
   const pad = Math.max(Math.abs(rawMax - rawMin) * 0.08, 1000);
   const yMin = rawMin - pad, yMax = rawMax + pad;
   const yS = v => padT + aH * (1 - (v - yMin) / (yMax - yMin));
+  const xOf = i => padL + (i + 0.5) * (aW / points.length);
 
-  // Format y-axis label (Crores)
   const fmtY = v => {
     const a = Math.abs(v);
-    if (a >= 1e7)  return (v/1e7).toFixed(1)+' Cr';
-    if (a >= 1e5)  return (v/1e5).toFixed(1)+' L';
+    if (a >= 1e7) return (v/1e7).toFixed(1)+' Cr';
+    if (a >= 1e5) return (v/1e5).toFixed(1)+' L';
     return Math.round(v).toLocaleString('en-IN');
   };
 
-  // Grid lines + y-axis labels
+  // Grid lines
   const tickCount = 5;
   const ticks = [];
   for (let i = 0; i <= tickCount; i++) {
@@ -1469,14 +1488,10 @@ function drawCumOIChart(rows) {
     const y = yS(v);
     const gl = document.createElementNS(ns, 'line');
     gl.setAttribute('x1', padL); gl.setAttribute('x2', padL + aW);
-    gl.setAttribute('y1', y); gl.setAttribute('y2', y);
-    gl.setAttribute('stroke', 'rgba(136,135,128,0.15)'); gl.setAttribute('stroke-width', '0.5');
+    gl.setAttribute('y1', y);   gl.setAttribute('y2', y);
+    gl.setAttribute('stroke', 'rgba(136,135,128,0.15)');
+    gl.setAttribute('stroke-width', '0.5');
     svgEl.appendChild(gl);
-    const txt = document.createElementNS(ns, 'text');
-    txt.setAttribute('x', padL - 4); txt.setAttribute('y', y + 4);
-    txt.setAttribute('text-anchor', 'end'); txt.setAttribute('font-size', '9');
-    txt.setAttribute('fill', '#888780'); txt.textContent = fmtY(v);
-    svgEl.appendChild(txt);
   }
 
   // Zero line
@@ -1484,16 +1499,14 @@ function drawCumOIChart(rows) {
     const y0 = yS(0);
     const zl = document.createElementNS(ns, 'line');
     zl.setAttribute('x1', padL); zl.setAttribute('x2', padL + aW);
-    zl.setAttribute('y1', y0); zl.setAttribute('y2', y0);
-    zl.setAttribute('stroke', 'rgba(136,135,128,0.35)'); zl.setAttribute('stroke-width', '1');
+    zl.setAttribute('y1', y0);  zl.setAttribute('y2', y0);
+    zl.setAttribute('stroke', 'rgba(136,135,128,0.4)');
+    zl.setAttribute('stroke-width', '1');
     zl.setAttribute('stroke-dasharray', '4 2');
     svgEl.appendChild(zl);
   }
 
-  // Build SVG path points
-  const xOf = i => padL + (i + 0.5) * (aW / points.length);
-
-  // Filled area under each line
+  // Area fill
   const buildArea = (vals, color) => {
     const y0c = Math.min(Math.max(yS(0), padT), padT + aH);
     let d = `M${xOf(0)},${y0c}`;
@@ -1521,13 +1534,12 @@ function drawCumOIChart(rows) {
 
   const ceVals = points.map(p => p.ce);
   const peVals = points.map(p => p.pe);
-
   buildArea(ceVals, '#1D9E75');
   buildArea(peVals, '#D85A30');
   buildLine(ceVals, '#1D9E75');
   buildLine(peVals, '#D85A30');
 
-  // Dot + label at last point
+  // Dot + value label at last point
   [[ceVals, '#1D9E75'], [peVals, '#D85A30']].forEach(([vals, color]) => {
     const lx = xOf(vals.length - 1), ly = yS(vals[vals.length-1]);
     const dot = document.createElementNS(ns, 'circle');
@@ -1541,20 +1553,192 @@ function drawCumOIChart(rows) {
     svgEl.appendChild(lbl);
   });
 
-  // X-axis time labels (every ~15 pts)
-  const step = Math.max(1, Math.floor(points.length / 12));
+  // ── X-axis time labels (FIXED) ──
+  // Show a label at regular intervals so the full time range is visible.
+  // Target ~one label every 60px of chart width; always show first and last.
+  const targetLabels = Math.max(4, Math.floor(aW / 60));
+  const step = Math.max(1, Math.floor(points.length / targetLabels));
+  const labelIndices = new Set();
+  for (let i = 0; i < points.length; i += step) labelIndices.add(i);
+  labelIndices.add(points.length - 1); // always show last
+
   points.forEach((p, i) => {
-    if (i % step !== 0 && i !== points.length - 1) return;
-    const x = xOf(i), y = padT + aH + 16;
+    if (!labelIndices.has(i)) return;
+    const x = xOf(i);
+    // Tick mark
+    const tick = document.createElementNS(ns, 'line');
+    tick.setAttribute('x1', x); tick.setAttribute('x2', x);
+    tick.setAttribute('y1', padT + aH); tick.setAttribute('y2', padT + aH + 4);
+    tick.setAttribute('stroke', 'rgba(136,135,128,0.4)'); tick.setAttribute('stroke-width', '1');
+    svgEl.appendChild(tick);
+    // Label — rotated so it never overlaps
     const txt = document.createElementNS(ns, 'text');
-    txt.setAttribute('x', x); txt.setAttribute('y', y);
-    txt.setAttribute('text-anchor', 'middle'); txt.setAttribute('font-size', '9');
-    txt.setAttribute('fill', '#888780'); txt.textContent = p.label;
+    txt.setAttribute('x', x);
+    txt.setAttribute('y', padT + aH + 6);
+    txt.setAttribute('text-anchor', 'end');
+    txt.setAttribute('font-size', '9');
+    txt.setAttribute('fill', '#888780');
+    txt.setAttribute('transform', `rotate(-45, ${x}, ${padT + aH + 6})`);
+    txt.textContent = p.label;
     svgEl.appendChild(txt);
   });
 
-  // Sticky Y-axis overlay
-  drawYAxisOverlay('svgCumOIYAxis', H, padL, padT, padB, yMin, yMax, ticks.map(v => parseFloat(fmtY(v))));
+  // Sticky Y-axis overlay (right side this time, so labels don't overlap chart)
+  const yAxisSvg = document.getElementById('svgCumOIYAxis');
+  if (yAxisSvg) {
+    yAxisSvg.innerHTML = '';
+    // Position overlay at right edge
+    const overlayW = padR;
+    yAxisSvg.setAttribute('width', overlayW);
+    yAxisSvg.setAttribute('height', H);
+    yAxisSvg.style.left = 'auto';
+    yAxisSvg.style.right = '0';
+    yAxisSvg.style.position = 'absolute';
+    yAxisSvg.style.top = '0';
+    for (let i = 0; i <= tickCount; i++) {
+      const v = yMin + i * (yMax - yMin) / tickCount;
+      const y = yS(v);
+      const txt = document.createElementNS(ns, 'text');
+      txt.setAttribute('x', 4); txt.setAttribute('y', y + 4);
+      txt.setAttribute('text-anchor', 'start'); txt.setAttribute('font-size', '9');
+      txt.setAttribute('fill', '#888780'); txt.textContent = fmtY(v);
+      yAxisSvg.appendChild(txt);
+    }
+  }
+}
+
+// ── OI MOVERS PANEL ──────────────────────────────────────────────
+// Shows top N strikes with biggest OI increase in the current interval window.
+// Uses minuteRows (1-min rows) aggregated into intervalMin buckets.
+function drawOIMovers(rows, atmStr) {
+  const ceListEl = document.getElementById('ce-movers-list');
+  const peListEl = document.getElementById('pe-movers-list');
+  const subEl    = document.getElementById('movers-sub');
+  if (!ceListEl || !peListEl) return;
+
+  if (!rows || !rows.length) {
+    ceListEl.innerHTML = '<div style="color:#aaa;font-size:12px;padding:8px 0;">No data yet</div>';
+    peListEl.innerHTML = '<div style="color:#aaa;font-size:12px;padding:8px 0;">No data yet</div>';
+    return;
+  }
+
+  // ── Aggregate minuteRows into intervalMin buckets ──
+  const buckets = [];
+  rows.forEach(r => {
+    const bucket = Math.floor((r.ts || 0) / (intervalMin * 60)) * (intervalMin * 60);
+    if (!buckets.length || buckets[buckets.length-1].bucket !== bucket) {
+      buckets.push({ bucket, label: r.time_label, rows: [r] });
+    } else {
+      buckets[buckets.length-1].rows.push(r);
+    }
+  });
+
+  // ── For each bucket, compute net CE/PE delta per strike ──
+  // Use the last N buckets depending on selection — for "selected interval" we use the latest bucket
+  const latestBucket = buckets[buckets.length - 1];
+  const windowRows   = latestBucket ? latestBucket.rows : [rows[rows.length - 1]];
+
+  // Collect all strike keys
+  const ceStrikes = {}, peStrikes = {};
+  windowRows.forEach(r => {
+    Object.keys(r).forEach(k => {
+      const ceM = k.match(/^s(\d+)_ce_delta$/);
+      const peM = k.match(/^s(\d+)_pe_delta$/);
+      const ceO = k.match(/^s(\d+)_ce_oi$/);
+      const peO = k.match(/^s(\d+)_pe_oi$/);
+      if (ceM) { const s = ceM[1]; ceStrikes[s] = (ceStrikes[s] || { delta:0, oi:0 }); ceStrikes[s].delta += parseFloat(r[k]) || 0; }
+      if (peM) { const s = peM[1]; peStrikes[s] = (peStrikes[s] || { delta:0, oi:0 }); peStrikes[s].delta += parseFloat(r[k]) || 0; }
+      if (ceO) { const s = ceO[1]; ceStrikes[s] = ceStrikes[s] || { delta:0, oi:0 }; ceStrikes[s].oi = parseFloat(r[k]) || 0; }
+      if (peO) { const s = peO[1]; peStrikes[s] = peStrikes[s] || { delta:0, oi:0 }; peStrikes[s].oi = parseFloat(r[k]) || 0; }
+    });
+  });
+
+  // Sort by biggest INCREASE (delta > 0 first, ranked by magnitude)
+  const TOP = 6;
+  const rankStrikes = (map) => Object.entries(map)
+    .map(([s, v]) => ({ strike: parseInt(s), ...v }))
+    .filter(x => x.delta !== 0)
+    .sort((a, b) => b.delta - a.delta)
+    .slice(0, TOP);
+
+  const ceRanked = rankStrikes(ceStrikes);
+  const peRanked = rankStrikes(peStrikes);
+
+  // Max delta for bar scaling
+  const ceMax = Math.max(...ceRanked.map(x => Math.abs(x.delta)), 1);
+  const peMax = Math.max(...peRanked.map(x => Math.abs(x.delta)), 1);
+
+  // ATM from global
+  const atm = atmStr || atmStrike;
+
+  // Format helpers
+  const fmtD = v => {
+    const a = Math.abs(v);
+    const s = a >= 1e7 ? (v/1e7).toFixed(2)+' Cr' : a >= 1e5 ? (v/1e5).toFixed(1)+' L' : Math.round(v).toLocaleString('en-IN');
+    return (v > 0 ? '+' : '') + s;
+  };
+  const fmtOI = v => {
+    const a = Math.abs(v);
+    if (a >= 1e7) return (v/1e7).toFixed(2)+' Cr';
+    if (a >= 1e5) return (v/1e5).toFixed(1)+' L';
+    return Math.round(v).toLocaleString('en-IN');
+  };
+
+  const strikeBadge = (strike) => {
+    if (!atm) return '<span class="mover-type-badge badge-otm">—</span>';
+    const diff = strike - atm;
+    if (diff === 0) return '<span class="mover-type-badge badge-atm">ATM</span>';
+    // CE: below ATM = ITM, above = OTM
+    // PE: above ATM = ITM, below = OTM
+    return diff > 0
+      ? '<span class="mover-type-badge badge-otm">OTM +'+(diff)+'</span>'
+      : '<span class="mover-type-badge badge-itm">ITM '+(diff)+'</span>';
+  };
+
+  const strikeBadgePE = (strike) => {
+    if (!atm) return '<span class="mover-type-badge badge-otm">—</span>';
+    const diff = strike - atm;
+    if (diff === 0) return '<span class="mover-type-badge badge-atm">ATM</span>';
+    // PE: above ATM = OTM, below = ITM
+    return diff > 0
+      ? '<span class="mover-type-badge badge-itm">ITM +'+(diff)+'</span>'
+      : '<span class="mover-type-badge badge-otm">OTM '+(diff)+'</span>';
+  };
+
+  const buildRows = (ranked, maxVal, badgeFn, color, dimColor) => {
+    if (!ranked.length) return '<div style="color:#aaa;font-size:12px;padding:8px 0;">No movement in this interval</div>';
+    return ranked.map((x, i) => {
+      const pct  = Math.min(100, Math.abs(x.delta) / maxVal * 100);
+      const col  = x.delta > 0 ? color : dimColor;
+      const barC = x.delta > 0 ? color : dimColor;
+      return `<div class="mover-row">
+        <span class="mover-rank">${i+1}</span>
+        <span class="mover-strike">${x.strike.toLocaleString('en-IN')}</span>
+        ${badgeFn(x.strike)}
+        <div class="mover-bar-wrap"><div class="mover-bar" style="width:${pct}%;background:${barC};"></div></div>
+        <span class="mover-delta" style="color:${col}">${fmtD(x.delta)}</span>
+        <span class="mover-oi">${fmtOI(x.oi)} OI</span>
+      </div>`;
+    }).join('');
+  };
+
+  ceListEl.innerHTML = buildRows(ceRanked, ceMax, strikeBadge,    '#D85A30', '#93c5e8');
+  peListEl.innerHTML = buildRows(peRanked, peMax, strikeBadgePE,  '#1D9E75', '#f0a080');
+
+  // ── Summary totals ──
+  const fmtOI2 = v => { const a=Math.abs(v); const s=a>=1e7?(v/1e7).toFixed(2)+' Cr':a>=1e5?(v/1e5).toFixed(1)+' L':Math.round(v).toLocaleString('en-IN'); return (v>0?'+':'')+s; };
+  let totalCe = 0, totalPe = 0, totalCeOI = 0, totalPeOI = 0;
+  Object.values(ceStrikes).forEach(v => { totalCe += v.delta; totalCeOI += v.oi; });
+  Object.values(peStrikes).forEach(v => { totalPe += v.delta; totalPeOI += v.oi; });
+
+  const ceT = document.getElementById('movers-ce-total');
+  const peT = document.getElementById('movers-pe-total');
+  const pcr = document.getElementById('movers-pcr');
+  if (ceT) { ceT.textContent = fmtOI2(totalCe); ceT.style.color = totalCe > 0 ? '#D85A30' : '#1D9E75'; }
+  if (peT) { peT.textContent = fmtOI2(totalPe); peT.style.color = totalPe > 0 ? '#1D9E75' : '#D85A30'; }
+  if (pcr) pcr.textContent = totalCeOI > 0 ? (totalPeOI / totalCeOI).toFixed(2) : '—';
+
+  if (subEl) subEl.textContent = `Top strikes by OI change in latest ${intervalMin}-min interval (${latestBucket?.label || '—'}) · ${TOP} shown per side`;
 }
 
 function rebuildCharts(){requestAnimationFrame(_doRebuild);}
@@ -1571,6 +1755,9 @@ function _doRebuild(){
 
   // ── Draw cumulative OI chart (all strikes) ──
   drawCumOIChart(minuteRows);
+
+  // ── Draw OI movers panel ──
+  drawOIMovers(minuteRows, atmStrike);
 
   // ── Draw index chart (Nifty price + OI-based colour) ──
   const allWithLive = liveCandle ? [...candles, liveCandle] : candles;
