@@ -279,6 +279,29 @@ tr.row-bull{background:rgba(29,158,117,.04);}
   <div class="signal-strip" id="index-strip"></div>
 </div>
 
+<!-- ── CUMULATIVE OI CHANGE CHART ── -->
+<div class="index-chart-card" id="cumoi-card">
+  <div class="index-chart-title">Cumulative OI Change — All Strikes</div>
+  <div class="index-chart-sub" id="cumoi-sub">Aggregate CE and PE OI change from session start across all tracked strikes</div>
+  <div class="index-legend">
+    <span class="il-item"><span class="il-sq" style="background:#1D9E75;border-radius:50%;"></span>Calls (CE) cumulative Δ</span>
+    <span class="il-item"><span class="il-sq" style="background:#D85A30;border-radius:50%;"></span>Puts (PE) cumulative Δ</span>
+  </div>
+  <div class="conf-chart-wrap">
+    <div class="conf-chart-scroll" id="cumoi-scroll">
+      <div class="conf-chart-area" id="cumoi-chart-area">
+        <svg id="svgCumOI" style="display:block;"></svg>
+      </div>
+    </div>
+    <svg id="svgCumOIYAxis" class="yaxis-overlay" style="display:block;"></svg>
+  </div>
+  <div style="display:flex;gap:16px;margin-top:8px;font-size:12px;">
+    <span>Total CE Δ: <span id="cumoi-ce-total" style="font-weight:500;">—</span></span>
+    <span>Total PE Δ: <span id="cumoi-pe-total" style="font-weight:500;">—</span></span>
+    <span>PCR (OI): <span id="cumoi-pcr" style="font-weight:500;">—</span></span>
+  </div>
+</div>
+
 <!-- ── CHART SIZE CONTROLS ── -->
 <div class="chart-controls">
   <label>Candle width:</label>
@@ -1366,6 +1389,174 @@ function scrollToLatest(){
   },300);
 }
 
+// ── CUMULATIVE OI CHANGE CHART ────────────────────────────────────
+// Sums *all* CE and PE OI deltas from the minute rows across every strike
+// tracked in the row (i.e. all s<strike>_ce_delta / s<strike>_pe_delta keys).
+function drawCumOIChart(rows) {
+  const svgEl   = document.getElementById('svgCumOI');
+  const scrollEl = document.getElementById('cumoi-scroll');
+  if (!svgEl) return;
+  svgEl.innerHTML = '';
+  if (!rows.length) { svgEl.setAttribute('height', '60'); return; }
+
+  // Build per-minute totals and running cumulative sums
+  const points = [];
+  let cumCe = 0, cumPe = 0;
+  rows.forEach(r => {
+    let ce = 0, pe = 0;
+    Object.keys(r).forEach(k => {
+      if (k.endsWith('_ce_delta')) ce += parseFloat(r[k]) || 0;
+      if (k.endsWith('_pe_delta')) pe += parseFloat(r[k]) || 0;
+    });
+    cumCe += ce;
+    cumPe += pe;
+    points.push({ label: r.time_label, ce: cumCe, pe: cumPe });
+  });
+
+  // Update summary row
+  const lastCe = points[points.length-1].ce;
+  const lastPe = points[points.length-1].pe;
+  const fmtOI  = v => { const s = Math.abs(v) >= 1e7 ? (v/1e7).toFixed(2)+' Cr' : Math.abs(v) >= 1e5 ? (v/1e5).toFixed(1)+' L' : Math.round(v).toLocaleString('en-IN'); return (v > 0 ? '+' : '') + s; };
+  const ceEl = document.getElementById('cumoi-ce-total');
+  const peEl = document.getElementById('cumoi-pe-total');
+  if (ceEl) { ceEl.textContent = fmtOI(lastCe); ceEl.style.color = lastCe > 0 ? '#D85A30' : '#1D9E75'; }
+  if (peEl) { peEl.textContent = fmtOI(lastPe); peEl.style.color = lastPe > 0 ? '#1D9E75' : '#D85A30'; }
+  // Update PCR-like ratio (total PE OI / total CE OI from latest row)
+  const pcrEl = document.getElementById('cumoi-pcr');
+  if (pcrEl) {
+    let totalCeOI = 0, totalPeOI = 0;
+    const last = rows[rows.length-1];
+    Object.keys(last).forEach(k => {
+      if (k.endsWith('_ce_oi')) totalCeOI += parseFloat(last[k]) || 0;
+      if (k.endsWith('_pe_oi')) totalPeOI += parseFloat(last[k]) || 0;
+    });
+    pcrEl.textContent = totalCeOI > 0 ? (totalPeOI / totalCeOI).toFixed(2) : '—';
+  }
+
+  const containerW = scrollEl ? scrollEl.offsetWidth : 700;
+  const H = INDEX_H + 40; // slightly taller for OI values
+  const slotPx = Math.max(INDEX_CANDLE_W + 4, 8);
+  const W = Math.max(points.length * slotPx + 60, containerW);
+  svgEl.setAttribute('width', W);
+  svgEl.setAttribute('height', H);
+  svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svgEl.parentElement.style.width = W + 'px';
+
+  const padL = 58, padR = 12, padT = 10, padB = 26;
+  const aW = W - padL - padR, aH = H - padT - padB;
+  const ns = 'http://www.w3.org/2000/svg';
+
+  const allVals = points.flatMap(p => [p.ce, p.pe]);
+  const rawMin = Math.min(...allVals), rawMax = Math.max(...allVals);
+  const pad = Math.max(Math.abs(rawMax - rawMin) * 0.08, 1000);
+  const yMin = rawMin - pad, yMax = rawMax + pad;
+  const yS = v => padT + aH * (1 - (v - yMin) / (yMax - yMin));
+
+  // Format y-axis label (Crores)
+  const fmtY = v => {
+    const a = Math.abs(v);
+    if (a >= 1e7)  return (v/1e7).toFixed(1)+' Cr';
+    if (a >= 1e5)  return (v/1e5).toFixed(1)+' L';
+    return Math.round(v).toLocaleString('en-IN');
+  };
+
+  // Grid lines + y-axis labels
+  const tickCount = 5;
+  const ticks = [];
+  for (let i = 0; i <= tickCount; i++) {
+    const v = yMin + i * (yMax - yMin) / tickCount;
+    ticks.push(v);
+    const y = yS(v);
+    const gl = document.createElementNS(ns, 'line');
+    gl.setAttribute('x1', padL); gl.setAttribute('x2', padL + aW);
+    gl.setAttribute('y1', y); gl.setAttribute('y2', y);
+    gl.setAttribute('stroke', 'rgba(136,135,128,0.15)'); gl.setAttribute('stroke-width', '0.5');
+    svgEl.appendChild(gl);
+    const txt = document.createElementNS(ns, 'text');
+    txt.setAttribute('x', padL - 4); txt.setAttribute('y', y + 4);
+    txt.setAttribute('text-anchor', 'end'); txt.setAttribute('font-size', '9');
+    txt.setAttribute('fill', '#888780'); txt.textContent = fmtY(v);
+    svgEl.appendChild(txt);
+  }
+
+  // Zero line
+  if (yMin < 0 && yMax > 0) {
+    const y0 = yS(0);
+    const zl = document.createElementNS(ns, 'line');
+    zl.setAttribute('x1', padL); zl.setAttribute('x2', padL + aW);
+    zl.setAttribute('y1', y0); zl.setAttribute('y2', y0);
+    zl.setAttribute('stroke', 'rgba(136,135,128,0.35)'); zl.setAttribute('stroke-width', '1');
+    zl.setAttribute('stroke-dasharray', '4 2');
+    svgEl.appendChild(zl);
+  }
+
+  // Build SVG path points
+  const xOf = i => padL + (i + 0.5) * (aW / points.length);
+
+  // Filled area under each line
+  const buildArea = (vals, color) => {
+    const y0c = Math.min(Math.max(yS(0), padT), padT + aH);
+    let d = `M${xOf(0)},${y0c}`;
+    vals.forEach((v, i) => { d += ` L${xOf(i)},${yS(v)}`; });
+    d += ` L${xOf(vals.length-1)},${y0c} Z`;
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', color);
+    path.setAttribute('opacity', '0.12');
+    svgEl.appendChild(path);
+  };
+
+  // Line
+  const buildLine = (vals, color) => {
+    let d = `M${xOf(0)},${yS(vals[0])}`;
+    for (let i = 1; i < vals.length; i++) d += ` L${xOf(i)},${yS(vals[i])}`;
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', color);
+    path.setAttribute('stroke-width', '1.8');
+    path.setAttribute('stroke-linejoin', 'round');
+    svgEl.appendChild(path);
+  };
+
+  const ceVals = points.map(p => p.ce);
+  const peVals = points.map(p => p.pe);
+
+  buildArea(ceVals, '#1D9E75');
+  buildArea(peVals, '#D85A30');
+  buildLine(ceVals, '#1D9E75');
+  buildLine(peVals, '#D85A30');
+
+  // Dot + label at last point
+  [[ceVals, '#1D9E75'], [peVals, '#D85A30']].forEach(([vals, color]) => {
+    const lx = xOf(vals.length - 1), ly = yS(vals[vals.length-1]);
+    const dot = document.createElementNS(ns, 'circle');
+    dot.setAttribute('cx', lx); dot.setAttribute('cy', ly); dot.setAttribute('r', '3');
+    dot.setAttribute('fill', color);
+    svgEl.appendChild(dot);
+    const lbl = document.createElementNS(ns, 'text');
+    lbl.setAttribute('x', lx + 5); lbl.setAttribute('y', ly + 4);
+    lbl.setAttribute('font-size', '9'); lbl.setAttribute('fill', color);
+    lbl.textContent = fmtY(vals[vals.length-1]);
+    svgEl.appendChild(lbl);
+  });
+
+  // X-axis time labels (every ~15 pts)
+  const step = Math.max(1, Math.floor(points.length / 12));
+  points.forEach((p, i) => {
+    if (i % step !== 0 && i !== points.length - 1) return;
+    const x = xOf(i), y = padT + aH + 16;
+    const txt = document.createElementNS(ns, 'text');
+    txt.setAttribute('x', x); txt.setAttribute('y', y);
+    txt.setAttribute('text-anchor', 'middle'); txt.setAttribute('font-size', '9');
+    txt.setAttribute('fill', '#888780'); txt.textContent = p.label;
+    svgEl.appendChild(txt);
+  });
+
+  // Sticky Y-axis overlay
+  drawYAxisOverlay('svgCumOIYAxis', H, padL, padT, padB, yMin, yMax, ticks.map(v => parseFloat(fmtY(v))));
+}
+
 function rebuildCharts(){requestAnimationFrame(_doRebuild);}
 
 function _doRebuild(){
@@ -1377,6 +1568,9 @@ function _doRebuild(){
   document.getElementById('bull-chart-sub').textContent=sub;
   document.getElementById('log-meta').textContent='('+minuteRows.length+' rows → '+candles.length+' candles)';
   document.getElementById('index-chart-sub').textContent='Nifty 50 · '+intervalMin+'m candles · colour = dominant OI move (CE/PE building or unwinding across both strikes)';
+
+  // ── Draw cumulative OI chart (all strikes) ──
+  drawCumOIChart(minuteRows);
 
   // ── Draw index chart (Nifty price + OI-based colour) ──
   const allWithLive = liveCandle ? [...candles, liveCandle] : candles;
