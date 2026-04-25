@@ -67,6 +67,8 @@ select{font-size:13px;padding:5px 10px;border:0.5px solid #ccc;border-radius:6px
 /* ── OI Movers panel ── */
 .mover-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid #eee;font-size:12px;}
 .mover-row:last-child{border-bottom:none;}
+.mover-time{font-size:11px;color:#888;min-width:38px;text-align:right;font-variant-numeric:tabular-nums;}
+.mover-action{font-size:10px;font-weight:600;min-width:28px;text-transform:uppercase;color:#666;}
 .mover-rank{font-size:11px;color:#bbb;min-width:16px;text-align:right;}
 .mover-strike{font-weight:500;color:#1a1a1a;min-width:52px;}
 .mover-type-badge{font-size:10px;padding:1px 7px;border-radius:10px;font-weight:500;white-space:nowrap;}
@@ -605,7 +607,8 @@ function setIv(el) {
   document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');
   intervalMin = parseInt(el.dataset.min);
-  document.getElementById('iv-label').textContent = intervalMin+'m';
+  const ivLabel = document.getElementById('iv-label');
+  if (ivLabel) ivLabel.textContent = intervalMin+'m';
   rebuildCharts();
 }
 
@@ -1608,138 +1611,230 @@ function drawCumOIChart(rows) {
 }
 
 // ── OI MOVERS PANEL ──────────────────────────────────────────────
-// Shows top N strikes with biggest OI increase in the current interval window.
-// Uses minuteRows (1-min rows) aggregated into intervalMin buckets.
+// Shows dominant OI added and dominant OI decreased for every selected interval.
+// Standard moneyness:
+//   CE: strike < ATM = ITM, strike > ATM = OTM
+//   PE: strike > ATM = ITM, strike < ATM = OTM
 function drawOIMovers(rows, atmStr) {
   const ceListEl = document.getElementById('ce-movers-list');
   const peListEl = document.getElementById('pe-movers-list');
   const subEl    = document.getElementById('movers-sub');
+
   if (!ceListEl || !peListEl) return;
 
   if (!rows || !rows.length) {
     ceListEl.innerHTML = '<div style="color:#aaa;font-size:12px;padding:8px 0;">No data yet</div>';
     peListEl.innerHTML = '<div style="color:#aaa;font-size:12px;padding:8px 0;">No data yet</div>';
+
+    const ceT = document.getElementById('movers-ce-total');
+    const peT = document.getElementById('movers-pe-total');
+    const pcr = document.getElementById('movers-pcr');
+    if (ceT) ceT.textContent = '—';
+    if (peT) peT.textContent = '—';
+    if (pcr) pcr.textContent = '—';
     return;
   }
 
-  // ── Aggregate minuteRows into intervalMin buckets ──
+  const cleanRows = [...rows]
+    .filter(r => r && (parseFloat(r.ts) || 0) > 0)
+    .sort((a, b) => (parseFloat(a.ts) || 0) - (parseFloat(b.ts) || 0));
+
+  if (!cleanRows.length) {
+    ceListEl.innerHTML = '<div style="color:#aaa;font-size:12px;padding:8px 0;">No valid rows yet</div>';
+    peListEl.innerHTML = '<div style="color:#aaa;font-size:12px;padding:8px 0;">No valid rows yet</div>';
+    return;
+  }
+
+  // Build interval buckets. For a 3-min interval, this will create one bucket per 3 minutes.
+  // The displayed time is the end/latest row of the bucket, matching the Excel-style view.
   const buckets = [];
-  rows.forEach(r => {
-    const bucket = Math.floor((r.ts || 0) / (intervalMin * 60)) * (intervalMin * 60);
-    if (!buckets.length || buckets[buckets.length-1].bucket !== bucket) {
+  cleanRows.forEach(r => {
+    const ts = parseFloat(r.ts) || 0;
+    const bucket = Math.floor(ts / (intervalMin * 60)) * (intervalMin * 60);
+
+    if (!buckets.length || buckets[buckets.length - 1].bucket !== bucket) {
       buckets.push({ bucket, label: r.time_label, rows: [r] });
     } else {
-      buckets[buckets.length-1].rows.push(r);
+      buckets[buckets.length - 1].rows.push(r);
     }
+
+    buckets[buckets.length - 1].label = r.time_label; // show interval end time
   });
 
-  // ── For each bucket, compute net CE/PE delta per strike ──
-  // Use the last N buckets depending on selection — for "selected interval" we use the latest bucket
-  const latestBucket = buckets[buckets.length - 1];
-  const windowRows   = latestBucket ? latestBucket.rows : [rows[rows.length - 1]];
+  function getMoneyness(strike, side) {
+    strike = Number(strike);
+    atmStr = Number(atmStr);
 
-  // Collect all strike keys
-  const ceStrikes = {}, peStrikes = {};
-  windowRows.forEach(r => {
-    Object.keys(r).forEach(k => {
-      const ceM = k.match(/^s(\d+)_ce_delta$/);
-      const peM = k.match(/^s(\d+)_pe_delta$/);
-      const ceO = k.match(/^s(\d+)_ce_oi$/);
-      const peO = k.match(/^s(\d+)_pe_oi$/);
-      if (ceM) { const s = ceM[1]; ceStrikes[s] = (ceStrikes[s] || { delta:0, oi:0 }); ceStrikes[s].delta += parseFloat(r[k]) || 0; }
-      if (peM) { const s = peM[1]; peStrikes[s] = (peStrikes[s] || { delta:0, oi:0 }); peStrikes[s].delta += parseFloat(r[k]) || 0; }
-      if (ceO) { const s = ceO[1]; ceStrikes[s] = ceStrikes[s] || { delta:0, oi:0 }; ceStrikes[s].oi = parseFloat(r[k]) || 0; }
-      if (peO) { const s = peO[1]; peStrikes[s] = peStrikes[s] || { delta:0, oi:0 }; peStrikes[s].oi = parseFloat(r[k]) || 0; }
+    if (!atmStr || !strike) return '—';
+    if (strike === atmStr) return 'ATM';
+
+    if (side === 'CE') return strike < atmStr ? 'ITM' : 'OTM';
+    if (side === 'PE') return strike > atmStr ? 'ITM' : 'OTM';
+
+    return '—';
+  }
+
+  function badge(moneyness) {
+    const cls =
+      moneyness === 'ATM' ? 'badge-atm' :
+      moneyness === 'ITM' ? 'badge-itm' :
+      'badge-otm';
+
+    return `<span class="mover-type-badge ${cls}">${moneyness}</span>`;
+  }
+
+  function fmtOIShort(v) {
+    const n = Number(v) || 0;
+    const a = Math.abs(n);
+
+    if (a >= 1e7) return (n / 1e7).toFixed(2) + ' Cr';
+    if (a >= 1e5) return (n / 1e5).toFixed(1) + ' L';
+
+    return Math.round(n).toLocaleString('en-IN');
+  }
+
+  function fmtDeltaShort(v) {
+    const n = Number(v) || 0;
+    return (n > 0 ? '+' : '') + fmtOIShort(n);
+  }
+
+  function collectSide(rowsInBucket, side) {
+    const sideLower = side.toLowerCase();
+    const strikes = {};
+
+    rowsInBucket.forEach(r => {
+      Object.keys(r).forEach(k => {
+        const deltaM = k.match(new RegExp('^s(\\d+)_' + sideLower + '_delta$'));
+        const oiM    = k.match(new RegExp('^s(\\d+)_' + sideLower + '_oi$'));
+
+        if (deltaM) {
+          const strike = Number(deltaM[1]);
+          if (!strikes[strike]) strikes[strike] = { strike, delta: 0, oi: 0 };
+          strikes[strike].delta += parseFloat(r[k]) || 0;
+        }
+
+        if (oiM) {
+          const strike = Number(oiM[1]);
+          if (!strikes[strike]) strikes[strike] = { strike, delta: 0, oi: 0 };
+          strikes[strike].oi = parseFloat(r[k]) || 0;
+        }
+      });
     });
-  });
 
-  // Sort by biggest INCREASE (delta > 0 first, ranked by magnitude)
-  const TOP = 6;
-  const rankStrikes = (map) => Object.entries(map)
-    .map(([s, v]) => ({ strike: parseInt(s), ...v }))
-    .filter(x => x.delta !== 0)
-    .sort((a, b) => b.delta - a.delta)
-    .slice(0, TOP);
+    const arr = Object.values(strikes).filter(x => x.delta !== 0);
 
-  const ceRanked = rankStrikes(ceStrikes);
-  const peRanked = rankStrikes(peStrikes);
+    const added = arr
+      .filter(x => x.delta > 0)
+      .sort((a, b) => b.delta - a.delta)[0] || null;
 
-  // Max delta for bar scaling
-  const ceMax = Math.max(...ceRanked.map(x => Math.abs(x.delta)), 1);
-  const peMax = Math.max(...peRanked.map(x => Math.abs(x.delta)), 1);
+    const decreased = arr
+      .filter(x => x.delta < 0)
+      .sort((a, b) => a.delta - b.delta)[0] || null;
 
-  // ATM from global
-  const atm = atmStr || atmStrike;
+    return { added, decreased, strikes };
+  }
 
-  // Format helpers
-  const fmtD = v => {
-    const a = Math.abs(v);
-    const s = a >= 1e7 ? (v/1e7).toFixed(2)+' Cr' : a >= 1e5 ? (v/1e5).toFixed(1)+' L' : Math.round(v).toLocaleString('en-IN');
-    return (v > 0 ? '+' : '') + s;
-  };
-  const fmtOI = v => {
-    const a = Math.abs(v);
-    if (a >= 1e7) return (v/1e7).toFixed(2)+' Cr';
-    if (a >= 1e5) return (v/1e5).toFixed(1)+' L';
-    return Math.round(v).toLocaleString('en-IN');
-  };
+  function buildBucketResults() {
+    return buckets.map(b => {
+      const ce = collectSide(b.rows, 'CE');
+      const pe = collectSide(b.rows, 'PE');
 
-  const strikeBadge = (strike) => {
-    if (!atm) return '<span class="mover-type-badge badge-otm">—</span>';
-    const diff = strike - atm;
-    if (diff === 0) return '<span class="mover-type-badge badge-atm">ATM</span>';
-    // CE: below ATM = ITM, above = OTM
-    // PE: above ATM = ITM, below = OTM
-    return diff > 0
-      ? '<span class="mover-type-badge badge-otm">OTM +'+(diff)+'</span>'
-      : '<span class="mover-type-badge badge-itm">ITM '+(diff)+'</span>';
-  };
+      return {
+        bucket: b.bucket,
+        label: b.label,
+        ce,
+        pe
+      };
+    });
+  }
 
-  const strikeBadgePE = (strike) => {
-    if (!atm) return '<span class="mover-type-badge badge-otm">—</span>';
-    const diff = strike - atm;
-    if (diff === 0) return '<span class="mover-type-badge badge-atm">ATM</span>';
-    // PE: above ATM = OTM, below = ITM
-    return diff > 0
-      ? '<span class="mover-type-badge badge-itm">ITM +'+(diff)+'</span>'
-      : '<span class="mover-type-badge badge-otm">OTM '+(diff)+'</span>';
-  };
+  const results = buildBucketResults();
 
-  const buildRows = (ranked, maxVal, badgeFn, color, dimColor) => {
-    if (!ranked.length) return '<div style="color:#aaa;font-size:12px;padding:8px 0;">No movement in this interval</div>';
-    return ranked.map((x, i) => {
-      const pct  = Math.min(100, Math.abs(x.delta) / maxVal * 100);
-      const col  = x.delta > 0 ? color : dimColor;
-      const barC = x.delta > 0 ? color : dimColor;
-      return `<div class="mover-row">
-        <span class="mover-rank">${i+1}</span>
-        <span class="mover-strike">${x.strike.toLocaleString('en-IN')}</span>
-        ${badgeFn(x.strike)}
-        <div class="mover-bar-wrap"><div class="mover-bar" style="width:${pct}%;background:${barC};"></div></div>
-        <span class="mover-delta" style="color:${col}">${fmtD(x.delta)}</span>
-        <span class="mover-oi">${fmtOI(x.oi)} OI</span>
-      </div>`;
+  function rowHtml(timeLabel, moveLabel, item, side) {
+    if (!item) {
+      return `
+        <div class="mover-row">
+          <span class="mover-time">${timeLabel}</span>
+          <span class="mover-action">${moveLabel}</span>
+          <span style="color:#aaa;font-size:12px;">No move</span>
+        </div>
+      `;
+    }
+
+    const m = getMoneyness(item.strike, side);
+    const color = item.delta > 0 ? '#1D9E75' : '#D85A30';
+
+    return `
+      <div class="mover-row">
+        <span class="mover-time">${timeLabel}</span>
+        <span class="mover-action">${moveLabel}</span>
+        <span class="mover-strike">${item.strike.toLocaleString('en-IN')}</span>
+        ${badge(m)}
+        <span class="mover-delta" style="color:${color};">${fmtDeltaShort(item.delta)}</span>
+        <span class="mover-oi">${fmtOIShort(item.oi)} OI</span>
+      </div>
+    `;
+  }
+
+  function renderSide(side) {
+    const html = results.map(r => {
+      const moves = side === 'CE' ? r.ce : r.pe;
+
+      return `
+        ${rowHtml(r.label, 'Add', moves.added, side)}
+        ${rowHtml('', 'Dec', moves.decreased, side)}
+      `;
     }).join('');
-  };
 
-  ceListEl.innerHTML = buildRows(ceRanked, ceMax, strikeBadge,    '#D85A30', '#93c5e8');
-  peListEl.innerHTML = buildRows(peRanked, peMax, strikeBadgePE,  '#1D9E75', '#f0a080');
+    return html || '<div style="color:#aaa;font-size:12px;padding:8px 0;">No OI moves yet</div>';
+  }
 
-  // ── Summary totals ──
-  const fmtOI2 = v => { const a=Math.abs(v); const s=a>=1e7?(v/1e7).toFixed(2)+' Cr':a>=1e5?(v/1e5).toFixed(1)+' L':Math.round(v).toLocaleString('en-IN'); return (v>0?'+':'')+s; };
-  let totalCe = 0, totalPe = 0, totalCeOI = 0, totalPeOI = 0;
-  Object.values(ceStrikes).forEach(v => { totalCe += v.delta; totalCeOI += v.oi; });
-  Object.values(peStrikes).forEach(v => { totalPe += v.delta; totalPeOI += v.oi; });
+  ceListEl.innerHTML = renderSide('CE');
+  peListEl.innerHTML = renderSide('PE');
+
+  // Latest interval summary totals
+  const latest = results[results.length - 1];
+  let totalCeDelta = 0;
+  let totalPeDelta = 0;
+  let totalCeOI = 0;
+  let totalPeOI = 0;
+
+  if (latest) {
+    Object.values(latest.ce.strikes).forEach(v => {
+      totalCeDelta += v.delta;
+      totalCeOI += v.oi;
+    });
+
+    Object.values(latest.pe.strikes).forEach(v => {
+      totalPeDelta += v.delta;
+      totalPeOI += v.oi;
+    });
+  }
 
   const ceT = document.getElementById('movers-ce-total');
   const peT = document.getElementById('movers-pe-total');
   const pcr = document.getElementById('movers-pcr');
-  if (ceT) { ceT.textContent = fmtOI2(totalCe); ceT.style.color = totalCe > 0 ? '#D85A30' : '#1D9E75'; }
-  if (peT) { peT.textContent = fmtOI2(totalPe); peT.style.color = totalPe > 0 ? '#1D9E75' : '#D85A30'; }
-  if (pcr) pcr.textContent = totalCeOI > 0 ? (totalPeOI / totalCeOI).toFixed(2) : '—';
 
-  if (subEl) subEl.textContent = `Top strikes by OI change in latest ${intervalMin}-min interval (${latestBucket?.label || '—'}) · ${TOP} shown per side`;
+  if (ceT) {
+    ceT.textContent = fmtDeltaShort(totalCeDelta);
+    ceT.style.color = totalCeDelta >= 0 ? '#D85A30' : '#1D9E75';
+  }
+
+  if (peT) {
+    peT.textContent = fmtDeltaShort(totalPeDelta);
+    peT.style.color = totalPeDelta >= 0 ? '#1D9E75' : '#D85A30';
+  }
+
+  if (pcr) {
+    pcr.textContent = totalCeOI > 0 ? (totalPeOI / totalCeOI).toFixed(2) : '—';
+  }
+
+  if (subEl) {
+    subEl.textContent =
+      `Dominant OI added/decreased for every ${intervalMin}-min interval · latest ${latest?.label || '—'} · standard CE/PE ITM/OTM logic`;
+  }
 }
+
 
 function rebuildCharts(){requestAnimationFrame(_doRebuild);}
 
@@ -1750,7 +1845,8 @@ function _doRebuild(){
   const sub=intervalMin+'-min · '+minuteRows.length+' rows · '+candles.length+' candles · session '+currentSession;
   document.getElementById('bear-chart-sub').textContent=sub;
   document.getElementById('bull-chart-sub').textContent=sub;
-  document.getElementById('log-meta').textContent='('+minuteRows.length+' rows → '+candles.length+' candles)';
+  const logMeta = document.getElementById('log-meta');
+  if (logMeta) logMeta.textContent='('+minuteRows.length+' rows → '+candles.length+' candles)';
   document.getElementById('index-chart-sub').textContent='Nifty 50 · '+intervalMin+'m candles · colour = dominant OI move (CE/PE building or unwinding across both strikes)';
 
   // ── Draw cumulative OI chart (all strikes) ──
