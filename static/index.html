@@ -1661,27 +1661,6 @@ function drawOIMovers(rows, atmStr) {
     buckets[buckets.length - 1].label = r.time_label; // show interval end time
   });
 
-  function getMoneyness(strike, side) {
-    strike = Number(strike);
-    atmStr = Number(atmStr);
-
-    if (!atmStr || !strike) return '—';
-    if (strike === atmStr) return 'ATM';
-
-    if (side === 'CE') return strike < atmStr ? 'ITM' : 'OTM';
-    if (side === 'PE') return strike > atmStr ? 'ITM' : 'OTM';
-
-    return '—';
-  }
-
-  function badge(moneyness) {
-    const cls =
-      moneyness === 'ATM' ? 'badge-atm' :
-      moneyness === 'ITM' ? 'badge-itm' :
-      'badge-otm';
-
-    return `<span class="mover-type-badge ${cls}">${moneyness}</span>`;
-  }
 
   function fmtOIShort(v) {
     const n = Number(v) || 0;
@@ -1738,10 +1717,13 @@ function drawOIMovers(rows, atmStr) {
     return buckets.map(b => {
       const ce = collectSide(b.rows, 'CE');
       const pe = collectSide(b.rows, 'PE');
+      const lastRow = b.rows[b.rows.length - 1];
+      const spot = parseFloat(lastRow?.spot_close) || parseFloat(lastRow?.spot) || 0;
 
       return {
         bucket: b.bucket,
         label: b.label,
+        spot,
         ce,
         pe
       };
@@ -1750,7 +1732,7 @@ function drawOIMovers(rows, atmStr) {
 
   const results = buildBucketResults();
 
-  function rowHtml(timeLabel, moveLabel, item, side) {
+  function rowHtml(timeLabel, moveLabel, item, spot) {
     if (!item) {
       return `
         <div class="mover-row">
@@ -1761,15 +1743,15 @@ function drawOIMovers(rows, atmStr) {
       `;
     }
 
-    const m = getMoneyness(item.strike, side);
     const color = item.delta > 0 ? '#1D9E75' : '#D85A30';
+    const spotLabel = spot ? `<span class="mover-type-badge badge-otm" style="background:#f8f8f5;color:#888;font-weight:400;">Spot ${fmt(spot)}</span>` : '';
 
     return `
       <div class="mover-row">
         <span class="mover-time">${timeLabel}</span>
         <span class="mover-action">${moveLabel}</span>
         <span class="mover-strike">${item.strike.toLocaleString('en-IN')}</span>
-        ${badge(m)}
+        ${spotLabel}
         <span class="mover-delta" style="color:${color};">${fmtDeltaShort(item.delta)}</span>
         <span class="mover-oi">${fmtOIShort(item.oi)} OI</span>
       </div>
@@ -1781,8 +1763,8 @@ function drawOIMovers(rows, atmStr) {
       const moves = side === 'CE' ? r.ce : r.pe;
 
       return `
-        ${rowHtml(r.label, 'Add', moves.added, side)}
-        ${rowHtml('', 'Dec', moves.decreased, side)}
+        ${rowHtml(r.label, 'Add', moves.added, r.spot)}
+        ${rowHtml('', 'Dec', moves.decreased, r.spot)}
       `;
     }).join('');
 
@@ -1831,7 +1813,7 @@ function drawOIMovers(rows, atmStr) {
 
   if (subEl) {
     subEl.textContent =
-      `Dominant OI added/decreased for every ${intervalMin}-min interval · latest ${latest?.label || '—'} · standard CE/PE ITM/OTM logic`;
+      `Dominant OI added/decreased for every ${intervalMin}-min interval · latest ${latest?.label || '—'} · spot price shown at time of write`;
   }
 }
 
