@@ -507,6 +507,22 @@ let INDEX_CANDLE_W = 12;   // candle width for index (Nifty) chart
 let CHART_H        = 240;  // height of bear/bull SVG charts
 let INDEX_H        = 200;  // height of index SVG chart
 
+// ── MARKET HOURS FILTER ───────────────────────────────────────────
+// NSE market: Mon–Fri 09:15–15:30 IST
+// Rows whose time_label falls outside this window are stripped so
+// charts never show empty off-market timestamps.
+function isMarketHour(timeLabel) {
+  // timeLabel format: "HH:MM"  (IST, already stored that way by the bridge)
+  if (!timeLabel) return false;
+  const [h, m] = timeLabel.replace('*','').split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return false;
+  const t = h * 60 + m;
+  return t >= (9 * 60 + 15) && t < (15 * 60 + 30);
+}
+function filterMarketRows(rows) {
+  return rows.filter(r => isMarketHour(r.time_label));
+}
+
 function onCtrlChange() {
   CANDLE_W_PX    = parseInt(document.getElementById('ctrl-cw').value);
   CHART_H        = parseInt(document.getElementById('ctrl-ch').value);
@@ -723,8 +739,9 @@ async function fetchHistory() {
   cdHX=POLL_HX_SEC;
   try{
     const res=await fetch(BRIDGE+'/oi/history');if(!res.ok)return;
-    minuteRows=await res.json();
-    document.getElementById('rows-info').textContent=minuteRows.length+' 1-min rows (full day)';
+    const raw=await res.json();
+    minuteRows=filterMarketRows(raw);   // strip any off-market rows before charting
+    document.getElementById('rows-info').textContent=minuteRows.length+' 1-min rows (market hours)';
     rebuildCharts();
   }catch(e){}
 }
@@ -734,6 +751,12 @@ async function fetchAll(){await fetchOI();await fetchHistory();}
 // ── FETCH /oi/live-candle (every 5s) ─────────────────────────────
 async function fetchLiveCandle() {
   try {
+    // Don't display a live candle outside market hours
+    if (!isMarketHour(new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Kolkata'}))) {
+      liveCandle = null;
+      document.getElementById('live-candle-status').style.display='none';
+      return;
+    }
     const res = await fetch(BRIDGE + '/oi/live-candle');
     if (!res.ok) return;
     const data = await res.json();
