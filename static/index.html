@@ -751,12 +751,6 @@ async function fetchAll(){await fetchOI();await fetchHistory();}
 // ── FETCH /oi/live-candle (every 5s) ─────────────────────────────
 async function fetchLiveCandle() {
   try {
-    // Don't display a live candle outside market hours
-    if (!isMarketHour(new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Kolkata'}))) {
-      liveCandle = null;
-      document.getElementById('live-candle-status').style.display='none';
-      return;
-    }
     const res = await fetch(BRIDGE + '/oi/live-candle');
     if (!res.ok) return;
     const data = await res.json();
