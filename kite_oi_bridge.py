@@ -295,16 +295,10 @@ def _append_history():
     now          = time.time()
 
     # ── Market-hours guard ────────────────────────────────────────────
-    now_dt = ts_to_ist(now)
-    if not is_market_open(now_dt):
-        # Outside market hours — reset buffer so we start clean at next open
-        minute_buffer["start_ts"]   = None
-        minute_buffer["start_snap"] = None
-        minute_buffer["spot_open"]  = None
-        minute_buffer["spot_high"]  = None
-        minute_buffer["spot_low"]   = None
-        minute_buffer["spot_close"] = None
-        minute_buffer["ltp_ohlc"]   = {}
+    # Only record candles during NSE market hours (09:15–15:30 IST, Mon–Fri).
+    # Outside these hours we simply skip — no buffer wipe, so the buffer
+    # carries cleanly into the next open if the script is left running.
+    if not is_market_open(ts_to_ist(now)):
         return
     # ─────────────────────────────────────────────────────────────────
 
