@@ -36,6 +36,23 @@ IST = timezone(timedelta(hours=5, minutes=30))
 def now_ist(): return datetime.now(IST)
 def ts_to_ist(ts): return datetime.fromtimestamp(ts, tz=IST)
 
+# ── MARKET HOURS ──────────────────────────────────────────────────────────────
+# NSE cash/F&O: Monday–Friday, 09:15–15:29 IST (15:30 is close, so last
+# valid candle starts at 15:29 and completes at 15:30).
+MARKET_OPEN_HM  = (9, 15)
+MARKET_CLOSE_HM = (15, 30)   # exclusive upper bound
+
+def is_market_open(dt=None):
+    """True if dt (defaults to now IST) is within Mon–Fri 09:15–15:29 IST."""
+    if dt is None:
+        dt = now_ist()
+    if dt.weekday() >= 5:          # Sat=5, Sun=6
+        return False
+    mins = dt.hour * 60 + dt.minute
+    open_mins  = MARKET_OPEN_HM[0]  * 60 + MARKET_OPEN_HM[1]
+    close_mins = MARKET_CLOSE_HM[0] * 60 + MARKET_CLOSE_HM[1]
+    return open_mins <= mins < close_mins
+
 import psycopg2
 import psycopg2.extras
 from flask import Flask, jsonify, request, send_from_directory
@@ -278,6 +295,24 @@ def _append_history():
     start = minute_buffer["start_snap"]
     close = current_snap
 
+    # ── Market-hours guard ────────────────────────────────────────────
+    # The candle's identity is its START timestamp. Only write it if that
+    # start time falls within official market hours. This prevents after-
+    # hours ticks (exchange still streams stale data after 15:30) from
+    # creating flat/no-move candles in the DB.
+    candle_start_ist = ts_to_ist(minute_buffer["start_ts"])
+    if not is_market_open(candle_start_ist):
+        # Reset buffer so next market-open starts clean
+        minute_buffer["start_ts"]   = None
+        minute_buffer["start_snap"] = None
+        minute_buffer["spot_open"]  = None
+        minute_buffer["spot_high"]  = None
+        minute_buffer["spot_low"]   = None
+        minute_buffer["spot_close"] = None
+        minute_buffer["ltp_ohlc"]   = {}
+        return
+    # ─────────────────────────────────────────────────────────────────
+
     row = {
         "ts":          minute_buffer["start_ts"],
         "time_label":  ts_to_ist(minute_buffer["start_ts"]).strftime("%H:%M"),
@@ -384,7 +419,11 @@ def build_ticker():
         print(f"Ticker error {code}: {reason}")
 
     def on_close(ws, code, reason):
-        print(f"Ticker closed: {reason}. Reconnecting in 5s...")
+        print(f"Ticker closed: {reason}.")
+        if not is_market_open():
+            print(f"[{now_ist().strftime('%H:%M:%S')}] Market closed — not reconnecting.")
+            return
+        print("Reconnecting in 5s...")
         time.sleep(5)
         build_ticker()
 
@@ -670,6 +709,34 @@ if __name__ == "__main__":
     half = NUM_STRIKES // 2
     print(f"\nInitialising {NUM_STRIKES}-strike window (ATM ±{half} strikes)...")
     initialise(seed_spot)
+
+    # ── Scheduled market-close shutdown ───────────────────────────────
+    # At 15:30 IST the ticker is stopped so no after-hours ticks arrive.
+    # Flask keeps running so the dashboard stays readable after close.
+    def _schedule_market_close():
+        now = now_ist()
+        close_today = now.replace(
+            hour=MARKET_CLOSE_HM[0], minute=MARKET_CLOSE_HM[1],
+            second=0, microsecond=0
+        )
+        wait = (close_today - now).total_seconds()
+        if wait <= 0:
+            return   # already past close today — nothing to schedule
+        print(f"[{now.strftime('%H:%M:%S')}] Ticker auto-stop scheduled at "
+              f"{MARKET_CLOSE_HM[0]:02d}:{MARKET_CLOSE_HM[1]:02d} IST "
+              f"({int(wait//60)}m away).")
+        time.sleep(wait)
+        global ticker_instance
+        if ticker_instance:
+            try:
+                ticker_instance.close()
+            except Exception:
+                pass
+        print(f"[{now_ist().strftime('%H:%M:%S')}] Market closed — ticker stopped. "
+              f"Dashboard remains live for review.")
+
+    threading.Thread(target=_schedule_market_close, daemon=True).start()
+    # ─────────────────────────────────────────────────────────────────
 
     print(f"\nFlask listening on port {FLASK_PORT}")
     print(f"  GET  /                serves dashboard HTML")
