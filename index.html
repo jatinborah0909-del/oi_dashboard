@@ -1,0 +1,1988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nifty OI Bias Monitor</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f5f5f2;color:#1a1a1a;padding:1.25rem;font-size:14px;}
+h1{font-size:17px;font-weight:500;margin-bottom:1rem;}
+
+.status-bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:12px;color:#666;background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:9px 14px;margin-bottom:12px;}
+.conn-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#ccc;transition:background .3s;}
+.sval{font-weight:500;color:#1a1a1a;}
+.pill-group{display:flex;gap:4px;align-items:center;flex-wrap:wrap;}
+.pill{font-size:12px;padding:3px 10px;border-radius:20px;border:0.5px solid #ccc;cursor:pointer;background:#fff;color:#666;transition:all .15s;}
+.pill.active{background:#185FA5;color:#fff;border-color:#185FA5;}
+.btn{font-size:12px;padding:4px 12px;cursor:pointer;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#444;}
+.btn:hover{background:#f0f0ec;}
+.btn-danger{border-color:#e0a0a0;color:#993C1D;}
+.btn-danger:hover{background:#FAECE7;}
+.btn-primary{border-color:#185FA5;color:#185FA5;}
+.btn-primary:hover{background:#E6F1FB;}
+
+.strike-panel{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;}
+.strike-panel-title{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;}
+.strike-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+.strike-group{display:flex;align-items:center;gap:8px;}
+.strike-group label{font-size:12px;color:#666;white-space:nowrap;}
+select{font-size:13px;padding:5px 10px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;}
+.strike-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.strike-chip{font-size:11px;padding:3px 10px;border-radius:20px;border:0.5px solid #ddd;background:#f8f8f5;color:#666;cursor:pointer;transition:all .12s;white-space:nowrap;}
+.strike-chip:hover{border-color:#185FA5;color:#185FA5;}
+.strike-chip.atm{border-color:#534AB7;color:#534AB7;background:#EEEDFE;}
+.strike-chip.bear-active{border-color:#D85A30;color:#712B13;background:#FAECE7;font-weight:500;}
+.strike-chip.bull-active{border-color:#1D9E75;color:#085041;background:#E1F5EE;font-weight:500;}
+
+.alert{padding:11px 16px;border-radius:8px;font-size:13px;margin-bottom:10px;display:none;}
+.alert-break{background:#FAEEDA;color:#854F0B;border:0.5px solid #EF9F27;}
+.alert-roll{background:#E6F1FB;color:#185FA5;border:0.5px solid #85B7EB;}
+
+.bias-block{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.bias-big{font-size:24px;font-weight:500;min-width:130px;}
+.bias-desc{font-size:13px;color:#666;flex:1;min-width:180px;}
+.streak{display:flex;gap:3px;align-items:center;flex-wrap:wrap;}
+.sdot{width:11px;height:11px;border-radius:50%;display:inline-block;}
+.streak-label{font-size:12px;color:#666;margin-left:6px;}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;}
+.card-title{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;}
+.oi-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid #eee;font-size:13px;}
+.oi-row:last-of-type{border-bottom:none;}
+.oi-muted{color:#888;font-size:12px;}
+.bar-wrap{height:6px;background:#eee;border-radius:3px;overflow:hidden;margin-top:8px;}
+.bar{height:100%;border-radius:3px;transition:width .4s;}
+.dom-label{font-size:11px;margin-top:5px;}
+
+/* ── Index chart ── */
+.index-chart-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;}
+.index-chart-title{font-size:13px;font-weight:500;margin-bottom:2px;}
+.index-chart-sub{font-size:11px;color:#888;margin-bottom:8px;}
+.index-legend{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+.il-item{display:flex;align-items:center;gap:4px;font-size:10px;color:#555;}
+.il-sq{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+
+/* ── OI Movers panel ── */
+.mover-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid #eee;font-size:12px;}
+.mover-row:last-child{border-bottom:none;}
+.mover-time{font-size:11px;color:#888;min-width:38px;text-align:right;font-variant-numeric:tabular-nums;}
+.mover-action{font-size:10px;font-weight:600;min-width:28px;text-transform:uppercase;color:#666;}
+.mover-rank{font-size:11px;color:#bbb;min-width:16px;text-align:right;}
+.mover-strike{font-weight:500;color:#1a1a1a;min-width:52px;}
+.mover-type-badge{font-size:10px;padding:1px 7px;border-radius:10px;font-weight:500;white-space:nowrap;}
+.mover-bar-wrap{flex:1;height:5px;background:#f0f0ec;border-radius:3px;overflow:hidden;min-width:40px;}
+.mover-bar{height:100%;border-radius:3px;transition:width .4s;}
+.mover-delta{font-size:11px;font-weight:500;min-width:70px;text-align:right;font-variant-numeric:tabular-nums;}
+.mover-oi{font-size:10px;color:#aaa;min-width:70px;text-align:right;font-variant-numeric:tabular-nums;}
+.badge-atm{background:#EEEDFE;color:#534AB7;}
+.badge-otm{background:#f0f0ec;color:#666;}
+.badge-itm{background:#E6F1FB;color:#185FA5;}
+
+/* ── Strike activity badge ── */
+.activity-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:6px;margin-top:6px;}
+.act-lb{background:#E1F5EE;color:#085041;}   /* Long Buildup */
+.act-sb{background:#FAECE7;color:#712B13;}   /* Short Buildup */
+.act-sc{background:#FAEEDA;color:#854F0B;}   /* Short Covering */
+.act-lu{background:#EAF3DE;color:#3B6D11;}   /* Long Unwinding */
+.act-n {background:#F1EFE8;color:#5F5E5A;}   /* Neutral */
+
+/* ── Dual confluence chart grid ── */
+.dual-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.conf-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;overflow:hidden;}
+.conf-card.bear-card{border-top:2px solid #D85A30;}
+.conf-card.bull-card{border-top:2px solid #1D9E75;}
+.conf-title{font-size:13px;font-weight:500;margin-bottom:2px;}
+.conf-title.bear{color:#712B13;}
+.conf-title.bull{color:#085041;}
+.conf-sub{font-size:11px;color:#888;margin-bottom:8px;}
+.conf-legend{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+.cl-item{display:flex;align-items:center;gap:3px;font-size:10px;color:#666;}
+.cl-sq{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+.conf-chart-scroll{overflow-x:auto;overflow-y:hidden;width:100%;border-radius:4px;margin-bottom:6px;}
+.conf-chart-wrap{position:relative;width:100%;margin-bottom:6px;}
+.yaxis-overlay{position:absolute;top:0;left:0;pointer-events:none;z-index:10;background:transparent;}
+.conf-chart-area{overflow:visible;display:block;}
+.chart-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:11px;color:#666;background:#f8f8f5;border:0.5px solid #eee;border-radius:8px;padding:6px 12px;margin-bottom:10px;}
+.chart-controls label{color:#888;}
+.chart-controls input[type=range]{width:80px;cursor:pointer;accent-color:#185FA5;}
+.chart-controls span{font-weight:500;color:#1a1a1a;min-width:28px;display:inline-block;}
+.signal-strip{display:flex;gap:2px;margin-top:6px;align-items:center;}
+.sig-block{flex:1;height:7px;border-radius:2px;}
+.sig-strip-label{font-size:10px;color:#888;margin-left:5px;white-space:nowrap;}
+.conf-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;padding:4px 10px;border-radius:6px;margin-top:8px;}
+.cb-sb{background:#FAECE7;color:#712B13;}
+.cb-wb{background:#FAEEDA;color:#854F0B;}
+.cb-sg{background:#E1F5EE;color:#085041;}
+.cb-wg{background:#EAF3DE;color:#3B6D11;}
+.cb-n{background:#F1EFE8;color:#5F5E5A;}
+
+/* ── Confluence summary ── */
+.conf-summary{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;}
+.conf-sum-title{font-size:12px;font-weight:500;margin-bottom:10px;}
+.conf-sum-row{display:flex;gap:10px;align-items:flex-start;font-size:12px;margin-bottom:7px;padding-bottom:7px;border-bottom:0.5px solid #eee;}
+.conf-sum-row:last-of-type{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+.conf-sum-label{min-width:90px;color:#888;font-size:11px;padding-top:2px;}
+.conf-sum-badge{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;white-space:nowrap;}
+.conf-sum-text{font-size:11px;color:#666;flex:1;}
+.conf-interp{margin-top:10px;padding-top:10px;border-top:0.5px solid #eee;font-size:12px;color:#666;}
+
+/* ── OI bar chart cards ── */
+.chart-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;}
+.chart-title{font-size:13px;font-weight:500;margin-bottom:2px;}
+.chart-sub{font-size:11px;color:#888;margin-bottom:10px;}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;}
+.leg-item{display:flex;align-items:center;gap:4px;font-size:11px;color:#666;}
+.leg-sq{width:10px;height:10px;border-radius:2px;display:inline-block;}
+
+.ltp-bar{display:flex;align-items:center;background:#f8f8f5;border:0.5px solid #e0e0da;border-radius:8px;padding:8px 14px;margin-bottom:10px;position:relative;}
+.ltp-box{display:flex;align-items:baseline;gap:7px;flex:1;}
+.ltp-label{font-size:12px;color:#888;min-width:85px;}
+.ltp-val{font-size:20px;font-weight:500;color:#1a1a1a;font-variant-numeric:tabular-nums;transition:color .3s;}
+.ltp-val.flash-up{color:#1D9E75;} .ltp-val.flash-down{color:#D85A30;}
+.ltp-tag{font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.05em;}
+.ltp-divider{width:0.5px;height:32px;background:#ddd;margin:0 20px;}
+.ltp-pulse{width:7px;height:7px;border-radius:50%;background:#ccc;position:absolute;right:14px;top:50%;transform:translateY(-50%);transition:background .3s;}
+.ltp-pulse.live{background:#1D9E75;animation:blink 1.5s infinite;}
+@keyframes blink{0%{opacity:1;transform:translateY(-50%) scale(1)}50%{opacity:.4;transform:translateY(-50%) scale(1.4)}100%{opacity:1;transform:translateY(-50%) scale(1)}}
+
+.chart-scroll-outer{overflow-x:auto;overflow-y:hidden;width:100%;border-radius:4px;margin-bottom:10px;}
+.chart-scroll-inner{height:220px;min-width:100%;position:relative;overflow:hidden;}
+
+.net-row{display:flex;gap:8px;}
+.net-box{flex:1;background:#f8f8f5;border-radius:8px;padding:8px 10px;}
+.net-label{font-size:11px;color:#888;margin-bottom:3px;}
+.net-val{font-size:14px;font-weight:500;}
+
+.roll-log{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;}
+.roll-entry{font-size:12px;color:#444;margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+
+.table-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;}
+.overflow-x{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{text-align:left;padding:5px 8px;border-bottom:0.5px solid #ccc;color:#888;font-weight:400;font-size:11px;white-space:nowrap;}
+td{padding:5px 8px;border-bottom:0.5px solid #eee;white-space:nowrap;}
+tr:last-child td{border-bottom:none;}
+tr.row-bear{background:rgba(216,90,48,.04);}
+tr.row-bull{background:rgba(29,158,117,.04);}
+
+.bearish{color:#D85A30} .bullish{color:#1D9E75} .neutral{color:#888}
+.dup{color:#1D9E75;font-weight:500} .ddn{color:#D85A30;font-weight:500} .dfl{color:#888}
+.badge{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;display:inline-block;}
+.bb{background:#FAECE7;color:#712B13} .bu{background:#E1F5EE;color:#085041}
+.bk{background:#FAEEDA;color:#854F0B} .bn{background:#F1EFE8;color:#5F5E5A}
+.br{background:#E6F1FB;color:#185FA5}
+.session-badge{font-size:10px;padding:1px 6px;border-radius:10px;background:#f0f0ec;color:#888;margin-left:4px;}
+.sig-sb{background:#FAECE7;color:#712B13;font-weight:500;}
+.sig-wb{background:#FAEEDA;color:#854F0B;}
+.sig-sg{background:#E1F5EE;color:#085041;font-weight:500;}
+.sig-wg{background:#EAF3DE;color:#3B6D11;}
+.sig-n{background:#F1EFE8;color:#5F5E5A;}
+
+@media(max-width:700px){
+  .grid2,.dual-grid{grid-template-columns:1fr;}
+  .chart-scroll-inner{height:180px;}
+  .ltp-divider{margin:0 10px;}
+}
+</style>
+</head>
+<body>
+
+<h1>Nifty OI Bias Monitor</h1>
+
+<!-- Status bar -->
+<div class="status-bar">
+  <span><span class="conn-dot" id="conn-dot"></span><span id="conn-status">Connecting...</span></span>
+  <span>Spot: <span class="sval" id="spot-val">—</span></span>
+  <span>ATM: <span class="sval" id="atm-val">—</span></span>
+  <span>Session: <span class="sval" id="session-id">0</span></span>
+  <span>As of: <span class="sval" id="as-of">—</span></span>
+  <span>Next poll: <span class="sval" id="countdown">—</span></span>
+  <span id="live-candle-status" style="font-size:11px;color:#1D9E75;display:none;">● Live candle forming (<span id="live-elapsed">0</span>s)</span>
+  <span id="rows-info" style="color:#aaa;font-size:11px;"></span>
+  <button class="btn" onclick="fetchAll()">Refresh</button>
+  <button class="btn btn-danger" onclick="resetCSV()">Reset CSV</button>
+  <div class="pill-group">
+    <span class="pill-label" style="font-size:12px;color:#666;">Interval:</span>
+    <span class="pill" data-min="1"  onclick="setIv(this)">1m</span>
+    <span class="pill active" data-min="3"  onclick="setIv(this)">3m</span>
+    <span class="pill" data-min="5"  onclick="setIv(this)">5m</span>
+    <span class="pill" data-min="10" onclick="setIv(this)">10m</span>
+    <span class="pill" data-min="15" onclick="setIv(this)">15m</span>
+  </div>
+</div>
+
+<!-- Strike selector -->
+<div class="strike-panel">
+  <div class="strike-panel-title">Strike selection — click chip: 1st click = bear, 2nd = bull</div>
+  <div class="strike-row">
+    <div class="strike-group">
+      <label>Bear strike:</label>
+      <select id="bear-select" onchange="onStrikeChange()"><option>—</option></select>
+    </div>
+    <div class="strike-group">
+      <label>Bull strike:</label>
+      <select id="bull-select" onchange="onStrikeChange()"><option>—</option></select>
+    </div>
+    <button class="btn btn-primary" onclick="resetToDefault()">Reset to ATM ±100</button>
+  </div>
+  <div class="strike-badges" id="strike-chips"></div>
+</div>
+
+<!-- Alerts -->
+<div class="alert alert-break" id="alert-break"></div>
+<div class="alert alert-roll"  id="alert-roll"></div>
+
+<!-- Bias -->
+<div class="bias-block">
+  <div class="bias-big neutral" id="bias-big">—</div>
+  <div class="bias-desc" id="bias-desc">Waiting for first reading...</div>
+  <div>
+    <div style="font-size:11px;color:#888;margin-bottom:4px;">Streak (last 12)</div>
+    <div class="streak" id="streak-dots"></div>
+    <div class="streak-label" id="streak-label"></div>
+  </div>
+</div>
+
+<!-- OI cards -->
+<div class="grid2">
+  <div class="card">
+    <div class="card-title" id="bear-card-title">Bear strike</div>
+    <div class="oi-row"><span class="oi-muted" id="bc-lbl">— CE</span><span id="bc-oi" style="font-weight:500">—</span></div>
+    <div class="oi-row"><span class="oi-muted">CE 30s Δ</span><span id="bc-id">—</span></div>
+    <div class="oi-row"><span class="oi-muted">CE total Δ</span><span id="bc-td">—</span></div>
+    <div class="oi-row"><span class="oi-muted" id="bp-lbl">— PE</span><span id="bp-oi" style="font-weight:500">—</span></div>
+    <div class="oi-row"><span class="oi-muted">PE 30s Δ</span><span id="bp-id">—</span></div>
+    <div class="oi-row"><span class="oi-muted">PE total Δ</span><span id="bp-td">—</span></div>
+    <div style="font-size:11px;color:#888;margin-top:8px;">Call dominance (bearish if &gt;50%)</div>
+    <div class="bar-wrap"><div class="bar" id="bear-bar" style="background:#D85A30;width:50%;"></div></div>
+    <div class="dom-label" id="bear-dom-label"></div>
+  </div>
+  <div class="card">
+    <div class="card-title" id="bull-card-title">Bull strike</div>
+    <div class="oi-row"><span class="oi-muted" id="uc-lbl">— CE</span><span id="uc-oi" style="font-weight:500">—</span></div>
+    <div class="oi-row"><span class="oi-muted">CE 30s Δ</span><span id="uc-id">—</span></div>
+    <div class="oi-row"><span class="oi-muted">CE total Δ</span><span id="uc-td">—</span></div>
+    <div class="oi-row"><span class="oi-muted" id="up-lbl">— PE</span><span id="up-oi" style="font-weight:500">—</span></div>
+    <div class="oi-row"><span class="oi-muted">PE 30s Δ</span><span id="up-id">—</span></div>
+    <div class="oi-row"><span class="oi-muted">PE total Δ</span><span id="up-td">—</span></div>
+    <div style="font-size:11px;color:#888;margin-top:8px;">Put dominance (bullish if &gt;50%)</div>
+    <div class="bar-wrap"><div class="bar" id="bull-bar" style="background:#1D9E75;width:50%;"></div></div>
+    <div class="dom-label" id="bull-dom-label"></div>
+  </div>
+</div>
+
+<!-- ── NIFTY INDEX CHART (OI-coloured) ── -->
+<div class="index-chart-card">
+  <div class="index-chart-title">Nifty 50 — price chart · candle colour = dominant OI move</div>
+  <div class="index-chart-sub" id="index-chart-sub">Colour = dominant OI move across both selected strikes (CE building / PE building / CE unwinding / PE unwinding)</div>
+  <div class="index-legend">
+    <span class="il-item"><span class="il-sq" style="background:#8B1A1A;"></span>CE building (strong bear)</span>
+    <span class="il-item"><span class="il-sq" style="background:#EF9F27;"></span>PE unwinding (weak bear)</span>
+    <span class="il-item"><span class="il-sq" style="background:#0F6E56;"></span>PE building (strong bull)</span>
+    <span class="il-item"><span class="il-sq" style="background:#97C459;"></span>CE unwinding (weak bull)</span>
+    <span class="il-item"><span class="il-sq" style="background:#888;"></span>Neutral</span>
+  </div>
+  <div class="conf-chart-wrap">
+    <div class="conf-chart-scroll" id="index-scroll">
+      <div class="conf-chart-area" id="index-chart-area">
+        <svg id="svgIndex" style="display:block;"></svg>
+      </div>
+    </div>
+    <svg id="svgIndexYAxis" class="yaxis-overlay" style="display:block;"></svg>
+  </div>
+  <div class="signal-strip" id="index-strip"></div>
+</div>
+
+<!-- ── CUMULATIVE OI CHANGE CHART ── -->
+<div class="index-chart-card" id="cumoi-card">
+  <div class="index-chart-title">Cumulative OI Change — All Strikes</div>
+  <div class="index-chart-sub" id="cumoi-sub">Aggregate CE and PE OI change from session start across all tracked strikes</div>
+  <div class="index-legend">
+    <span class="il-item"><span class="il-sq" style="background:#1D9E75;border-radius:50%;"></span>Calls (CE) cumulative Δ</span>
+    <span class="il-item"><span class="il-sq" style="background:#D85A30;border-radius:50%;"></span>Puts (PE) cumulative Δ</span>
+  </div>
+  <div class="conf-chart-wrap">
+    <div class="conf-chart-scroll" id="cumoi-scroll">
+      <div class="conf-chart-area" id="cumoi-chart-area">
+        <svg id="svgCumOI" style="display:block;"></svg>
+      </div>
+    </div>
+    <svg id="svgCumOIYAxis" class="yaxis-overlay" style="display:block;"></svg>
+  </div>
+  <div style="display:flex;gap:16px;margin-top:8px;font-size:12px;">
+    <span>Total CE Δ: <span id="cumoi-ce-total" style="font-weight:500;">—</span></span>
+    <span>Total PE Δ: <span id="cumoi-pe-total" style="font-weight:500;">—</span></span>
+    <span>PCR (OI): <span id="cumoi-pcr" style="font-weight:500;">—</span></span>
+  </div>
+</div>
+
+<!-- ── OI MOVERS PANEL ── -->
+<div class="index-chart-card" id="oi-movers-card">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+    <div>
+      <div class="index-chart-title">Top OI Movers — All Strikes</div>
+      <div class="index-chart-sub" id="movers-sub">Strikes with biggest OI increase in selected interval · ranked by absolute change</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;font-size:11px;color:#888;">
+      <span>Total CE Δ: <span id="movers-ce-total" style="font-weight:500;color:#1a1a1a;">—</span></span>
+      <span>Total PE Δ: <span id="movers-pe-total" style="font-weight:500;color:#1a1a1a;">—</span></span>
+      <span>PCR: <span id="movers-pcr" style="font-weight:500;color:#1a1a1a;">—</span></span>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <!-- CE Movers -->
+    <div>
+      <div style="font-size:11px;font-weight:500;color:#712B13;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;padding-bottom:5px;border-bottom:1.5px solid #D85A30;">
+        📞 CE — Calls (Resistance / Short side)
+      </div>
+      <div id="ce-movers-list" style="max-height:400px;overflow-y:auto;"></div>
+    </div>
+    <!-- PE Movers -->
+    <div>
+      <div style="font-size:11px;font-weight:500;color:#085041;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;padding-bottom:5px;border-bottom:1.5px solid #1D9E75;">
+        📤 PE — Puts (Support / Long side)
+      </div>
+      <div id="pe-movers-list" style="max-height:400px;overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CHART SIZE CONTROLS ── -->
+<div class="chart-controls">
+  <label>Candle width:</label>
+  <input type="range" id="ctrl-cw" min="8" max="60" value="20" oninput="onCtrlChange()">
+  <span id="ctrl-cw-val">20</span>px
+  <label style="margin-left:10px;">Chart height:</label>
+  <input type="range" id="ctrl-ch" min="150" max="600" value="240" step="10" oninput="onCtrlChange()">
+  <span id="ctrl-ch-val">240</span>px
+  <label style="margin-left:10px;">Index height:</label>
+  <input type="range" id="ctrl-ih" min="100" max="400" value="200" step="10" oninput="onCtrlChange()">
+  <span id="ctrl-ih-val">200</span>px
+  <label style="margin-left:10px;">Index candle width:</label>
+  <input type="range" id="ctrl-icw" min="4" max="40" value="12" oninput="onCtrlChange()">
+  <span id="ctrl-icw-val">12</span>px
+</div>
+<!-- ── DUAL CONFLUENCE CANDLESTICK CHARTS ── -->
+<div class="dual-grid">
+
+  <!-- Bear lens -->
+  <div class="conf-card bear-card">
+    <div class="conf-title bear" id="bear-conf-title">Bear strike lens — 24,050</div>
+    <div class="conf-sub" id="bear-conf-sub">Bear strike CE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)</div>
+    <div class="conf-legend">
+      <span class="cl-item"><span class="cl-sq" style="background:#0F6E56;"></span>Long Buildup 🔥 (↑price ↑OI)</span>
+      <span class="cl-item"><span class="cl-sq" style="background:#8B1A1A;"></span>Short Buildup 🔥 (↓price ↑OI)</span>
+      <span class="cl-item"><span class="cl-sq" style="background:#EF9F27;"></span>Short Covering ⚠️ (↑price ↓OI)</span>
+      <span class="cl-item"><span class="cl-sq" style="background:#97C459;"></span>Long Unwinding ⚠️ (↓price ↓OI)</span>
+      <span class="cl-item"><span class="cl-sq" style="background:#888;"></span>Neutral</span>
+    </div>
+    <div class="conf-chart-wrap">
+      <div class="conf-chart-scroll" id="bear-conf-scroll">
+        <div class="conf-chart-area" id="bear-chart-area">
+          <svg id="svgBear" style="display:block;"></svg>
+        </div>
+      </div>
+      <svg id="svgBearYAxis" class="yaxis-overlay" style="display:block;"></svg>
+    </div>
+    <div class="signal-strip" id="bear-strip"></div>
+    <div id="bear-conf-badge" class="conf-badge cb-n" style="margin-top:8px;">Waiting for data...</div>
+    <div id="bear-activity-badge" class="activity-badge act-n" style="margin-top:4px;">—</div>
+  </div>
+
+  <!-- Bull lens -->
+  <div class="conf-card bull-card">
+    <div class="conf-title bull" id="bull-conf-title">Bull strike lens — 24,150</div>
+    <div class="conf-sub" id="bull-conf-sub">Bull strike PE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)</div>
+    <div class="conf-legend">
+      <span class="cl-item"><span class="cl-sq" style="background:#0F6E56;"></span>Long Buildup 🔥 (↑price ↑OI)</span>
+      <span class="cl-item"><span class="cl-sq" style="background:#8B1A1A;"></span>Short Buildup 🔥 (↓price ↑OI)</span>
+      <span class="cl-item"><span class="cl-sq" style="background:#EF9F27;"></span>Short Covering ⚠️ (↑price ↓OI)</span>
+      <span class="cl-item"><span class="cl-sq" style="background:#97C459;"></span>Long Unwinding ⚠️ (↓price ↓OI)</span>
+      <span class="cl-item"><span class="cl-sq" style="background:#888;"></span>Neutral</span>
+    </div>
+    <div class="conf-chart-wrap">
+      <div class="conf-chart-scroll" id="bull-conf-scroll">
+        <div class="conf-chart-area" id="bull-chart-area">
+          <svg id="svgBull" style="display:block;"></svg>
+        </div>
+      </div>
+      <svg id="svgBullYAxis" class="yaxis-overlay" style="display:block;"></svg>
+    </div>
+    <div class="signal-strip" id="bull-strip"></div>
+    <div id="bull-conf-badge" class="conf-badge cb-n" style="margin-top:8px;">Waiting for data...</div>
+    <div id="bull-activity-badge" class="activity-badge act-n" style="margin-top:4px;">—</div>
+  </div>
+
+</div>
+
+<!-- Confluence summary -->
+<div class="conf-summary">
+  <div class="conf-sum-title" id="conf-sum-title">Confluence reading — latest interval</div>
+  <div class="conf-sum-row">
+    <span class="conf-sum-label" id="bear-sum-label">Bear —</span>
+    <span class="conf-sum-badge" id="bear-sum-badge">—</span>
+    <span class="conf-sum-text" id="bear-sum-text">—</span>
+  </div>
+  <div class="conf-sum-row">
+    <span class="conf-sum-label" id="bull-sum-label">Bull —</span>
+    <span class="conf-sum-badge" id="bull-sum-badge">—</span>
+    <span class="conf-sum-text" id="bull-sum-text">—</span>
+  </div>
+  <div class="conf-interp" id="conf-interp">Waiting for first candle...</div>
+</div>
+
+<!-- Bear OI delta chart -->
+<div class="chart-card">
+  <div class="chart-title" id="bear-chart-title">Bear strike — CE vs PE OI delta</div>
+  <div class="chart-sub" id="bear-chart-sub">Waiting...</div>
+  <div class="ltp-bar">
+    <div class="ltp-box"><span class="ltp-label" id="bear-ce-sym">— CE</span><span class="ltp-val" id="bear-ce-ltp">—</span><span class="ltp-tag">LTP</span></div>
+    <div class="ltp-divider"></div>
+    <div class="ltp-box"><span class="ltp-label" id="bear-pe-sym">— PE</span><span class="ltp-val" id="bear-pe-ltp">—</span><span class="ltp-tag">LTP</span></div>
+    <div class="ltp-pulse" id="bear-pulse"></div>
+  </div>
+  <div class="legend">
+    <span class="leg-item"><span class="leg-sq" style="background:#D85A30;"></span>CE building (bearish)</span>
+    <span class="leg-item"><span class="leg-sq" style="background:#93c5e8;"></span>CE unwinding</span>
+    <span class="leg-item"><span class="leg-sq" style="background:#1D9E75;"></span>PE building (bullish pressure)</span>
+    <span class="leg-item"><span class="leg-sq" style="background:#f0a080;"></span>PE unwinding</span>
+  </div>
+  <div class="chart-scroll-outer" id="bear-scroll">
+    <div class="chart-scroll-inner" id="bearChartWrap"><canvas id="bearChart"></canvas></div>
+  </div>
+  <div class="net-row">
+    <div class="net-box"><div class="net-label">Net CE Δ</div><div class="net-val" id="net-bc">—</div></div>
+    <div class="net-box"><div class="net-label">Net PE Δ</div><div class="net-val" id="net-bp">—</div></div>
+    <div class="net-box"><div class="net-label">Bear bias</div><div class="net-val" id="bear-score">—</div></div>
+  </div>
+</div>
+
+<!-- Bull OI delta chart -->
+<div class="chart-card">
+  <div class="chart-title" id="bull-chart-title">Bull strike — CE vs PE OI delta</div>
+  <div class="chart-sub" id="bull-chart-sub">Waiting...</div>
+  <div class="ltp-bar">
+    <div class="ltp-box"><span class="ltp-label" id="bull-ce-sym">— CE</span><span class="ltp-val" id="bull-ce-ltp">—</span><span class="ltp-tag">LTP</span></div>
+    <div class="ltp-divider"></div>
+    <div class="ltp-box"><span class="ltp-label" id="bull-pe-sym">— PE</span><span class="ltp-val" id="bull-pe-ltp">—</span><span class="ltp-tag">LTP</span></div>
+    <div class="ltp-pulse" id="bull-pulse"></div>
+  </div>
+  <div class="legend">
+    <span class="leg-item"><span class="leg-sq" style="background:#1D9E75;"></span>PE building (bullish)</span>
+    <span class="leg-item"><span class="leg-sq" style="background:#f0a080;"></span>PE unwinding</span>
+    <span class="leg-item"><span class="leg-sq" style="background:#D85A30;"></span>CE building (bearish pressure)</span>
+    <span class="leg-item"><span class="leg-sq" style="background:#93c5e8;"></span>CE unwinding</span>
+  </div>
+  <div class="chart-scroll-outer" id="bull-scroll">
+    <div class="chart-scroll-inner" id="bullChartWrap"><canvas id="bullChart"></canvas></div>
+  </div>
+  <div class="net-row">
+    <div class="net-box"><div class="net-label">Net CE Δ</div><div class="net-val" id="net-uc">—</div></div>
+    <div class="net-box"><div class="net-label">Net PE Δ</div><div class="net-val" id="net-up">—</div></div>
+    <div class="net-box"><div class="net-label">Bull bias</div><div class="net-val" id="bull-score">—</div></div>
+  </div>
+</div>
+
+<!-- Roll log -->
+<div class="roll-log">
+  <div class="card-title" style="margin-bottom:8px;">Strike roll history</div>
+  <div id="roll-log-body" style="font-size:12px;color:#888;">No rolls today.</div>
+</div>
+
+<!-- Table removed -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────
+const BRIDGE       = '';  // served from same origin on Railway
+const POLL_OI_SEC  = 30;
+const POLL_HX_SEC  = 60;
+const POLL_LTP_SEC = 2;
+const POLL_LIVE_SEC = 5;   // live forming candle refresh
+const MIN_BAR_PX   = 32;
+let CANDLE_W_PX    = 20;   // candle width for SVG bear/bull charts
+let INDEX_CANDLE_W = 12;   // candle width for index (Nifty) chart
+let CHART_H        = 240;  // height of bear/bull SVG charts
+let INDEX_H        = 200;  // height of index SVG chart
+
+// ── MARKET HOURS FILTER ───────────────────────────────────────────
+// NSE market: Mon–Fri 09:15–15:30 IST
+// Rows whose time_label falls outside this window are stripped so
+// charts never show empty off-market timestamps.
+function isMarketHour(timeLabel) {
+  // timeLabel format: "HH:MM"  (IST, already stored that way by the bridge)
+  if (!timeLabel) return false;
+  const [h, m] = timeLabel.replace('*','').split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return false;
+  const t = h * 60 + m;
+  return t >= (9 * 60 + 15) && t < (15 * 60 + 30);
+}
+function filterMarketRows(rows) {
+  return rows.filter(r => isMarketHour(r.time_label));
+}
+
+function onCtrlChange() {
+  CANDLE_W_PX    = parseInt(document.getElementById('ctrl-cw').value);
+  CHART_H        = parseInt(document.getElementById('ctrl-ch').value);
+  INDEX_H        = parseInt(document.getElementById('ctrl-ih').value);
+  INDEX_CANDLE_W = parseInt(document.getElementById('ctrl-icw').value);
+  document.getElementById('ctrl-cw-val').textContent  = CANDLE_W_PX;
+  document.getElementById('ctrl-ch-val').textContent  = CHART_H;
+  document.getElementById('ctrl-ih-val').textContent  = INDEX_H;
+  document.getElementById('ctrl-icw-val').textContent = INDEX_CANDLE_W;
+  rebuildCharts();
+}
+
+// ── SIGNAL COLOURS ────────────────────────────────────────────────
+// SB=strong bear, WB=weak bear, SG=strong bull, WG=weak bull, N=neutral
+const SIG_COLOR = {
+  SB: { body:'#8B1A1A', wick:'#6B1111', badge:'cb-sb', label:'CE building', cls:'sig-sb' },
+  WB: { body:'#EF9F27', wick:'#9A6010', badge:'cb-wb', label:'PE unwinding', cls:'sig-wb' },
+  SG: { body:'#0F6E56', wick:'#085041', badge:'cb-sg', label:'PE building',  cls:'sig-sg' },
+  WG: { body:'#97C459', wick:'#3B6D11', badge:'cb-wg', label:'CE unwinding', cls:'sig-wg' },
+  N:  { body:'#888780', wick:'#5F5E5A', badge:'cb-n',  label:'Neutral',      cls:'sig-n'  },
+};
+
+// ── ACTIVITY TYPE (Price + OI) ────────────────────────────────────
+// LB = Long Buildup  (price↑, OI↑)  🔥 Strong Bullish
+// SB_act = Short Buildup (price↓, OI↑)  🔥 Strong Bearish
+// SC = Short Covering (price↑, OI↓)  ⚠️ Weak Bullish
+// LU = Long Unwinding (price↓, OI↓)  ⚠️ Weak Bearish
+// N  = Neutral
+const ACT_COLOR = {
+  LB: { body:'#0F6E56', wick:'#085041', cls:'act-lb', label:'🔥 Long Buildup',    desc:'Strong Bullish — price↑ OI↑' },
+  SB: { body:'#8B1A1A', wick:'#6B1111', cls:'act-sb', label:'🔥 Short Buildup',   desc:'Strong Bearish — price↓ OI↑' },
+  SC: { body:'#EF9F27', wick:'#9A6010', cls:'act-sc', label:'⚠️ Short Covering',  desc:'Weak Bullish — price↑ OI↓'  },
+  LU: { body:'#97C459', wick:'#3B6D11', cls:'act-lu', label:'⚠️ Long Unwinding',  desc:'Weak Bearish — price↓ OI↓'  },
+  N:  { body:'#888780', wick:'#5F5E5A', cls:'act-n',  label:'Neutral',            desc:'No dominant move'            },
+};
+
+// Determine activity type from price direction and net OI delta
+function getActivityType(priceOpen, priceClose, oiDelta) {
+  const priceUp = priceClose > priceOpen + 0.5;
+  const priceDn = priceClose < priceOpen - 0.5;
+  const oiUp    = oiDelta >  500;
+  const oiDn    = oiDelta < -500;
+  if (priceUp && oiUp)  return 'LB';
+  if (priceDn && oiUp)  return 'SB';
+  if (priceUp && oiDn)  return 'SC';
+  if (priceDn && oiDn)  return 'LU';
+  return 'N';
+}
+
+// OI signal for index chart — CE building / PE building / CE unwinding / PE unwinding
+// Uses combined CE and PE deltas across both selected strikes to find dominant move
+function getIndexOISignal(c) {
+  const totalCeDelta = (c.dbce||0) + (c.duce||0);
+  const totalPeDelta = (c.dbpe||0) + (c.dupe||0);
+  const candidates = [
+    { key:'SB', abs: totalCeDelta > 0 ? totalCeDelta : 0 },
+    { key:'WB', abs: totalPeDelta < 0 ? Math.abs(totalPeDelta) : 0 },
+    { key:'SG', abs: totalPeDelta > 0 ? totalPeDelta : 0 },
+    { key:'WG', abs: totalCeDelta < 0 ? Math.abs(totalCeDelta) : 0 },
+  ].filter(x => x.abs > 500).sort((a, b) => b.abs - a.abs);
+  return candidates.length ? candidates[0].key : 'N';
+}
+
+// ── STATE ─────────────────────────────────────────────────────────
+let intervalMin    = 3;
+let minuteRows     = [];
+let snapHistory    = [];
+let biasStreak     = [];
+let currentBias    = null;
+let prevRollCount  = 0;
+let currentSession = 0;
+let bearChart      = null;
+let bullChart      = null;
+let allStrikes     = [];
+let atmStrike      = null;
+let selectedBear   = null;
+let selectedBull   = null;
+let defaultBear    = null;
+let defaultBull    = null;
+let lastOIData     = null;
+let chipClickState = 'bear';
+let liveCandle     = null;    // currently forming candle from /oi/live-candle
+let latestCandles  = [];      // last built candle array (needed for live overlay)
+const prevLtp      = {};
+
+// ── HELPERS ───────────────────────────────────────────────────────
+const fmt   = n => Math.round(n).toLocaleString('en-IN');
+const fmtD  = n => (n>0?'+':'')+fmt(n);
+const dcls  = n => n>0?'ddn':n<0?'dup':'dfl';
+const dhtml = n => `<span class="${dcls(n)}">${fmtD(n)}</span>`;
+const pf    = v => parseFloat(v)||0;
+const rk    = (strike,type) => `s${strike}_${type.toLowerCase()}`;
+
+// ── SIGNAL LOGIC ─────────────────────────────────────────────────
+
+// ── INTERVAL SELECTOR ─────────────────────────────────────────────
+function setIv(el) {
+  document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  intervalMin = parseInt(el.dataset.min);
+  const ivLabel = document.getElementById('iv-label');
+  if (ivLabel) ivLabel.textContent = intervalMin+'m';
+  rebuildCharts();
+}
+
+// ── STRIKE SELECTOR ───────────────────────────────────────────────
+function populateStrikeSelectors(strikes, atm, defBear, defBull) {
+  ['bear-select','bull-select'].forEach((id,idx) => {
+    const sel = document.getElementById(id);
+    const cur = idx===0 ? selectedBear : selectedBull;
+    sel.innerHTML='';
+    strikes.forEach(st=>{
+      const o=document.createElement('option');
+      o.value=st; o.textContent=st;
+      if(st===cur) o.selected=true;
+      sel.appendChild(o);
+    });
+  });
+  const chipsEl=document.getElementById('strike-chips');
+  chipsEl.innerHTML=strikes.map(st=>{
+    let cls='strike-chip';
+    if(st===atm) cls+=' atm';
+    if(st===selectedBear) cls+=' bear-active';
+    if(st===selectedBull) cls+=' bull-active';
+    return `<span class="${cls}" onclick="onChipClick(${st})" title="1st click=bear, 2nd=bull">${st}</span>`;
+  }).join('');
+}
+
+function onChipClick(strike) {
+  if(chipClickState==='bear'){selectedBear=strike;document.getElementById('bear-select').value=strike;chipClickState='bull';}
+  else{selectedBull=strike;document.getElementById('bull-select').value=strike;chipClickState='bear';}
+  refreshDisplay();
+}
+
+function onStrikeChange() {
+  selectedBear=parseInt(document.getElementById('bear-select').value);
+  selectedBull=parseInt(document.getElementById('bull-select').value);
+  if(selectedBear === selectedBull){
+    alert('Bear and Bull strikes cannot be the same. Please select different strikes.');
+    return;
+  }
+  refreshDisplay();
+}
+
+function resetToDefault() {
+  selectedBear=defaultBear; selectedBull=defaultBull;
+  document.getElementById('bear-select').value=defaultBear;
+  document.getElementById('bull-select').value=defaultBull;
+  chipClickState='bear'; refreshDisplay();
+}
+
+function refreshDisplay() {
+  populateStrikeSelectors(allStrikes,atmStrike,defaultBear,defaultBull);
+  if(lastOIData) processSnapshot(lastOIData);
+  rebuildCharts();
+}
+
+// ── LTP ───────────────────────────────────────────────────────────
+async function fetchLTP() {
+  try{const res=await fetch(BRIDGE+'/ltp');if(!res.ok)return;updateLTP(await res.json());}catch(e){}
+}
+
+function updateLTP(data) {
+  if(!selectedBear||!selectedBull) return;
+  const opts=data.options||{};
+  const map=[
+    {key:rk(selectedBear,'ce'),symId:'bear-ce-sym',ltpId:'bear-ce-ltp',pulseId:'bear-pulse'},
+    {key:rk(selectedBear,'pe'),symId:'bear-pe-sym',ltpId:'bear-pe-ltp',pulseId:'bear-pulse'},
+    {key:rk(selectedBull,'ce'),symId:'bull-ce-sym',ltpId:'bull-ce-ltp',pulseId:'bull-pulse'},
+    {key:rk(selectedBull,'pe'),symId:'bull-pe-sym',ltpId:'bull-pe-ltp',pulseId:'bull-pulse'},
+  ];
+  map.forEach(({key,symId,ltpId,pulseId})=>{
+    const d=opts[key];if(!d)return;
+    document.getElementById(symId).textContent=d.strike+' '+d.type;
+    const ltp=d.ltp,prev=prevLtp[key]||0;
+    const el=document.getElementById(ltpId);
+    el.textContent=ltp?fmt(ltp):'—';
+    if(prev&&ltp!==prev){const cls=ltp>prev?'flash-up':'flash-down';el.classList.add(cls);setTimeout(()=>el.classList.remove(cls),600);}
+    prevLtp[key]=ltp;
+    const pulse=document.getElementById(pulseId);
+    if(pulse){pulse.classList.add('live');setTimeout(()=>pulse.classList.remove('live'),1500);}
+  });
+  if(data.spot) document.getElementById('spot-val').textContent=fmt(data.spot);
+}
+
+// ── FETCH /oi ─────────────────────────────────────────────────────
+async function fetchOI() {
+  try{
+    const res=await fetch(BRIDGE+'/oi');
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data=await res.json();
+    document.getElementById('conn-dot').style.background='#1D9E75';
+    document.getElementById('conn-status').textContent='Connected';
+    document.getElementById('as-of').textContent=data.as_of||'—';
+    document.getElementById('session-id').textContent=data.session_id??'0';
+    document.getElementById('atm-val').textContent=data.atm_strike??'—';
+    currentSession=data.session_id??0;
+    if(allStrikes.length===0&&data.strikes){
+      allStrikes=data.strikes.map(Number).sort((a,b)=>a-b);
+      atmStrike=data.atm_strike; defaultBear=data.bear_strike; defaultBull=data.bull_strike;
+      if(!selectedBear) selectedBear=defaultBear;
+      if(!selectedBull) selectedBull=defaultBull;
+      populateStrikeSelectors(allStrikes,atmStrike,defaultBear,defaultBull);
+    }
+    defaultBear=data.bear_strike; defaultBull=data.bull_strike;
+    lastOIData=data; processSnapshot(data); return data;
+  }catch(e){
+    document.getElementById('conn-dot').style.background='#D85A30';
+    document.getElementById('conn-status').textContent='Bridge offline — run kite_oi_bridge.py';
+  }
+}
+
+async function fetchHistory() {
+  cdHX=POLL_HX_SEC;
+  try{
+    const res=await fetch(BRIDGE+'/oi/history');if(!res.ok)return;
+    const raw=await res.json();
+    minuteRows=filterMarketRows(raw);   // strip any off-market rows before charting
+    document.getElementById('rows-info').textContent=minuteRows.length+' 1-min rows (market hours)';
+    rebuildCharts();
+  }catch(e){}
+}
+
+async function fetchAll(){await fetchOI();await fetchHistory();}
+
+// ── FETCH /oi/live-candle (every 5s) ─────────────────────────────
+async function fetchLiveCandle() {
+  try {
+    // Don't display a live candle outside market hours
+    if (!isMarketHour(new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Kolkata'}))) {
+      liveCandle = null;
+      document.getElementById('live-candle-status').style.display='none';
+      return;
+    }
+    const res = await fetch(BRIDGE + '/oi/live-candle');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.available || !selectedBear || !selectedBull) {
+      liveCandle = null;
+      document.getElementById('live-candle-status').style.display='none';
+      return;
+    }
+
+    const bCeKey = rk(selectedBear, 'ce');
+    const bPeKey = rk(selectedBear, 'pe');
+    const uCeKey = rk(selectedBull, 'ce');
+    const uPeKey = rk(selectedBull, 'pe');
+
+    liveCandle = {
+      label:   data.time_label,
+      open:    data.spot_open,
+      high:    data.spot_high,
+      low:     data.spot_low,
+      close:   data.spot_close,
+      dbce:    data.deltas[bCeKey]?.delta || 0,
+      dbpe:    data.deltas[bPeKey]?.delta || 0,
+      duce:    data.deltas[uCeKey]?.delta || 0,
+      dupe:    data.deltas[uPeKey]?.delta || 0,
+      bce:     data.deltas[bCeKey]?.oi   || 0,
+      bpe:     data.deltas[bPeKey]?.oi   || 0,
+      elapsed: data.elapsed_sec,
+      isLive:  true,
+      // Strike LTP from prevLtp cache for live candle
+      bce_ltp_open:  prevLtp[bCeKey]||0, bce_ltp_high: prevLtp[bCeKey]||0,
+      bce_ltp_low:   prevLtp[bCeKey]||0, bce_ltp_close: prevLtp[bCeKey]||0,
+      bce_oi_delta:  data.deltas[bCeKey]?.delta || 0,
+      bpe_ltp_open:  prevLtp[bPeKey]||0, bpe_ltp_high: prevLtp[bPeKey]||0,
+      bpe_ltp_low:   prevLtp[bPeKey]||0, bpe_ltp_close: prevLtp[bPeKey]||0,
+      bpe_oi_delta:  data.deltas[bPeKey]?.delta || 0,
+      uce_ltp_open:  prevLtp[uCeKey]||0, uce_ltp_high: prevLtp[uCeKey]||0,
+      uce_ltp_low:   prevLtp[uCeKey]||0, uce_ltp_close: prevLtp[uCeKey]||0,
+      uce_oi_delta:  data.deltas[uCeKey]?.delta || 0,
+      upe_ltp_open:  prevLtp[uPeKey]||0, upe_ltp_high: prevLtp[uPeKey]||0,
+      upe_ltp_low:   prevLtp[uPeKey]||0, upe_ltp_close: prevLtp[uPeKey]||0,
+      upe_oi_delta:  data.deltas[uPeKey]?.delta || 0,
+    };
+
+    // Update status bar indicator
+    document.getElementById('live-candle-status').style.display='inline';
+    document.getElementById('live-elapsed').textContent=data.elapsed_sec;
+
+    // Redraw SVG charts only — no need to rebuild OI bar charts
+    _redrawSVGOnly();
+  } catch(e) {}
+}
+
+function _redrawSVGOnly() {
+  if (!latestCandles.length && !liveCandle) return;
+  const allWithLive = liveCandle ? [...latestCandles, liveCandle] : latestCandles;
+  drawIndexChart(allWithLive);
+  const bearSigs = drawStrikeActivityChart(
+    'svgBear', allWithLive,
+    c=>c.bce_ltp_open, c=>c.bce_ltp_high, c=>c.bce_ltp_low, c=>c.bce_ltp_close,
+    c=>c.bce_oi_delta,
+    'bear-activity-badge'
+  );
+  const bullSigs = drawStrikeActivityChart(
+    'svgBull', allWithLive,
+    c=>c.upe_ltp_open, c=>c.upe_ltp_high, c=>c.upe_ltp_low, c=>c.upe_ltp_close,
+    c=>c.upe_oi_delta,
+    'bull-activity-badge'
+  );
+  buildStrip('bear-strip', bearSigs);
+  buildStrip('bull-strip', bullSigs);
+  if (allWithLive.length) updateConfluenceSummary(allWithLive, bearSigs, bullSigs);
+}
+
+async function resetCSV(){
+  if(!confirm('Wipe oi_history.csv?\nAll chart history cleared.')) return;
+  try{
+    const res=await fetch(BRIDGE+'/reset-csv',{method:'POST'});const data=await res.json();
+    minuteRows=[];currentSession=0;liveCandle=null;
+    document.getElementById('session-id').textContent='0';
+    document.getElementById('rows-info').textContent='0 rows';
+    document.getElementById('live-candle-status').style.display='none';
+    rebuildCharts();alert(data.message);
+  }catch(e){alert('Could not reach bridge.');}
+}
+
+// ── PROCESS SNAPSHOT ─────────────────────────────────────────────
+function processSnapshot(data){
+  if(!selectedBear||!selectedBull) return;
+
+  // Guard — warn if both strikes are the same (edge case from clamping)
+  if(selectedBear === selectedBull){
+    document.getElementById('bias-desc').textContent =
+      'Warning: Bear and Bull strikes are the same ('+selectedBear+'). Please select different strikes.';
+    return;
+  }
+  const opts=data.options||{};
+  const bc=opts[rk(selectedBear,'ce')],bp=opts[rk(selectedBear,'pe')];
+  const uc=opts[rk(selectedBull,'ce')],up=opts[rk(selectedBull,'pe')];
+  if(!bc||!bp||!uc||!up) return;
+
+  document.getElementById('bear-card-title').textContent='Bear strike ('+selectedBear+')';
+  document.getElementById('bull-card-title').textContent='Bull strike ('+selectedBull+')';
+  document.getElementById('bear-chart-title').textContent='Bear strike '+selectedBear+' — CE vs PE OI delta';
+  document.getElementById('bull-chart-title').textContent='Bull strike '+selectedBull+' — CE vs PE OI delta';
+  document.getElementById('bear-conf-title').textContent='Bear strike lens — '+selectedBear;
+  document.getElementById('bull-conf-title').textContent='Bull strike lens — '+selectedBull;
+  document.getElementById('bear-conf-sub').textContent=selectedBear+' CE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)';
+  document.getElementById('bull-conf-sub').textContent=selectedBull+' PE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)';
+  document.getElementById('bc-lbl').textContent=selectedBear+' CE';
+  document.getElementById('bp-lbl').textContent=selectedBear+' PE';
+  document.getElementById('uc-lbl').textContent=selectedBull+' CE';
+  document.getElementById('up-lbl').textContent=selectedBull+' PE';
+
+  const s=(id,v)=>{document.getElementById(id).innerHTML=v;};
+  s('bc-oi',fmt(bc.oi));s('bc-id',dhtml(bc.oi_change_since_last_poll));s('bc-td',dhtml(bc.oi_change_total));
+  s('bp-oi',fmt(bp.oi));s('bp-id',dhtml(bp.oi_change_since_last_poll));s('bp-td',dhtml(bp.oi_change_total));
+  s('uc-oi',fmt(uc.oi));s('uc-id',dhtml(uc.oi_change_since_last_poll));s('uc-td',dhtml(uc.oi_change_total));
+  s('up-oi',fmt(up.oi));s('up-id',dhtml(up.oi_change_since_last_poll));s('up-td',dhtml(up.oi_change_total));
+
+  const bearPct=Math.round(bc.oi/(bc.oi+bp.oi||1)*100);
+  const bullPct=Math.round(up.oi/(uc.oi+up.oi||1)*100);
+  document.getElementById('bear-bar').style.width=bearPct+'%';
+  document.getElementById('bull-bar').style.width=bullPct+'%';
+  document.getElementById('bear-dom-label').textContent=bearPct+'% call dominated';
+  document.getElementById('bear-dom-label').className='dom-label '+(bearPct>55?'bearish':bearPct<45?'bullish':'neutral');
+  document.getElementById('bull-dom-label').textContent=bullPct+'% put dominated';
+  document.getElementById('bull-dom-label').className='dom-label '+(bullPct>55?'bullish':bullPct<45?'bearish':'neutral');
+
+  const bias=computeBias(bc,bp,uc,up);
+  updateBiasUI(bias);updateStreak(bias);updateRollLog(data.roll_log||[]);
+  snapHistory.push({time:data.as_of,spot:data.spot,bc,bp,uc,up,bias});
+  populateStrikeSelectors(allStrikes,atmStrike,defaultBear,defaultBull);
+}
+
+function computeBias(bc,bp,uc,up){
+  const bearCallDom=bc.oi>bp.oi,bullPutDom=up.oi>uc.oi;
+  const bearRatio=bc.oi/(bc.oi+bp.oi||1),bullRatio=up.oi/(uc.oi+up.oi||1);
+  const bDC=bc.oi_change_since_last_poll>0&&bp.oi_change_since_last_poll<0;
+  const uDC=up.oi_change_since_last_poll>0&&uc.oi_change_since_last_poll<0;
+  if(bearCallDom&&!bullPutDom) return{signal:'BEARISH',note:'Call OI dominant at '+selectedBear+(bDC?' — CE building, PE unwinding':'')};
+  if(bullPutDom&&!bearCallDom) return{signal:'BULLISH',note:'Put OI dominant at '+selectedBull+(uDC?' — PE building, CE unwinding':'')};
+  if(bearCallDom&&bullPutDom) return bearRatio>bullRatio
+    ?{signal:'BEARISH',note:'Both dominant — bear stronger ('+Math.round(bearRatio*100)+'%)'}
+    :{signal:'BULLISH',note:'Both dominant — bull stronger ('+Math.round(bullRatio*100)+'%)'};
+  return{signal:'NEUTRAL',note:'No clear OI dominance at either strike'};
+}
+
+function updateBiasUI(bias){
+  const el=document.getElementById('bias-big');
+  if(bias.signal==='BEARISH'){el.textContent='▼ Bearish';el.className='bias-big bearish';}
+  else if(bias.signal==='BULLISH'){el.textContent='▲ Bullish';el.className='bias-big bullish';}
+  else{el.textContent='— Neutral';el.className='bias-big neutral';}
+  document.getElementById('bias-desc').textContent=bias.note;
+}
+
+function updateStreak(bias){
+  const prev=currentBias;
+  if(!prev||prev==='NEUTRAL'){currentBias=bias.signal;biasStreak=[bias.signal];}
+  else if(bias.signal===prev){biasStreak.push(bias.signal);}
+  else if(bias.signal!=='NEUTRAL'){biasStreak.push(bias.signal);showBreakAlert(prev,bias.signal);currentBias=bias.signal;}
+  else{biasStreak.push(bias.signal);}
+  const last=biasStreak[biasStreak.length-1];
+  let cons=0;for(let i=biasStreak.length-1;i>=0;i--){if(biasStreak[i]===last)cons++;else break;}
+  const isBreak=biasStreak.length>1&&biasStreak[biasStreak.length-1]!==biasStreak[biasStreak.length-2];
+  document.getElementById('streak-dots').innerHTML=biasStreak.slice(-12).map(s=>{
+    const c=s==='BEARISH'?'#D85A30':s==='BULLISH'?'#1D9E75':'#aaa';
+    return `<span class="sdot" style="background:${c};"></span>`;
+  }).join('');
+  const lbl=document.getElementById('streak-label');
+  if(isBreak){lbl.textContent='Break — '+last+' emerging';lbl.style.color='#854F0B';}
+  else{lbl.textContent=cons+' consecutive '+last.toLowerCase();lbl.style.color=last==='BEARISH'?'#993C1D':last==='BULLISH'?'#0F6E56':'#888';}
+}
+
+function showBreakAlert(prev,cur){
+  const box=document.getElementById('alert-break');
+  box.textContent='Bias break: '+prev+' invalidated — '+cur+' emerging.';
+  box.style.display='block';setTimeout(()=>{box.style.display='none';},20000);
+}
+
+function updateRollLog(rolls){
+  const body=document.getElementById('roll-log-body');
+  if(!rolls.length){body.textContent='No rolls today.';return;}
+  if(rolls.length>prevRollCount){
+    const r=rolls[rolls.length-1];
+    const box=document.getElementById('alert-roll');
+    box.textContent='Roll at '+r.time+' (session → '+r.session_id+') → Bear '+r.to_bear+' / Bull '+r.to_bull+'. Full history retained.';
+    box.style.display='block';setTimeout(()=>{box.style.display='none';},20000);
+    prevRollCount=rolls.length;
+  }
+  body.innerHTML=rolls.map(r=>
+    '<div class="roll-entry">'
+    +'<span class="badge br">'+r.time+'</span>'
+    +'<span class="session-badge">session '+r.session_id+'</span>'
+    +' Bear <strong>'+r.to_bear+'</strong> / Bull <strong>'+r.to_bull+'</strong>'
+    +' <span style="color:#aaa">(was '+r.from_bear+'/'+r.from_bull+')</span>'
+    +'</div>'
+  ).join('');
+}
+
+// ── CANDLE BUILDER ────────────────────────────────────────────────
+function buildCandles(rows,mins,bear,bull){
+  if(!rows.length||!bear||!bull) return[];
+  const bCeK=`s${bear}_ce`,bPeK=`s${bear}_pe`;
+  const uCeK=`s${bull}_ce`,uPeK=`s${bull}_pe`;
+  const candles=[];
+  for(let i=0;i<rows.length;i+=mins){
+    const slice=rows.slice(i,i+mins);
+    const first=slice[0],last=slice[slice.length-1];
+    const opens=slice.map(r=>pf(r.spot_open)).filter(v=>v>0);
+    const highs=slice.map(r=>pf(r.spot_high)).filter(v=>v>0);
+    const lows=slice.map(r=>pf(r.spot_low)).filter(v=>v>0);
+    const closes=slice.map(r=>pf(r.spot_close)).filter(v=>v>0);
+
+    // Strike LTP values from history rows (stored as *_ltp columns)
+    const bCeLtps=slice.map(r=>pf(r[bCeK+'_ltp'])).filter(v=>v>0);
+    const bPeLtps=slice.map(r=>pf(r[bPeK+'_ltp'])).filter(v=>v>0);
+    const uCeLtps=slice.map(r=>pf(r[uCeK+'_ltp'])).filter(v=>v>0);
+    const uPeLtps=slice.map(r=>pf(r[uPeK+'_ltp'])).filter(v=>v>0);
+
+    const bCeOiStart=pf(first[bCeK+'_oi']),bCeOiEnd=pf(last[bCeK+'_oi']);
+    const bPeOiStart=pf(first[bPeK+'_oi']),bPeOiEnd=pf(last[bPeK+'_oi']);
+    const uCeOiStart=pf(first[uCeK+'_oi']),uCeOiEnd=pf(last[uCeK+'_oi']);
+    const uPeOiStart=pf(first[uPeK+'_oi']),uPeOiEnd=pf(last[uPeK+'_oi']);
+
+    candles.push({
+      label:first.time_label,
+      ts:pf(first.ts)*1000,
+      open:opens.length?opens[0]:0,
+      high:highs.length?Math.max(...highs):0,
+      low:lows.length?Math.min(...lows):0,
+      close:closes.length?closes[closes.length-1]:0,
+      dbce:slice.reduce((s,r)=>s+pf(r[bCeK+'_delta']),0),
+      dbpe:slice.reduce((s,r)=>s+pf(r[bPeK+'_delta']),0),
+      duce:slice.reduce((s,r)=>s+pf(r[uCeK+'_delta']),0),
+      dupe:slice.reduce((s,r)=>s+pf(r[uPeK+'_delta']),0),
+      bce:pf(last[bCeK+'_oi']),
+      bpe:pf(last[bPeK+'_oi']),
+      bce_td:pf(last[bCeK+'_oi'])-pf(first[bCeK+'_baseline']),
+      bpe_td:pf(last[bPeK+'_oi'])-pf(first[bPeK+'_baseline']),
+      // Strike LTP OHLC — used for the strike price candle charts
+      bce_ltp_open:  bCeLtps.length ? bCeLtps[0] : 0,
+      bce_ltp_high:  bCeLtps.length ? Math.max(...bCeLtps) : 0,
+      bce_ltp_low:   bCeLtps.length ? Math.min(...bCeLtps) : 0,
+      bce_ltp_close: bCeLtps.length ? bCeLtps[bCeLtps.length-1] : 0,
+      bce_oi_delta:  bCeOiEnd - bCeOiStart,
+      bpe_ltp_open:  bPeLtps.length ? bPeLtps[0] : 0,
+      bpe_ltp_high:  bPeLtps.length ? Math.max(...bPeLtps) : 0,
+      bpe_ltp_low:   bPeLtps.length ? Math.min(...bPeLtps) : 0,
+      bpe_ltp_close: bPeLtps.length ? bPeLtps[bPeLtps.length-1] : 0,
+      bpe_oi_delta:  bPeOiEnd - bPeOiStart,
+      uce_ltp_open:  uCeLtps.length ? uCeLtps[0] : 0,
+      uce_ltp_high:  uCeLtps.length ? Math.max(...uCeLtps) : 0,
+      uce_ltp_low:   uCeLtps.length ? Math.min(...uCeLtps) : 0,
+      uce_ltp_close: uCeLtps.length ? uCeLtps[uCeLtps.length-1] : 0,
+      uce_oi_delta:  uCeOiEnd - uCeOiStart,
+      upe_ltp_open:  uPeLtps.length ? uPeLtps[0] : 0,
+      upe_ltp_high:  uPeLtps.length ? Math.max(...uPeLtps) : 0,
+      upe_ltp_low:   uPeLtps.length ? Math.min(...uPeLtps) : 0,
+      upe_ltp_close: uPeLtps.length ? uPeLtps[uPeLtps.length-1] : 0,
+      upe_oi_delta:  uPeOiEnd - uPeOiStart,
+    });
+  }
+  return candles;
+}
+
+
+function buildStrip(stripId, signals){
+  const strip=document.getElementById(stripId);
+  strip.innerHTML='';
+  signals.forEach(k=>{
+    const b=document.createElement('div');
+    b.className='sig-block';
+    // Support both ACT_COLOR and SIG_COLOR key sets
+    b.style.background=(ACT_COLOR[k]||SIG_COLOR[k]||{body:'#888'}).body;
+    strip.appendChild(b);
+  });
+  const lbl=document.createElement('span');
+  lbl.className='sig-strip-label';
+  lbl.textContent='← signals';
+  strip.appendChild(lbl);
+}
+
+// ── INDEX CHART — Nifty price, coloured by dominant OI activity ───
+// ── STICKY Y-AXIS OVERLAY ─────────────────────────────────────────────────
+function drawYAxisOverlay(yAxisSvgId, H, padL, padT, padB, yMin, yMax, ticks) {
+  const ya = document.getElementById(yAxisSvgId);
+  if (!ya) return;
+  ya.innerHTML = '';
+  ya.setAttribute('width',  padL);
+  ya.setAttribute('height', H);
+  ya.setAttribute('viewBox', `0 0 ${padL} ${H}`);
+  const ns = 'http://www.w3.org/2000/svg';
+  const aH = H - padT - padB;
+  const yS = v => padT + aH * (1 - (v - yMin) / (yMax - yMin));
+  // white background so labels sit cleanly over scrolled content
+  const bg = document.createElementNS(ns, 'rect');
+  bg.setAttribute('x', 0); bg.setAttribute('y', 0);
+  bg.setAttribute('width', padL); bg.setAttribute('height', H);
+  bg.setAttribute('fill', '#fff'); bg.setAttribute('opacity', '0.92');
+  ya.appendChild(bg);
+  ticks.forEach(price => {
+    const y = yS(price);
+    const txt = document.createElementNS(ns, 'text');
+    txt.setAttribute('x', padL - 4); txt.setAttribute('y', y + 4);
+    txt.setAttribute('text-anchor', 'end'); txt.setAttribute('font-size', '9');
+    txt.setAttribute('fill', '#888780'); txt.textContent = price;
+    ya.appendChild(txt);
+    // small tick mark
+    const tk = document.createElementNS(ns, 'line');
+    tk.setAttribute('x1', padL - 3); tk.setAttribute('x2', padL);
+    tk.setAttribute('y1', y); tk.setAttribute('y2', y);
+    tk.setAttribute('stroke', 'rgba(136,135,128,0.4)'); tk.setAttribute('stroke-width', '0.5');
+    ya.appendChild(tk);
+  });
+}
+
+function drawIndexChart(candles) {
+  const svgEl = document.getElementById('svgIndex');
+  svgEl.innerHTML = '';
+  if (!candles.length) { svgEl.setAttribute('height','60'); return []; }
+
+  const scrollEl   = document.getElementById('index-scroll');
+  const containerW = scrollEl ? scrollEl.offsetWidth : 600;
+  const H = INDEX_H;
+  const slotPx = Math.max(INDEX_CANDLE_W + 4, 8);
+  const W = Math.max(candles.length * slotPx + 60, containerW);
+  svgEl.setAttribute('width', W);
+  svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svgEl.setAttribute('height', H);
+  svgEl.parentElement.style.width = W + 'px';
+
+  const padL=48, padR=12, padT=10, padB=26;
+  const aW = W - padL - padR, aH = H - padT - padB;
+  const ns = 'http://www.w3.org/2000/svg';
+
+  const allP = candles.flatMap(c=>[c.open,c.high,c.low,c.close]).filter(v=>v>0);
+  if (!allP.length) return [];
+  const yMin = Math.min(...allP) - 20, yMax = Math.max(...allP) + 20;
+  const yS = v => padT + aH * (1 - (v - yMin) / (yMax - yMin));
+
+  // grid
+  for (let i = 0; i <= 3; i++) {
+    const y = padT + i * aH / 3;
+    const price = Math.round(yMax - i * (yMax - yMin) / 3);
+    const line = document.createElementNS(ns, 'line');
+    line.setAttribute('x1', padL); line.setAttribute('x2', padL + aW);
+    line.setAttribute('y1', y);    line.setAttribute('y2', y);
+    line.setAttribute('stroke', 'rgba(136,135,128,0.15)'); line.setAttribute('stroke-width', '0.5');
+    svgEl.appendChild(line);
+    const txt = document.createElementNS(ns, 'text');
+    txt.setAttribute('x', padL - 4); txt.setAttribute('y', y + 4);
+    txt.setAttribute('text-anchor', 'end'); txt.setAttribute('font-size', '9');
+    txt.setAttribute('fill', '#888780'); txt.textContent = price;
+    svgEl.appendChild(txt);
+  }
+
+  const slot = slotPx;
+  const cW = Math.min(INDEX_CANDLE_W, slot - 2);
+  const actSigs = [];
+
+  candles.forEach((c, i) => {
+    if (!c.open || !c.close) { actSigs.push('N'); return; }
+    const actKey = getIndexOISignal(c);
+    const act = SIG_COLOR[actKey];
+    actSigs.push(actKey);
+    const cx = padL + i * slot + slot / 2;
+    const bodyT = yS(Math.max(c.open, c.close));
+    const bodyB = yS(Math.min(c.open, c.close));
+    const bodyH = Math.max(bodyB - bodyT, 2);
+
+    const wick = document.createElementNS(ns, 'line');
+    wick.setAttribute('x1', cx); wick.setAttribute('x2', cx);
+    wick.setAttribute('y1', yS(c.high || c.close)); wick.setAttribute('y2', yS(c.low || c.close));
+    wick.setAttribute('stroke', act.wick); wick.setAttribute('stroke-width', '1.5');
+    if (c.isLive) wick.setAttribute('opacity', '0.6');
+    svgEl.appendChild(wick);
+
+    const body = document.createElementNS(ns, 'rect');
+    body.setAttribute('x', cx - cW / 2); body.setAttribute('y', bodyT);
+    body.setAttribute('width', cW); body.setAttribute('height', bodyH);
+    body.setAttribute('fill', act.body); body.setAttribute('rx', '2');
+    if (c.isLive) body.setAttribute('opacity', '0.45');
+    svgEl.appendChild(body);
+
+    if (c.isLive) {
+      const outline = document.createElementNS(ns, 'rect');
+      outline.setAttribute('x', cx - cW / 2); outline.setAttribute('y', bodyT);
+      outline.setAttribute('width', cW); outline.setAttribute('height', bodyH);
+      outline.setAttribute('fill', 'none');
+      outline.setAttribute('stroke', act.body); outline.setAttribute('stroke-width', '1.2');
+      outline.setAttribute('stroke-dasharray', '2,2'); outline.setAttribute('rx', '2');
+      svgEl.appendChild(outline);
+      const dot = document.createElementNS(ns, 'circle');
+      dot.setAttribute('cx', cx); dot.setAttribute('cy', yS(c.high || c.close) - 5);
+      dot.setAttribute('r', '3'); dot.setAttribute('fill', act.body); dot.setAttribute('opacity', '0.9');
+      svgEl.appendChild(dot);
+      const liveTxt = document.createElementNS(ns, 'text');
+      liveTxt.setAttribute('x', cx); liveTxt.setAttribute('y', bodyT - 4);
+      liveTxt.setAttribute('text-anchor', 'middle'); liveTxt.setAttribute('font-size', '8');
+      liveTxt.setAttribute('fill', act.body); liveTxt.setAttribute('font-weight', '600');
+      liveTxt.textContent = 'LIVE';
+      svgEl.appendChild(liveTxt);
+    }
+
+    if (i % 2 === 0 || candles.length <= 8) {
+      const lbl = document.createElementNS(ns, 'text');
+      lbl.setAttribute('x', cx); lbl.setAttribute('y', H - 6);
+      lbl.setAttribute('text-anchor', 'middle'); lbl.setAttribute('font-size', '8.5');
+      lbl.setAttribute('fill', '#888780'); lbl.textContent = c.label;
+      svgEl.appendChild(lbl);
+    }
+  });
+
+  // current price dashed line
+  const last = candles[candles.length - 1];
+  if (last && last.close) {
+    const curY = yS(last.close);
+    const dl = document.createElementNS(ns, 'line');
+    dl.setAttribute('x1', padL); dl.setAttribute('x2', padL + aW);
+    dl.setAttribute('y1', curY); dl.setAttribute('y2', curY);
+    dl.setAttribute('stroke', '#378ADD'); dl.setAttribute('stroke-width', '0.8');
+    dl.setAttribute('stroke-dasharray', '3,2');
+    svgEl.appendChild(dl);
+    const pt = document.createElementNS(ns, 'text');
+    pt.setAttribute('x', padL + aW - 2); pt.setAttribute('y', curY - 3);
+    pt.setAttribute('text-anchor', 'end'); pt.setAttribute('font-size', '9');
+    pt.setAttribute('fill', '#185FA5'); pt.textContent = fmt(last.close);
+    svgEl.appendChild(pt);
+  }
+
+  // draw sticky y-axis overlay
+  const indexTicks = Array.from({length:4}, (_,i) => Math.round(yMax - i*(yMax-yMin)/3));
+  drawYAxisOverlay('svgIndexYAxis', H, padL, padT, padB, yMin, yMax, indexTicks);
+  document.getElementById('svgIndexYAxis').style.height = H + 'px';
+
+  // build signal strip for index
+  const strip = document.getElementById('index-strip');
+  strip.innerHTML = '';
+  actSigs.forEach(k => {
+    const b = document.createElement('div');
+    b.className = 'sig-block';
+    b.style.background = SIG_COLOR[k].body;
+    strip.appendChild(b);
+  });
+  const lbl2 = document.createElement('span');
+  lbl2.className = 'sig-strip-label';
+  lbl2.textContent = '← signals';
+  strip.appendChild(lbl2);
+
+  return actSigs;
+}
+
+// ── STRIKE ACTIVITY CHART — strike LTP price, coloured by Price+OI activity ──
+function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpLow, getLtpClose, getOiDelta, actBadgeId) {
+  const svgEl = document.getElementById(svgId);
+  svgEl.innerHTML = '';
+  if (!candles.length) { svgEl.setAttribute('height', '60'); return []; }
+
+  const containerW = svgEl.parentElement.offsetWidth || 400;
+  const H = CHART_H;
+  const slotPx = Math.max(CANDLE_W_PX + 4, 12);
+  const W = Math.max(candles.length * slotPx + 60, containerW);
+  svgEl.setAttribute('width', W);
+  svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svgEl.setAttribute('height', H);
+  svgEl.parentElement.style.width = W + 'px';
+
+  const padL=48, padR=12, padT=10, padB=26;
+  const aW = W - padL - padR, aH = H - padT - padB;
+  const ns = 'http://www.w3.org/2000/svg';
+
+  const allP = candles.flatMap(c => [getLtpOpen(c), getLtpHigh(c), getLtpLow(c), getLtpClose(c)]).filter(v => v > 0);
+  if (!allP.length) return [];
+  const yMin = Math.min(...allP) * 0.98, yMax = Math.max(...allP) * 1.02;
+  const yS = v => padT + aH * (1 - (v - yMin) / (yMax - yMin));
+
+  for (let i = 0; i <= 3; i++) {
+    const y = padT + i * aH / 3;
+    const price = (yMax - i * (yMax - yMin) / 3).toFixed(1);
+    const line = document.createElementNS(ns, 'line');
+    line.setAttribute('x1', padL); line.setAttribute('x2', padL + aW);
+    line.setAttribute('y1', y);    line.setAttribute('y2', y);
+    line.setAttribute('stroke', 'rgba(136,135,128,0.15)'); line.setAttribute('stroke-width', '0.5');
+    svgEl.appendChild(line);
+    const txt = document.createElementNS(ns, 'text');
+    txt.setAttribute('x', padL - 4); txt.setAttribute('y', y + 4);
+    txt.setAttribute('text-anchor', 'end'); txt.setAttribute('font-size', '9');
+    txt.setAttribute('fill', '#888780'); txt.textContent = price;
+    svgEl.appendChild(txt);
+  }
+
+  const slot = slotPx;
+  const cW = Math.min(CANDLE_W_PX, slot - 2);
+  const actSigs = [];
+
+  candles.forEach((c, i) => {
+    const ltpO = getLtpOpen(c), ltpH = getLtpHigh(c), ltpL = getLtpLow(c), ltpC = getLtpClose(c);
+    const oiD  = getOiDelta(c);
+    if (!ltpO || !ltpC) { actSigs.push('N'); return; }
+
+    const actKey = getActivityType(ltpO, ltpC, oiD);
+    const act = ACT_COLOR[actKey];
+    actSigs.push(actKey);
+    const cx = padL + i * slot + slot / 2;
+    const bodyT = yS(Math.max(ltpO, ltpC));
+    const bodyB = yS(Math.min(ltpO, ltpC));
+    const bodyH = Math.max(bodyB - bodyT, 2);
+
+    const wick = document.createElementNS(ns, 'line');
+    wick.setAttribute('x1', cx); wick.setAttribute('x2', cx);
+    wick.setAttribute('y1', yS(ltpH || ltpC)); wick.setAttribute('y2', yS(ltpL || ltpC));
+    wick.setAttribute('stroke', act.wick); wick.setAttribute('stroke-width', '1.5');
+    if (c.isLive) wick.setAttribute('opacity', '0.6');
+    svgEl.appendChild(wick);
+
+    const body = document.createElementNS(ns, 'rect');
+    body.setAttribute('x', cx - cW / 2); body.setAttribute('y', bodyT);
+    body.setAttribute('width', cW); body.setAttribute('height', bodyH);
+    body.setAttribute('fill', act.body); body.setAttribute('rx', '2');
+    if (c.isLive) body.setAttribute('opacity', '0.45');
+    svgEl.appendChild(body);
+
+    // Tooltip-like label on hover using SVG title
+    const titleEl = document.createElementNS(ns, 'title');
+    titleEl.textContent = `${c.label}  ${act.label} | OI Δ ${oiD>0?'+':''}${Math.round(oiD/100)*100} | LTP ${ltpC.toFixed(1)}`;
+    body.appendChild(titleEl);
+
+    if (c.isLive) {
+      const outline = document.createElementNS(ns, 'rect');
+      outline.setAttribute('x', cx - cW / 2); outline.setAttribute('y', bodyT);
+      outline.setAttribute('width', cW); outline.setAttribute('height', bodyH);
+      outline.setAttribute('fill', 'none');
+      outline.setAttribute('stroke', act.body); outline.setAttribute('stroke-width', '1.2');
+      outline.setAttribute('stroke-dasharray', '2,2'); outline.setAttribute('rx', '2');
+      svgEl.appendChild(outline);
+      const dot = document.createElementNS(ns, 'circle');
+      dot.setAttribute('cx', cx); dot.setAttribute('cy', yS(ltpH || ltpC) - 5);
+      dot.setAttribute('r', '3'); dot.setAttribute('fill', act.body); dot.setAttribute('opacity', '0.9');
+      svgEl.appendChild(dot);
+      const liveTxt = document.createElementNS(ns, 'text');
+      liveTxt.setAttribute('x', cx); liveTxt.setAttribute('y', bodyT - 4);
+      liveTxt.setAttribute('text-anchor', 'middle'); liveTxt.setAttribute('font-size', '8');
+      liveTxt.setAttribute('fill', act.body); liveTxt.setAttribute('font-weight', '600');
+      liveTxt.textContent = 'LIVE';
+      svgEl.appendChild(liveTxt);
+    }
+
+    if (i % 2 === 0 || candles.length <= 8) {
+      const lbl = document.createElementNS(ns, 'text');
+      lbl.setAttribute('x', cx); lbl.setAttribute('y', H - 6);
+      lbl.setAttribute('text-anchor', 'middle'); lbl.setAttribute('font-size', '8.5');
+      lbl.setAttribute('fill', '#888780'); lbl.textContent = c.label;
+      svgEl.appendChild(lbl);
+    }
+  });
+
+  // draw sticky y-axis overlay
+  const yAxisId = svgId === 'svgBear' ? 'svgBearYAxis' : 'svgBullYAxis';
+  const strikeTicks = Array.from({length:4}, (_,i) => parseFloat((yMax - i*(yMax-yMin)/3).toFixed(1)));
+  drawYAxisOverlay(yAxisId, H, padL, padT, padB, yMin, yMax, strikeTicks);
+  document.getElementById(yAxisId).style.height = H + 'px';
+
+  // current LTP dashed line
+  const lastC = candles[candles.length - 1];
+  const lastLtp = getLtpClose(lastC);
+  if (lastLtp) {
+    const curY = yS(lastLtp);
+    const dl = document.createElementNS(ns, 'line');
+    dl.setAttribute('x1', padL); dl.setAttribute('x2', padL + aW);
+    dl.setAttribute('y1', curY); dl.setAttribute('y2', curY);
+    dl.setAttribute('stroke', '#378ADD'); dl.setAttribute('stroke-width', '0.8');
+    dl.setAttribute('stroke-dasharray', '3,2');
+    svgEl.appendChild(dl);
+    const pt = document.createElementNS(ns, 'text');
+    pt.setAttribute('x', padL + aW - 2); pt.setAttribute('y', curY - 3);
+    pt.setAttribute('text-anchor', 'end'); pt.setAttribute('font-size', '9');
+    pt.setAttribute('fill', '#185FA5'); pt.textContent = lastLtp.toFixed(1);
+    svgEl.appendChild(pt);
+  }
+
+  // Update activity badge
+  if (actBadgeId && actSigs.length) {
+    const latestAct = ACT_COLOR[actSigs[actSigs.length - 1]];
+    const badge = document.getElementById(actBadgeId);
+    if (badge) {
+      badge.textContent = latestAct.label + ' — ' + latestAct.desc;
+      badge.className = 'activity-badge ' + latestAct.cls;
+    }
+  }
+
+  return actSigs;
+}
+
+function updateConfluenceSummary(candles, bearSigs, bullSigs){
+  if(!candles.length) return;
+  const last=candles[candles.length-1];
+  const bKey=bearSigs[bearSigs.length-1]||'N';
+  const uKey=bullSigs[bullSigs.length-1]||'N';
+  // bearSigs and bullSigs are now ACT_COLOR keys
+  const bAct=ACT_COLOR[bKey]||ACT_COLOR['N'];
+  const uAct=ACT_COLOR[uKey]||ACT_COLOR['N'];
+  const priceUp=last.close>last.open, priceDown=last.close<last.open;
+  const pDir=priceUp?'up':priceDown?'down':'flat';
+
+  document.getElementById('conf-sum-title').textContent='Confluence reading — '+last.label+' (Nifty price '+pDir+')';
+  document.getElementById('bear-sum-label').textContent='Bear '+selectedBear+' CE';
+  document.getElementById('bull-sum-label').textContent='Bull '+selectedBull+' PE';
+
+  const bBadge=document.getElementById('bear-sum-badge');
+  bBadge.textContent=bAct.label;
+  bBadge.className='conf-sum-badge activity-badge '+bAct.cls;
+
+  const uBadge=document.getElementById('bull-sum-badge');
+  uBadge.textContent=uAct.label;
+  uBadge.className='conf-sum-badge activity-badge '+uAct.cls;
+
+  document.getElementById('bear-sum-text').textContent=bAct.desc;
+  document.getElementById('bull-sum-text').textContent=uAct.desc;
+
+  const interp=getActivityConfluence(bKey,uKey);
+  const interpEl=document.getElementById('conf-interp');
+  interpEl.innerHTML='<span style="font-weight:500;color:#1a1a1a;">Interpretation:</span> '+interp;
+
+  const bBadgeBox=document.getElementById('bear-conf-badge');
+  bBadgeBox.textContent=bAct.label+' — '+bAct.desc;
+  bBadgeBox.className='conf-badge '+bAct.cls.replace('act-','cb-').replace('cb-lb','cb-sg').replace('cb-sb','cb-sb').replace('cb-sc','cb-wb').replace('cb-lu','cb-wg').replace('cb-n','cb-n');
+
+  const uBadgeBox=document.getElementById('bull-conf-badge');
+  uBadgeBox.textContent=uAct.label+' — '+uAct.desc;
+  uBadgeBox.className='conf-badge '+uAct.cls.replace('act-','cb-').replace('cb-lb','cb-sg').replace('cb-sb','cb-sb').replace('cb-sc','cb-wb').replace('cb-lu','cb-wg').replace('cb-n','cb-n');
+}
+
+function getActivityConfluence(bKey, uKey) {
+  if (bKey==='LB' && uKey==='LB') return 'Both strikes in Long Buildup 🔥 — strongest bullish signal. Fresh longs being added on both sides.';
+  if (bKey==='SB' && uKey==='SB') return 'Both strikes in Short Buildup 🔥 — strongest bearish signal. Fresh shorts being added on both sides.';
+  if (bKey==='LB' && uKey==='SB') return 'Bear strike showing Long Buildup, Bull strike showing Short Buildup — divergence. Wait for resolution.';
+  if (bKey==='SB' && uKey==='LB') return 'Bear strike showing Short Buildup, Bull strike showing Long Buildup — mixed signals. No clear edge.';
+  if ((bKey==='LB'||bKey==='SC') && (uKey==='LB'||uKey==='SC')) return 'Both strikes bullish (Buildup + Covering) — upward momentum likely continues.';
+  if ((bKey==='SB'||bKey==='LU') && (uKey==='SB'||uKey==='LU')) return 'Both strikes bearish (Buildup + Unwinding) — downward momentum likely continues.';
+  if (bKey==='SC') return 'Short Covering on bear strike ⚠️ — shorts exiting, weak bullish. Not fresh longs.';
+  if (bKey==='LU') return 'Long Unwinding on bear strike ⚠️ — longs exiting, weak bearish. Not fresh shorts.';
+  if (uKey==='SC') return 'Short Covering on bull strike ⚠️ — shorts exiting, weak bullish.';
+  if (uKey==='LU') return 'Long Unwinding on bull strike ⚠️ — longs exiting, weak bearish.';
+  return 'Mixed or neutral activity across both strikes — no strong directional bias.';
+}
+
+// ── OI BAR CHARTS ─────────────────────────────────────────────────
+const GRID='rgba(136,135,128,0.12)',TCLR='#999';
+
+function oiChartOptions(){
+  return{
+    responsive:false,maintainAspectRatio:false,
+    layout:{padding:{top:4,bottom:4}},
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtD(ctx.raw)}}},
+    scales:{
+      x:{grid:{display:false},ticks:{color:TCLR,font:{size:10},autoSkip:true,maxTicksLimit:20}},
+      y:{grid:{color:GRID},border:{display:false},ticks:{color:TCLR,font:{size:10},callback:v=>(v>=0?'+':'')+Math.round(v/1000)+'k'}}
+    },
+    animation:{duration:250}
+  };
+}
+
+function makeDS(label,data,colors){return{label,data,backgroundColor:colors,borderRadius:3,barPercentage:0.6};}
+
+function setCanvas(id,w,h){
+  const c=document.getElementById(id);
+  c.width=w;c.height=h;c.style.width=w+'px';c.style.height=h+'px';
+  return c;
+}
+
+function scrollToLatest(){
+  ['index-scroll','bear-conf-scroll','bull-conf-scroll'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.scrollLeft = el.scrollWidth;
+  });
+  setTimeout(()=>{
+    ['bear-scroll','bull-scroll'].forEach(id=>document.getElementById(id)?.scrollTo({left:99999,behavior:'smooth'}));
+  },300);
+}
+
+// ── CUMULATIVE OI CHANGE CHART ────────────────────────────────────
+function drawCumOIChart(rows) {
+  const svgEl    = document.getElementById('svgCumOI');
+  const scrollEl = document.getElementById('cumoi-scroll');
+  if (!svgEl) return;
+  svgEl.innerHTML = '';
+  if (!rows.length) { svgEl.setAttribute('height', '60'); return; }
+
+  // Build per-minute totals and running cumulative sums
+  const points = [];
+  let cumCe = 0, cumPe = 0;
+  rows.forEach(r => {
+    let ce = 0, pe = 0;
+    Object.keys(r).forEach(k => {
+      if (k.endsWith('_ce_delta')) ce += parseFloat(r[k]) || 0;
+      if (k.endsWith('_pe_delta')) pe += parseFloat(r[k]) || 0;
+    });
+    cumCe += ce;
+    cumPe += pe;
+    points.push({ label: r.time_label, ce: cumCe, pe: cumPe });
+  });
+
+  // Update summary row
+  const lastCe = points[points.length-1].ce;
+  const lastPe = points[points.length-1].pe;
+  const fmtOI  = v => { const a=Math.abs(v); const s=a>=1e7?(v/1e7).toFixed(2)+' Cr':a>=1e5?(v/1e5).toFixed(1)+' L':Math.round(v).toLocaleString('en-IN'); return (v>0?'+':'')+s; };
+  const ceEl = document.getElementById('cumoi-ce-total');
+  const peEl = document.getElementById('cumoi-pe-total');
+  if (ceEl) { ceEl.textContent = fmtOI(lastCe); ceEl.style.color = lastCe > 0 ? '#D85A30' : '#1D9E75'; }
+  if (peEl) { peEl.textContent = fmtOI(lastPe); peEl.style.color = lastPe > 0 ? '#1D9E75' : '#D85A30'; }
+  const pcrEl = document.getElementById('cumoi-pcr');
+  if (pcrEl) {
+    let totalCeOI = 0, totalPeOI = 0;
+    const last = rows[rows.length-1];
+    Object.keys(last).forEach(k => {
+      if (k.endsWith('_ce_oi')) totalCeOI += parseFloat(last[k]) || 0;
+      if (k.endsWith('_pe_oi')) totalPeOI += parseFloat(last[k]) || 0;
+    });
+    pcrEl.textContent = totalCeOI > 0 ? (totalPeOI / totalCeOI).toFixed(2) : '—';
+  }
+
+  const containerW = scrollEl ? scrollEl.offsetWidth : 700;
+  const H = INDEX_H + 40;
+  const slotPx = Math.max(INDEX_CANDLE_W + 4, 8);
+  const W = Math.max(points.length * slotPx + 60, containerW);
+  svgEl.setAttribute('width', W);
+  svgEl.setAttribute('height', H);
+  svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svgEl.parentElement.style.width = W + 'px';
+
+  const padL = 8, padR = 60, padT = 10, padB = 32;
+  const aW = W - padL - padR, aH = H - padT - padB;
+  const ns = 'http://www.w3.org/2000/svg';
+
+  const allVals = points.flatMap(p => [p.ce, p.pe]);
+  const rawMin = Math.min(...allVals), rawMax = Math.max(...allVals);
+  const pad = Math.max(Math.abs(rawMax - rawMin) * 0.08, 1000);
+  const yMin = rawMin - pad, yMax = rawMax + pad;
+  const yS = v => padT + aH * (1 - (v - yMin) / (yMax - yMin));
+  const xOf = i => padL + (i + 0.5) * (aW / points.length);
+
+  const fmtY = v => {
+    const a = Math.abs(v);
+    if (a >= 1e7) return (v/1e7).toFixed(1)+' Cr';
+    if (a >= 1e5) return (v/1e5).toFixed(1)+' L';
+    return Math.round(v).toLocaleString('en-IN');
+  };
+
+  // Grid lines
+  const tickCount = 5;
+  const ticks = [];
+  for (let i = 0; i <= tickCount; i++) {
+    const v = yMin + i * (yMax - yMin) / tickCount;
+    ticks.push(v);
+    const y = yS(v);
+    const gl = document.createElementNS(ns, 'line');
+    gl.setAttribute('x1', padL); gl.setAttribute('x2', padL + aW);
+    gl.setAttribute('y1', y);   gl.setAttribute('y2', y);
+    gl.setAttribute('stroke', 'rgba(136,135,128,0.15)');
+    gl.setAttribute('stroke-width', '0.5');
+    svgEl.appendChild(gl);
+  }
+
+  // Zero line
+  if (yMin < 0 && yMax > 0) {
+    const y0 = yS(0);
+    const zl = document.createElementNS(ns, 'line');
+    zl.setAttribute('x1', padL); zl.setAttribute('x2', padL + aW);
+    zl.setAttribute('y1', y0);  zl.setAttribute('y2', y0);
+    zl.setAttribute('stroke', 'rgba(136,135,128,0.4)');
+    zl.setAttribute('stroke-width', '1');
+    zl.setAttribute('stroke-dasharray', '4 2');
+    svgEl.appendChild(zl);
+  }
+
+  // Area fill
+  const buildArea = (vals, color) => {
+    const y0c = Math.min(Math.max(yS(0), padT), padT + aH);
+    let d = `M${xOf(0)},${y0c}`;
+    vals.forEach((v, i) => { d += ` L${xOf(i)},${yS(v)}`; });
+    d += ` L${xOf(vals.length-1)},${y0c} Z`;
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', color);
+    path.setAttribute('opacity', '0.12');
+    svgEl.appendChild(path);
+  };
+
+  // Line
+  const buildLine = (vals, color) => {
+    let d = `M${xOf(0)},${yS(vals[0])}`;
+    for (let i = 1; i < vals.length; i++) d += ` L${xOf(i)},${yS(vals[i])}`;
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', color);
+    path.setAttribute('stroke-width', '1.8');
+    path.setAttribute('stroke-linejoin', 'round');
+    svgEl.appendChild(path);
+  };
+
+  const ceVals = points.map(p => p.ce);
+  const peVals = points.map(p => p.pe);
+  buildArea(ceVals, '#1D9E75');
+  buildArea(peVals, '#D85A30');
+  buildLine(ceVals, '#1D9E75');
+  buildLine(peVals, '#D85A30');
+
+  // Dot + value label at last point
+  [[ceVals, '#1D9E75'], [peVals, '#D85A30']].forEach(([vals, color]) => {
+    const lx = xOf(vals.length - 1), ly = yS(vals[vals.length-1]);
+    const dot = document.createElementNS(ns, 'circle');
+    dot.setAttribute('cx', lx); dot.setAttribute('cy', ly); dot.setAttribute('r', '3');
+    dot.setAttribute('fill', color);
+    svgEl.appendChild(dot);
+    const lbl = document.createElementNS(ns, 'text');
+    lbl.setAttribute('x', lx + 5); lbl.setAttribute('y', ly + 4);
+    lbl.setAttribute('font-size', '9'); lbl.setAttribute('fill', color);
+    lbl.textContent = fmtY(vals[vals.length-1]);
+    svgEl.appendChild(lbl);
+  });
+
+  // ── X-axis time labels (FIXED) ──
+  // Show a label at regular intervals so the full time range is visible.
+  // Target ~one label every 60px of chart width; always show first and last.
+  const targetLabels = Math.max(4, Math.floor(aW / 60));
+  const step = Math.max(1, Math.floor(points.length / targetLabels));
+  const labelIndices = new Set();
+  for (let i = 0; i < points.length; i += step) labelIndices.add(i);
+  labelIndices.add(points.length - 1); // always show last
+
+  points.forEach((p, i) => {
+    if (!labelIndices.has(i)) return;
+    const x = xOf(i);
+    // Tick mark
+    const tick = document.createElementNS(ns, 'line');
+    tick.setAttribute('x1', x); tick.setAttribute('x2', x);
+    tick.setAttribute('y1', padT + aH); tick.setAttribute('y2', padT + aH + 4);
+    tick.setAttribute('stroke', 'rgba(136,135,128,0.4)'); tick.setAttribute('stroke-width', '1');
+    svgEl.appendChild(tick);
+    // Label — rotated so it never overlaps
+    const txt = document.createElementNS(ns, 'text');
+    txt.setAttribute('x', x);
+    txt.setAttribute('y', padT + aH + 6);
+    txt.setAttribute('text-anchor', 'end');
+    txt.setAttribute('font-size', '9');
+    txt.setAttribute('fill', '#888780');
+    txt.setAttribute('transform', `rotate(-45, ${x}, ${padT + aH + 6})`);
+    txt.textContent = p.label;
+    svgEl.appendChild(txt);
+  });
+
+  // Sticky Y-axis overlay (right side this time, so labels don't overlap chart)
+  const yAxisSvg = document.getElementById('svgCumOIYAxis');
+  if (yAxisSvg) {
+    yAxisSvg.innerHTML = '';
+    // Position overlay at right edge
+    const overlayW = padR;
+    yAxisSvg.setAttribute('width', overlayW);
+    yAxisSvg.setAttribute('height', H);
+    yAxisSvg.style.left = 'auto';
+    yAxisSvg.style.right = '0';
+    yAxisSvg.style.position = 'absolute';
+    yAxisSvg.style.top = '0';
+    for (let i = 0; i <= tickCount; i++) {
+      const v = yMin + i * (yMax - yMin) / tickCount;
+      const y = yS(v);
+      const txt = document.createElementNS(ns, 'text');
+      txt.setAttribute('x', 4); txt.setAttribute('y', y + 4);
+      txt.setAttribute('text-anchor', 'start'); txt.setAttribute('font-size', '9');
+      txt.setAttribute('fill', '#888780'); txt.textContent = fmtY(v);
+      yAxisSvg.appendChild(txt);
+    }
+  }
+}
+
+// ── OI MOVERS PANEL ──────────────────────────────────────────────
+// Shows dominant OI added and dominant OI decreased for every selected interval.
+// Standard moneyness:
+//   CE: strike < ATM = ITM, strike > ATM = OTM
+//   PE: strike > ATM = ITM, strike < ATM = OTM
+function drawOIMovers(rows, atmStr) {
+  const ceListEl = document.getElementById('ce-movers-list');
+  const peListEl = document.getElementById('pe-movers-list');
+  const subEl    = document.getElementById('movers-sub');
+
+  if (!ceListEl || !peListEl) return;
+
+  if (!rows || !rows.length) {
+    ceListEl.innerHTML = '<div style="color:#aaa;font-size:12px;padding:8px 0;">No data yet</div>';
+    peListEl.innerHTML = '<div style="color:#aaa;font-size:12px;padding:8px 0;">No data yet</div>';
+
+    const ceT = document.getElementById('movers-ce-total');
+    const peT = document.getElementById('movers-pe-total');
+    const pcr = document.getElementById('movers-pcr');
+    if (ceT) ceT.textContent = '—';
+    if (peT) peT.textContent = '—';
+    if (pcr) pcr.textContent = '—';
+    return;
+  }
+
+  const cleanRows = [...rows]
+    .filter(r => r && (parseFloat(r.ts) || 0) > 0)
+    .sort((a, b) => (parseFloat(a.ts) || 0) - (parseFloat(b.ts) || 0));
+
+  if (!cleanRows.length) {
+    ceListEl.innerHTML = '<div style="color:#aaa;font-size:12px;padding:8px 0;">No valid rows yet</div>';
+    peListEl.innerHTML = '<div style="color:#aaa;font-size:12px;padding:8px 0;">No valid rows yet</div>';
+    return;
+  }
+
+  // Build interval buckets. For a 3-min interval, this will create one bucket per 3 minutes.
+  // The displayed time is the end/latest row of the bucket, matching the Excel-style view.
+  const buckets = [];
+  cleanRows.forEach(r => {
+    const ts = parseFloat(r.ts) || 0;
+    const bucket = Math.floor(ts / (intervalMin * 60)) * (intervalMin * 60);
+
+    if (!buckets.length || buckets[buckets.length - 1].bucket !== bucket) {
+      buckets.push({ bucket, label: r.time_label, rows: [r] });
+    } else {
+      buckets[buckets.length - 1].rows.push(r);
+    }
+
+    buckets[buckets.length - 1].label = r.time_label; // show interval end time
+  });
+
+
+  function fmtOIShort(v) {
+    const n = Number(v) || 0;
+    const a = Math.abs(n);
+
+    if (a >= 1e7) return (n / 1e7).toFixed(2) + ' Cr';
+    if (a >= 1e5) return (n / 1e5).toFixed(1) + ' L';
+
+    return Math.round(n).toLocaleString('en-IN');
+  }
+
+  function fmtDeltaShort(v) {
+    const n = Number(v) || 0;
+    return (n > 0 ? '+' : '') + fmtOIShort(n);
+  }
+
+  function collectSide(rowsInBucket, side) {
+    const sideLower = side.toLowerCase();
+    const strikes = {};
+
+    rowsInBucket.forEach(r => {
+      Object.keys(r).forEach(k => {
+        const deltaM = k.match(new RegExp('^s(\\d+)_' + sideLower + '_delta$'));
+        const oiM    = k.match(new RegExp('^s(\\d+)_' + sideLower + '_oi$'));
+
+        if (deltaM) {
+          const strike = Number(deltaM[1]);
+          if (!strikes[strike]) strikes[strike] = { strike, delta: 0, oi: 0 };
+          strikes[strike].delta += parseFloat(r[k]) || 0;
+        }
+
+        if (oiM) {
+          const strike = Number(oiM[1]);
+          if (!strikes[strike]) strikes[strike] = { strike, delta: 0, oi: 0 };
+          strikes[strike].oi = parseFloat(r[k]) || 0;
+        }
+      });
+    });
+
+    const arr = Object.values(strikes).filter(x => x.delta !== 0);
+
+    const added = arr
+      .filter(x => x.delta > 0)
+      .sort((a, b) => b.delta - a.delta)[0] || null;
+
+    const decreased = arr
+      .filter(x => x.delta < 0)
+      .sort((a, b) => a.delta - b.delta)[0] || null;
+
+    return { added, decreased, strikes };
+  }
+
+  function buildBucketResults() {
+    return buckets.map(b => {
+      const ce = collectSide(b.rows, 'CE');
+      const pe = collectSide(b.rows, 'PE');
+      const lastRow = b.rows[b.rows.length - 1];
+      const spot = parseFloat(lastRow?.spot_close) || parseFloat(lastRow?.spot) || 0;
+
+      return {
+        bucket: b.bucket,
+        label: b.label,
+        spot,
+        ce,
+        pe
+      };
+    });
+  }
+
+  const results = buildBucketResults();
+
+  function rowHtml(timeLabel, moveLabel, item, spot) {
+    if (!item) {
+      return `
+        <div class="mover-row">
+          <span class="mover-time">${timeLabel}</span>
+          <span class="mover-action">${moveLabel}</span>
+          <span style="color:#aaa;font-size:12px;">No move</span>
+        </div>
+      `;
+    }
+
+    const color = item.delta > 0 ? '#1D9E75' : '#D85A30';
+    const spotLabel = spot ? `<span class="mover-type-badge badge-otm" style="background:#f8f8f5;color:#888;font-weight:400;">Spot ${fmt(spot)}</span>` : '';
+
+    return `
+      <div class="mover-row">
+        <span class="mover-time">${timeLabel}</span>
+        <span class="mover-action">${moveLabel}</span>
+        <span class="mover-strike">${item.strike.toLocaleString('en-IN')}</span>
+        ${spotLabel}
+        <span class="mover-delta" style="color:${color};">${fmtDeltaShort(item.delta)}</span>
+        <span class="mover-oi">${fmtOIShort(item.oi)} OI</span>
+      </div>
+    `;
+  }
+
+  function renderSide(side) {
+    const html = results.map(r => {
+      const moves = side === 'CE' ? r.ce : r.pe;
+
+      return `
+        ${rowHtml(r.label, 'Add', moves.added, r.spot)}
+        ${rowHtml('', 'Dec', moves.decreased, r.spot)}
+      `;
+    }).join('');
+
+    return html || '<div style="color:#aaa;font-size:12px;padding:8px 0;">No OI moves yet</div>';
+  }
+
+  ceListEl.innerHTML = renderSide('CE');
+  peListEl.innerHTML = renderSide('PE');
+
+  // Latest interval summary totals
+  const latest = results[results.length - 1];
+  let totalCeDelta = 0;
+  let totalPeDelta = 0;
+  let totalCeOI = 0;
+  let totalPeOI = 0;
+
+  if (latest) {
+    Object.values(latest.ce.strikes).forEach(v => {
+      totalCeDelta += v.delta;
+      totalCeOI += v.oi;
+    });
+
+    Object.values(latest.pe.strikes).forEach(v => {
+      totalPeDelta += v.delta;
+      totalPeOI += v.oi;
+    });
+  }
+
+  const ceT = document.getElementById('movers-ce-total');
+  const peT = document.getElementById('movers-pe-total');
+  const pcr = document.getElementById('movers-pcr');
+
+  if (ceT) {
+    ceT.textContent = fmtDeltaShort(totalCeDelta);
+    ceT.style.color = totalCeDelta >= 0 ? '#D85A30' : '#1D9E75';
+  }
+
+  if (peT) {
+    peT.textContent = fmtDeltaShort(totalPeDelta);
+    peT.style.color = totalPeDelta >= 0 ? '#1D9E75' : '#D85A30';
+  }
+
+  if (pcr) {
+    pcr.textContent = totalCeOI > 0 ? (totalPeOI / totalCeOI).toFixed(2) : '—';
+  }
+
+  if (subEl) {
+    subEl.textContent =
+      `Dominant OI added/decreased for every ${intervalMin}-min interval · latest ${latest?.label || '—'} · spot price shown at time of write`;
+  }
+}
+
+
+function rebuildCharts(){requestAnimationFrame(_doRebuild);}
+
+function _doRebuild(){
+  if(!selectedBear||!selectedBull) return;
+  const candles=buildCandles(minuteRows,intervalMin,selectedBear,selectedBull);
+
+  const sub=intervalMin+'-min · '+minuteRows.length+' rows · '+candles.length+' candles · session '+currentSession;
+  document.getElementById('bear-chart-sub').textContent=sub;
+  document.getElementById('bull-chart-sub').textContent=sub;
+  const logMeta = document.getElementById('log-meta');
+  if (logMeta) logMeta.textContent='('+minuteRows.length+' rows → '+candles.length+' candles)';
+  document.getElementById('index-chart-sub').textContent='Nifty 50 · '+intervalMin+'m candles · colour = dominant OI move (CE/PE building or unwinding across both strikes)';
+
+  // ── Draw cumulative OI chart (all strikes) ──
+  drawCumOIChart(minuteRows);
+
+  // ── Draw OI movers panel ──
+  drawOIMovers(minuteRows, atmStrike);
+
+  // ── Draw index chart (Nifty price + OI-based colour) ──
+  const allWithLive = liveCandle ? [...candles, liveCandle] : candles;
+  drawIndexChart(allWithLive);
+
+  // ── Draw strike activity charts (option LTP price + activity type) ──
+  latestCandles = candles;   // store for live candle overlay
+  const bearWithLive = liveCandle ? [...candles, liveCandle] : candles;
+  const bullWithLive = liveCandle ? [...candles, liveCandle] : candles;  // independent copy
+  const bearSigs = drawStrikeActivityChart(
+    'svgBear', bearWithLive,
+    c=>c.bce_ltp_open, c=>c.bce_ltp_high, c=>c.bce_ltp_low, c=>c.bce_ltp_close,
+    c=>c.bce_oi_delta,
+    'bear-activity-badge'
+  );
+  const bullSigs = drawStrikeActivityChart(
+    'svgBull', bullWithLive,
+    c=>c.upe_ltp_open, c=>c.upe_ltp_high, c=>c.upe_ltp_low, c=>c.upe_ltp_close,
+    c=>c.upe_oi_delta,
+    'bull-activity-badge'
+  );
+  buildStrip('bear-strip', bearSigs);
+  buildStrip('bull-strip', bullSigs);
+  if(candles.length) updateConfluenceSummary(candles, bearSigs, bullSigs);
+
+  if(!candles.length) return;
+
+  // ── OI bar charts ──
+  const labels=candles.map(c=>c.label);
+  const outerW=Math.floor(document.getElementById('bear-scroll')?.getBoundingClientRect().width||(window.innerWidth-80));
+  const oiW=Math.max(candles.length*MIN_BAR_PX,outerW);
+  const oiH=220;
+
+  document.getElementById('bearChartWrap').style.width=oiW+'px';
+  document.getElementById('bullChartWrap').style.width=oiW+'px';
+  setCanvas('bearChart',oiW,oiH);
+  setCanvas('bullChart',oiW,oiH);
+
+  const bceCol=candles.map(c=>c.dbce>=0?'#D85A30':'#93c5e8');
+  const bpeCol=candles.map(c=>c.dbpe>=0?'#1D9E75':'#f0a080');
+  const uceCol=candles.map(c=>c.duce>=0?'#D85A30':'#93c5e8');
+  const upeCol=candles.map(c=>c.dupe>=0?'#1D9E75':'#f0a080');
+
+  if(bearChart){bearChart.destroy();bearChart=null;}
+  if(bullChart){bullChart.destroy();bullChart=null;}
+
+  bearChart=new Chart(document.getElementById('bearChart'),{
+    type:'bar',
+    data:{labels,datasets:[makeDS('CE OI Δ',candles.map(c=>c.dbce),bceCol),makeDS('PE OI Δ',candles.map(c=>c.dbpe),bpeCol)]},
+    options:oiChartOptions()
+  });
+  bullChart=new Chart(document.getElementById('bullChart'),{
+    type:'bar',
+    data:{labels,datasets:[makeDS('CE OI Δ',candles.map(c=>c.duce),uceCol),makeDS('PE OI Δ',candles.map(c=>c.dupe),upeCol)]},
+    options:oiChartOptions()
+  });
+
+  const netBce=candles.reduce((s,c)=>s+c.dbce,0);
+  const netBpe=candles.reduce((s,c)=>s+c.dbpe,0);
+  const netUce=candles.reduce((s,c)=>s+c.duce,0);
+  const netUpe=candles.reduce((s,c)=>s+c.dupe,0);
+  const setNet=(id,v)=>{const el=document.getElementById(id);el.textContent=fmtD(v);el.className='net-val '+dcls(v);};
+  setNet('net-bc',netBce);setNet('net-bp',netBpe);setNet('net-uc',netUce);setNet('net-up',netUpe);
+  const setScore=(id,v,pos,neg)=>{
+    const el=document.getElementById(id);
+    el.textContent=Math.abs(v)<3000?'Neutral':v>0?pos:neg;
+    el.className='net-val '+(v>3000?'ddn':v<-3000?'dup':'dfl');
+  };
+  setScore('bear-score',netBce-netBpe,'Bearish — CE building','Bullish pressure');
+  setScore('bull-score',netUpe-netUce,'Bullish — PE building','Bearish pressure');
+
+  updateCandleLog(candles,bearSigs,bullSigs);
+  scrollToLatest();
+}
+
+// ── LOG TABLE ─────────────────────────────────────────────────────
+function updateCandleLog(candles,bearSigs,bullSigs){
+  const tbody=document.getElementById('log-body');
+  if(!candles.length) return;
+  tbody.innerHTML=candles.slice().reverse().map((c,i,arr)=>{
+    const si=arr.length-1-i;
+    const bKey=bearSigs[si]||'N';
+    const uKey=bullSigs[si]||'N';
+    const bAct=ACT_COLOR[bKey]||ACT_COLOR['N'];
+    const uAct=ACT_COLOR[uKey]||ACT_COLOR['N'];
+    const isBear=c.dbce>0&&c.dbpe<0, isBull=c.dbpe>0&&c.dbce<0;
+    const sc=isBear?'bb':isBull?'bu':'bn';
+    const priceUp=c.close>c.open, priceDown=c.close<c.open;
+    const pDir=priceUp?'▲ Up':priceDown?'▼ Down':'— Flat';
+    const pCls=priceUp?'bullish':priceDown?'bearish':'neutral';
+    const idxAct = SIG_COLOR[getIndexOISignal(c)]||SIG_COLOR['N'];
+
+    return '<tr>'
+      +'<td>'+c.label+'</td>'
+      +'<td>'+fmt(c.open)+'</td><td>'+fmt(c.high)+'</td><td>'+fmt(c.low)+'</td><td>'+fmt(c.close)+'</td>'
+      +'<td class="'+pCls+'">'+pDir+'</td>'
+      +'<td><span class="activity-badge '+bAct.cls+'" style="font-size:10px;padding:2px 6px;">'+bAct.label+'</span></td>'
+      +'<td><span class="activity-badge '+uAct.cls+'" style="font-size:10px;padding:2px 6px;">'+uAct.label+'</span></td>'
+      +'<td><span class="badge '+idxAct.cls+'" style="font-size:10px;">'+idxAct.label+'</span></td>'
+      +'<td style="font-weight:500">'+fmt(c.bce)+'</td><td>'+dhtml(c.dbce)+'</td>'
+      +'<td style="font-weight:500">'+fmt(c.bpe)+'</td><td>'+dhtml(c.dbpe)+'</td>'
+      +'<td>'+dhtml(c.duce)+'</td><td>'+dhtml(c.dupe)+'</td>'
+      +'<td><span class="badge '+sc+'">'+(isBear?'BEARISH':isBull?'BULLISH':'MIXED')+'</span></td>'
+      +'</tr>';
+  }).join('');
+}
+
+// ── TIMERS ────────────────────────────────────────────────────────
+let cdOI=POLL_OI_SEC,cdHX=POLL_HX_SEC;
+setInterval(()=>{
+  cdOI--;cdHX--;
+  if(cdOI<=0){cdOI=POLL_OI_SEC;fetchOI();}
+  if(cdHX<=0){cdHX=POLL_HX_SEC;fetchHistory();}
+  document.getElementById('countdown').textContent=cdOI+'s';
+},1000);
+setInterval(fetchLTP,POLL_LTP_SEC*1000);
+setInterval(fetchLiveCandle,POLL_LIVE_SEC*1000);
+let resizeTimer;
+window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(rebuildCharts,200);});
+
+// ── BOOT ──────────────────────────────────────────────────────────
+fetchOI().then(()=>fetchHistory());
+fetchLTP();
+fetchLiveCandle();
+</script>
+</body>
+</html>
