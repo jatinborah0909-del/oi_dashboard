@@ -507,6 +507,22 @@ let INDEX_CANDLE_W = 12;   // candle width for index (Nifty) chart
 let CHART_H        = 240;  // height of bear/bull SVG charts
 let INDEX_H        = 200;  // height of index SVG chart
 
+// ── MARKET HOURS FILTER ───────────────────────────────────────────
+// Client-side safety net: strips any rows whose time_label falls outside
+// NSE market hours (09:15–15:29 IST) before they reach the chart builder.
+// This catches any stale after-hours rows already in the DB.
+function isMarketHourLabel(label) {
+  if (!label) return false;
+  const clean = label.replace('*', '').trim();   // handle live "15:29*"
+  const [h, m] = clean.split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return false;
+  const t = h * 60 + m;
+  return t >= (9 * 60 + 15) && t < (15 * 60 + 30);
+}
+function filterMarketRows(rows) {
+  return rows.filter(r => isMarketHourLabel(r.time_label));
+}
+
 function onCtrlChange() {
   CANDLE_W_PX    = parseInt(document.getElementById('ctrl-cw').value);
   CHART_H        = parseInt(document.getElementById('ctrl-ch').value);
@@ -723,8 +739,9 @@ async function fetchHistory() {
   cdHX=POLL_HX_SEC;
   try{
     const res=await fetch(BRIDGE+'/oi/history');if(!res.ok)return;
-    minuteRows=await res.json();
-    document.getElementById('rows-info').textContent=minuteRows.length+' 1-min rows (full day)';
+    const raw=await res.json();
+    minuteRows=filterMarketRows(raw);   // drop any off-hours rows before charting
+    document.getElementById('rows-info').textContent=minuteRows.length+' 1-min rows (market hours)';
     rebuildCharts();
   }catch(e){}
 }
