@@ -36,6 +36,34 @@ IST = timezone(timedelta(hours=5, minutes=30))
 def now_ist(): return datetime.now(IST)
 def ts_to_ist(ts): return datetime.fromtimestamp(ts, tz=IST)
 
+# ── MARKET HOURS (IST) ────────────────────────────────────────────────────────
+MARKET_OPEN  = (9, 15)   # 09:15 IST
+MARKET_CLOSE = (15, 30)  # 15:30 IST
+
+def is_market_open(dt=None):
+    """Return True if dt (or now) falls within NSE market hours (Mon–Fri, 09:15–15:30 IST)."""
+    if dt is None:
+        dt = now_ist()
+    if dt.weekday() >= 5:          # Saturday=5, Sunday=6
+        return False
+    t = (dt.hour, dt.minute)
+    return MARKET_OPEN <= t < MARKET_CLOSE
+
+def seconds_until_market_open():
+    """Return seconds until next market open (9:15 IST). 0 if already open."""
+    now = now_ist()
+    if is_market_open(now):
+        return 0
+    # Build today's open time
+    open_today = now.replace(hour=MARKET_OPEN[0], minute=MARKET_OPEN[1], second=0, microsecond=0)
+    if now >= open_today:
+        # Already past today's close — next open is tomorrow (skip weekends)
+        open_today += timedelta(days=1)
+        while open_today.weekday() >= 5:
+            open_today += timedelta(days=1)
+    diff = (open_today - now).total_seconds()
+    return max(0, diff)
+
 import psycopg2
 import psycopg2.extras
 from flask import Flask, jsonify, request, send_from_directory
@@ -265,6 +293,21 @@ def _update_ltp_ohlc(token, ltp):
 
 def _append_history():
     now          = time.time()
+
+    # ── Market-hours guard ────────────────────────────────────────────
+    now_dt = ts_to_ist(now)
+    if not is_market_open(now_dt):
+        # Outside market hours — reset buffer so we start clean at next open
+        minute_buffer["start_ts"]   = None
+        minute_buffer["start_snap"] = None
+        minute_buffer["spot_open"]  = None
+        minute_buffer["spot_high"]  = None
+        minute_buffer["spot_low"]   = None
+        minute_buffer["spot_close"] = None
+        minute_buffer["ltp_ohlc"]   = {}
+        return
+    # ─────────────────────────────────────────────────────────────────
+
     current_snap = _current_snap(now)
 
     if minute_buffer["start_ts"] is None:
@@ -663,13 +706,47 @@ if __name__ == "__main__":
     print("\nInitialising database...")
     init_db()
 
-    print("\nFetching live Nifty spot...")
-    seed_spot = get_live_spot()
-    print(f"Live spot: {seed_spot:,.2f}")
+    # ── Market-hours startup gate ─────────────────────────────────────
+    # Start Flask immediately (so /health and static pages work 24/7),
+    # but delay the WebSocket ticker until market opens.
+    def _start_ticker_at_open():
+        wait = seconds_until_market_open()
+        if wait > 0:
+            open_str = now_ist().replace(
+                hour=MARKET_OPEN[0], minute=MARKET_OPEN[1], second=0, microsecond=0
+            ).strftime("%H:%M IST")
+            print(f"\nMarket is closed. Ticker will start at {open_str} "
+                  f"(in {int(wait//3600)}h {int((wait%3600)//60)}m).")
+            time.sleep(wait)
 
-    half = NUM_STRIKES // 2
-    print(f"\nInitialising {NUM_STRIKES}-strike window (ATM ±{half} strikes)...")
-    initialise(seed_spot)
+        print(f"\n[{now_ist().strftime('%H:%M:%S')}] Market open — fetching live spot...")
+        seed_spot = get_live_spot()
+        print(f"Live spot: {seed_spot:,.2f}")
+
+        half = NUM_STRIKES // 2
+        print(f"\nInitialising {NUM_STRIKES}-strike window (ATM ±{half} strikes)...")
+        initialise(seed_spot)
+
+        # After market close, close the ticker gracefully
+        close_dt = now_ist().replace(
+            hour=MARKET_CLOSE[0], minute=MARKET_CLOSE[1], second=0, microsecond=0
+        )
+        remaining = (close_dt - now_ist()).total_seconds()
+        if remaining > 0:
+            print(f"[{now_ist().strftime('%H:%M:%S')}] Ticker will auto-stop at "
+                  f"{MARKET_CLOSE[0]:02d}:{MARKET_CLOSE[1]:02d} IST.")
+            time.sleep(remaining)
+            global ticker_instance
+            if ticker_instance:
+                try:
+                    ticker_instance.close()
+                    print(f"[{now_ist().strftime('%H:%M:%S')}] Market closed — ticker stopped.")
+                except Exception:
+                    pass
+
+    ticker_thread = threading.Thread(target=_start_ticker_at_open, daemon=True)
+    ticker_thread.start()
+    # ─────────────────────────────────────────────────────────────────
 
     print(f"\nFlask listening on port {FLASK_PORT}")
     print(f"  GET  /                serves dashboard HTML")
