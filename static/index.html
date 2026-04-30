@@ -148,7 +148,7 @@ select{font-size:13px;padding:5px 10px;border:0.5px solid #ccc;border-radius:6px
 @keyframes blink{0%{opacity:1;transform:translateY(-50%) scale(1)}50%{opacity:.4;transform:translateY(-50%) scale(1.4)}100%{opacity:1;transform:translateY(-50%) scale(1)}}
 
 .chart-scroll-outer{overflow-x:auto;overflow-y:hidden;width:100%;border-radius:4px;margin-bottom:10px;}
-.chart-scroll-inner{height:220px;min-width:100%;position:relative;overflow:hidden;}
+.chart-scroll-inner{min-height:220px;height:auto;min-width:100%;position:relative;overflow:hidden;}
 
 .net-row{display:flex;gap:8px;}
 .net-box{flex:1;background:#f8f8f5;border-radius:8px;padding:8px 10px;}
@@ -363,6 +363,12 @@ tr.row-bull{background:rgba(29,158,117,.04);}
   <label style="margin-left:10px;">Index candle width:</label>
   <input type="range" id="ctrl-icw" min="4" max="40" value="12" oninput="onCtrlChange()">
   <span id="ctrl-icw-val">12</span>px
+  <label style="margin-left:10px;">OI bar width:</label>
+  <input type="range" id="ctrl-bw" min="8" max="120" value="32" oninput="onCtrlChange()">
+  <span id="ctrl-bw-val">32</span>px
+  <label style="margin-left:10px;">OI chart height:</label>
+  <input type="range" id="ctrl-oih" min="100" max="600" value="220" step="10" oninput="onCtrlChange()">
+  <span id="ctrl-oih-val">220</span>px
 </div>
 <!-- ── DUAL CONFLUENCE CANDLESTICK CHARTS ── -->
 <div class="dual-grid">
@@ -435,7 +441,16 @@ tr.row-bull{background:rgba(29,158,117,.04);}
 
 <!-- Bear OI delta chart -->
 <div class="chart-card">
-  <div class="chart-title" id="bear-chart-title">Bear strike — CE vs PE OI delta</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
+    <div class="chart-title" id="bear-chart-title">Bear strike — CE vs PE OI delta</div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+      <label style="color:#888;white-space:nowrap;">Bear strike:</label>
+      <select id="bear-select-2" onchange="onStrikeChange2('bear',this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
+      <label style="color:#888;white-space:nowrap;">Bull strike:</label>
+      <select id="bull-select-2b" onchange="onStrikeChange2('bull',this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
+      <button class="btn" style="font-size:11px;padding:3px 8px;" onclick="resetToDefault()">Reset ATM</button>
+    </div>
+  </div>
   <div class="chart-sub" id="bear-chart-sub">Waiting...</div>
   <div class="ltp-bar">
     <div class="ltp-box"><span class="ltp-label" id="bear-ce-sym">— CE</span><span class="ltp-val" id="bear-ce-ltp">—</span><span class="ltp-tag">LTP</span></div>
@@ -461,7 +476,16 @@ tr.row-bull{background:rgba(29,158,117,.04);}
 
 <!-- Bull OI delta chart -->
 <div class="chart-card">
-  <div class="chart-title" id="bull-chart-title">Bull strike — CE vs PE OI delta</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
+    <div class="chart-title" id="bull-chart-title">Bull strike — CE vs PE OI delta</div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+      <label style="color:#888;white-space:nowrap;">Bear strike:</label>
+      <select id="bear-select-2b" onchange="onStrikeChange2('bear',this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
+      <label style="color:#888;white-space:nowrap;">Bull strike:</label>
+      <select id="bull-select-2" onchange="onStrikeChange2('bull',this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
+      <button class="btn" style="font-size:11px;padding:3px 8px;" onclick="resetToDefault()">Reset ATM</button>
+    </div>
+  </div>
   <div class="chart-sub" id="bull-chart-sub">Waiting...</div>
   <div class="ltp-bar">
     <div class="ltp-box"><span class="ltp-label" id="bull-ce-sym">— CE</span><span class="ltp-val" id="bull-ce-ltp">—</span><span class="ltp-tag">LTP</span></div>
@@ -501,7 +525,8 @@ const POLL_OI_SEC  = 30;
 const POLL_HX_SEC  = 60;
 const POLL_LTP_SEC = 2;
 const POLL_LIVE_SEC = 5;   // live forming candle refresh
-const MIN_BAR_PX   = 32;
+let MIN_BAR_PX   = 32;
+let OI_CHART_H   = 220;
 let CANDLE_W_PX    = 20;   // candle width for SVG bear/bull charts
 let INDEX_CANDLE_W = 12;   // candle width for index (Nifty) chart
 let CHART_H        = 240;  // height of bear/bull SVG charts
@@ -528,10 +553,14 @@ function onCtrlChange() {
   CHART_H        = parseInt(document.getElementById('ctrl-ch').value);
   INDEX_H        = parseInt(document.getElementById('ctrl-ih').value);
   INDEX_CANDLE_W = parseInt(document.getElementById('ctrl-icw').value);
+  MIN_BAR_PX     = parseInt(document.getElementById('ctrl-bw').value);
+  OI_CHART_H     = parseInt(document.getElementById('ctrl-oih').value);
   document.getElementById('ctrl-cw-val').textContent  = CANDLE_W_PX;
   document.getElementById('ctrl-ch-val').textContent  = CHART_H;
   document.getElementById('ctrl-ih-val').textContent  = INDEX_H;
   document.getElementById('ctrl-icw-val').textContent = INDEX_CANDLE_W;
+  document.getElementById('ctrl-bw-val').textContent  = MIN_BAR_PX;
+  document.getElementById('ctrl-oih-val').textContent = OI_CHART_H;
   rebuildCharts();
 }
 
@@ -630,14 +659,28 @@ function setIv(el) {
 
 // ── STRIKE SELECTOR ───────────────────────────────────────────────
 function populateStrikeSelectors(strikes, atm, defBear, defBull) {
-  ['bear-select','bull-select'].forEach((id,idx) => {
+  // All bear selects and bull selects (top + inline)
+  const bearSelectIds = ['bear-select', 'bear-select-2', 'bear-select-2b'];
+  const bullSelectIds = ['bull-select', 'bull-select-2', 'bull-select-2b'];
+  bearSelectIds.forEach(id => {
     const sel = document.getElementById(id);
-    const cur = idx===0 ? selectedBear : selectedBull;
+    if (!sel) return;
     sel.innerHTML='';
     strikes.forEach(st=>{
       const o=document.createElement('option');
       o.value=st; o.textContent=st;
-      if(st===cur) o.selected=true;
+      if(st===selectedBear) o.selected=true;
+      sel.appendChild(o);
+    });
+  });
+  bullSelectIds.forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML='';
+    strikes.forEach(st=>{
+      const o=document.createElement('option');
+      o.value=st; o.textContent=st;
+      if(st===selectedBull) o.selected=true;
       sel.appendChild(o);
     });
   });
@@ -652,8 +695,20 @@ function populateStrikeSelectors(strikes, atm, defBear, defBull) {
 }
 
 function onChipClick(strike) {
-  if(chipClickState==='bear'){selectedBear=strike;document.getElementById('bear-select').value=strike;chipClickState='bull';}
-  else{selectedBull=strike;document.getElementById('bull-select').value=strike;chipClickState='bear';}
+  if(chipClickState==='bear'){selectedBear=strike;chipClickState='bull';}
+  else{selectedBull=strike;chipClickState='bear';}
+  refreshDisplay();
+}
+
+// Called by the inline selects in the OI chart cards
+function onStrikeChange2(type, value) {
+  const v = parseInt(value);
+  if (type === 'bear') selectedBear = v;
+  else selectedBull = v;
+  if(selectedBear === selectedBull){
+    alert('Bear and Bull strikes cannot be the same. Please select different strikes.');
+    return;
+  }
   refreshDisplay();
 }
 
@@ -669,8 +724,6 @@ function onStrikeChange() {
 
 function resetToDefault() {
   selectedBear=defaultBear; selectedBull=defaultBull;
-  document.getElementById('bear-select').value=defaultBear;
-  document.getElementById('bull-select').value=defaultBull;
   chipClickState='bear'; refreshDisplay();
 }
 
@@ -1884,10 +1937,12 @@ function _doRebuild(){
   const labels=candles.map(c=>c.label);
   const outerW=Math.floor(document.getElementById('bear-scroll')?.getBoundingClientRect().width||(window.innerWidth-80));
   const oiW=Math.max(candles.length*MIN_BAR_PX,outerW);
-  const oiH=220;
+  const oiH=OI_CHART_H;
 
   document.getElementById('bearChartWrap').style.width=oiW+'px';
   document.getElementById('bullChartWrap').style.width=oiW+'px';
+  document.getElementById('bearChartWrap').style.height=oiH+'px';
+  document.getElementById('bullChartWrap').style.height=oiH+'px';
   setCanvas('bearChart',oiW,oiH);
   setCanvas('bullChart',oiW,oiH);
 
