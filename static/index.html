@@ -464,8 +464,11 @@ tr.row-bull{background:rgba(29,158,117,.04);}
     <span class="leg-item"><span class="leg-sq" style="background:#1D9E75;"></span>PE building (bullish pressure)</span>
     <span class="leg-item"><span class="leg-sq" style="background:#f0a080;"></span>PE unwinding</span>
   </div>
-  <div class="chart-scroll-outer" id="bear-scroll">
-    <div class="chart-scroll-inner" id="bearChartWrap"><canvas id="bearChart"></canvas></div>
+  <div style="position:relative;display:flex;">
+    <canvas id="bearYAxis" style="flex-shrink:0;position:sticky;left:0;z-index:10;background:#fff;border-right:0.5px solid #eee;"></canvas>
+    <div class="chart-scroll-outer" id="bear-scroll" style="flex:1;min-width:0;">
+      <div class="chart-scroll-inner" id="bearChartWrap"><canvas id="bearChart"></canvas></div>
+    </div>
   </div>
   <div class="net-row">
     <div class="net-box"><div class="net-label">Net CE Δ</div><div class="net-val" id="net-bc">—</div></div>
@@ -499,8 +502,11 @@ tr.row-bull{background:rgba(29,158,117,.04);}
     <span class="leg-item"><span class="leg-sq" style="background:#D85A30;"></span>CE building (bearish pressure)</span>
     <span class="leg-item"><span class="leg-sq" style="background:#93c5e8;"></span>CE unwinding</span>
   </div>
-  <div class="chart-scroll-outer" id="bull-scroll">
-    <div class="chart-scroll-inner" id="bullChartWrap"><canvas id="bullChart"></canvas></div>
+  <div style="position:relative;display:flex;">
+    <canvas id="bullYAxis" style="flex-shrink:0;position:sticky;left:0;z-index:10;background:#fff;border-right:0.5px solid #eee;"></canvas>
+    <div class="chart-scroll-outer" id="bull-scroll" style="flex:1;min-width:0;">
+      <div class="chart-scroll-inner" id="bullChartWrap"><canvas id="bullChart"></canvas></div>
+    </div>
   </div>
   <div class="net-row">
     <div class="net-box"><div class="net-label">Net CE Δ</div><div class="net-val" id="net-uc">—</div></div>
@@ -1453,13 +1459,12 @@ function getActivityConfluence(bKey, uKey) {
 // ── OI BAR CHARTS ─────────────────────────────────────────────────
 const GRID='rgba(136,135,128,0.12)',TCLR='#999';
 
+const OI_YAXIS_W = 52;
+
 function oiChartOptions(){
-  // Show timestamp for every candle — label is visible when its minute
-  // is a multiple of intervalMin (e.g. 3m → 09:15, 09:18, 09:21...).
-  // This aligns to real clock boundaries regardless of bar count or gaps.
   return{
     responsive:false,maintainAspectRatio:false,
-    layout:{padding:{top:4,bottom:4}},
+    layout:{padding:{top:4,bottom:4,left:0}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtD(ctx.raw)}}},
     scales:{
       x:{
@@ -1469,22 +1474,95 @@ function oiChartOptions(){
           autoSkip:false,
           maxRotation:0,
           callback:function(val,idx){
-            const lbl = this.getLabelForValue(val);  // e.g. "09:18"
+            const lbl = this.getLabelForValue(val);
             if(!lbl) return '';
             const parts = lbl.split(':');
             if(parts.length < 2) return '';
-            const h = parseInt(parts[0]);
-            const m = parseInt(parts[1]);
-            const totalMin = h * 60 + m;
-            // Show every label whose absolute minute is divisible by intervalMin
+            const hh = parseInt(parts[0]);
+            const mm = parseInt(parts[1]);
+            const totalMin = hh * 60 + mm;
             return totalMin % intervalMin === 0 ? lbl : '';
           }
         }
       },
-      y:{grid:{color:GRID},border:{display:false},ticks:{color:TCLR,font:{size:10},callback:v=>(v>=0?'+':'')+Math.round(v/1000)+'k'}}
+      y:{display:false}  // hidden — drawn on sticky overlay canvas instead
     },
     animation:{duration:250}
   };
+}
+
+function drawStickyYAxis(chartInstance, overlayCanvasId) {
+  if(!chartInstance) return;
+  // After Chart.js renders with y:display:false we manually read the computed
+  // scale range and draw ticks on the pinned overlay canvas.
+  const chart   = chartInstance;
+  const h       = chart.height;
+  const plotTop = chart.chartArea?.top    ?? 4;
+  const plotBot = chart.chartArea?.bottom ?? (h - 4);
+  const yMin    = chart.scales.y?.min ?? 0;
+  const yMax    = chart.scales.y?.max ?? 1;
+
+  const c = document.getElementById(overlayCanvasId);
+  if(!c) return;
+  c.width  = OI_YAXIS_W;
+  c.height = h;
+  c.style.width  = OI_YAXIS_W + 'px';
+  c.style.height = h + 'px';
+
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, OI_YAXIS_W, h);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, OI_YAXIS_W, h);
+
+  // Compute nice tick values matching what Chart.js would have used
+  const range   = yMax - yMin;
+  const rawStep = range / 6;
+  const mag     = Math.pow(10, Math.floor(Math.log10(Math.abs(rawStep) || 1)));
+  const step    = Math.ceil(rawStep / mag) * mag || mag;
+  const tickStart = Math.ceil(yMin / step) * step;
+
+  const toPx = v => plotTop + (1 - (v - yMin) / (yMax - yMin)) * (plotBot - plotTop);
+
+  ctx.font         = '10px system-ui,sans-serif';
+  ctx.textAlign    = 'right';
+  ctx.textBaseline = 'middle';
+
+  for(let v = tickStart; v <= yMax + step * 0.01; v += step) {
+    const y = toPx(v);
+    if(y < plotTop - 2 || y > plotBot + 2) continue;
+
+    // Gridline across the axis panel width
+    ctx.strokeStyle = GRID;
+    ctx.lineWidth   = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(OI_YAXIS_W - 5, y);
+    ctx.stroke();
+
+    // Label
+    ctx.fillStyle = TCLR;
+    const label = (v >= 0 ? '+' : '') + Math.round(v / 1000) + 'k';
+    ctx.fillText(label, OI_YAXIS_W - 7, y);
+  }
+
+  // Zero line
+  const z = toPx(0);
+  if(z >= plotTop && z <= plotBot) {
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, z);
+    ctx.lineTo(OI_YAXIS_W - 4, z);
+    ctx.stroke();
+  }
+
+  // Right border
+  ctx.strokeStyle = '#ddd';
+  ctx.lineWidth   = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(OI_YAXIS_W - 0.5, 0);
+  ctx.lineTo(OI_YAXIS_W - 0.5, h);
+  ctx.stroke();
 }
 
 function makeDS(label,data,colors){return{label,data,backgroundColor:colors,borderRadius:3,barPercentage:0.6};}
@@ -1975,15 +2053,19 @@ function _doRebuild(){
   if(bearChart){bearChart.destroy();bearChart=null;}
   if(bullChart){bullChart.destroy();bullChart=null;}
 
+  const bearOpts = oiChartOptions();
+  bearOpts.animation = { duration:250, onComplete: () => drawStickyYAxis(bearChart, 'bearYAxis') };
   bearChart=new Chart(document.getElementById('bearChart'),{
     type:'bar',
     data:{labels,datasets:[makeDS('CE OI Δ',candles.map(c=>c.dbce),bceCol),makeDS('PE OI Δ',candles.map(c=>c.dbpe),bpeCol)]},
-    options:oiChartOptions()
+    options:bearOpts
   });
+  const bullOpts = oiChartOptions();
+  bullOpts.animation = { duration:250, onComplete: () => drawStickyYAxis(bullChart, 'bullYAxis') };
   bullChart=new Chart(document.getElementById('bullChart'),{
     type:'bar',
     data:{labels,datasets:[makeDS('CE OI Δ',candles.map(c=>c.duce),uceCol),makeDS('PE OI Δ',candles.map(c=>c.dupe),upeCol)]},
-    options:oiChartOptions()
+    options:bullOpts
   });
 
   const netBce=candles.reduce((s,c)=>s+c.dbce,0);
