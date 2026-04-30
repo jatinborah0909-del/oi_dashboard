@@ -1454,9 +1454,9 @@ function getActivityConfluence(bKey, uKey) {
 const GRID='rgba(136,135,128,0.12)',TCLR='#999';
 
 function oiChartOptions(){
-  // Show a timestamp label every ~15 min worth of candles so labels stay
-  // readable at any bar width. e.g. 3m interval → every 5 bars = 15 min.
-  const everyN = Math.max(1, Math.round(15 / intervalMin));
+  // Show timestamp for every candle — label is visible when its minute
+  // is a multiple of intervalMin (e.g. 3m → 09:15, 09:18, 09:21...).
+  // This aligns to real clock boundaries regardless of bar count or gaps.
   return{
     responsive:false,maintainAspectRatio:false,
     layout:{padding:{top:4,bottom:4}},
@@ -1469,7 +1469,15 @@ function oiChartOptions(){
           autoSkip:false,
           maxRotation:0,
           callback:function(val,idx){
-            return idx % everyN === 0 ? this.getLabelForValue(val) : '';
+            const lbl = this.getLabelForValue(val);  // e.g. "09:18"
+            if(!lbl) return '';
+            const parts = lbl.split(':');
+            if(parts.length < 2) return '';
+            const h = parseInt(parts[0]);
+            const m = parseInt(parts[1]);
+            const totalMin = h * 60 + m;
+            // Show every label whose absolute minute is divisible by intervalMin
+            return totalMin % intervalMin === 0 ? lbl : '';
           }
         }
       },
