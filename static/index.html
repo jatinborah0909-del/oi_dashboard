@@ -1454,12 +1454,25 @@ function getActivityConfluence(bKey, uKey) {
 const GRID='rgba(136,135,128,0.12)',TCLR='#999';
 
 function oiChartOptions(){
+  // Show a timestamp label every ~15 min worth of candles so labels stay
+  // readable at any bar width. e.g. 3m interval → every 5 bars = 15 min.
+  const everyN = Math.max(1, Math.round(15 / intervalMin));
   return{
     responsive:false,maintainAspectRatio:false,
     layout:{padding:{top:4,bottom:4}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtD(ctx.raw)}}},
     scales:{
-      x:{grid:{display:false},ticks:{color:TCLR,font:{size:10},autoSkip:true,maxTicksLimit:20}},
+      x:{
+        grid:{display:false},
+        ticks:{
+          color:TCLR,font:{size:10},
+          autoSkip:false,
+          maxRotation:0,
+          callback:function(val,idx){
+            return idx % everyN === 0 ? this.getLabelForValue(val) : '';
+          }
+        }
+      },
       y:{grid:{color:GRID},border:{display:false},ticks:{color:TCLR,font:{size:10},callback:v=>(v>=0?'+':'')+Math.round(v/1000)+'k'}}
     },
     animation:{duration:250}
