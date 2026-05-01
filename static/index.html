@@ -180,6 +180,19 @@ tr.row-bull{background:rgba(29,158,117,.04);}
 .sig-wg{background:#EAF3DE;color:#3B6D11;}
 .sig-n{background:#F1EFE8;color:#5F5E5A;}
 
+
+/* ── 3-Strike ATM OI chart grid ── */
+.three-grid{display:flex;flex-direction:column;gap:12px;margin-bottom:12px;}
+.atm-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;}
+.atm-card.atm-center{border-top:3px solid #534AB7;}
+.atm-card.atm-below{border-top:3px solid #D85A30;}
+.atm-card.atm-above{border-top:3px solid #1D9E75;}
+.atm-card-title{font-size:13px;font-weight:500;margin-bottom:2px;}
+.atm-card-sub{font-size:11px;color:#888;margin-bottom:8px;}
+.atm-nifty-tag{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500;margin-left:6px;}
+.atm-nifty-tag.tag-atm{background:#EEEDFE;color:#534AB7;}
+.atm-nifty-tag.tag-below{background:#FAECE7;color:#712B13;}
+.atm-nifty-tag.tag-above{background:#E1F5EE;color:#085041;}
 @media(max-width:700px){
   .grid2,.dual-grid{grid-template-columns:1fr;}
   .chart-scroll-inner{height:180px;}
@@ -213,6 +226,7 @@ tr.row-bull{background:rgba(29,158,117,.04);}
   </div>
 </div>
 
+
 <!-- Date picker bar -->
 <div class="status-bar" id="date-bar" style="gap:10px;flex-wrap:wrap;align-items:center;">
   <span style="display:flex;align-items:center;gap:6px;">
@@ -228,17 +242,17 @@ tr.row-bull{background:rgba(29,158,117,.04);}
 
 <!-- Strike selector -->
 <div class="strike-panel">
-  <div class="strike-panel-title">Strike selection — click chip: 1st click = bear, 2nd = bull</div>
+  <div class="strike-panel-title">Strike selection — click chip: 1st click = Down strike, 2nd click = Up strike</div>
   <div class="strike-row">
     <div class="strike-group">
-      <label>Bear strike:</label>
+      <label>Down strike:</label>
       <select id="bear-select" onchange="onStrikeChange()"><option>—</option></select>
     </div>
     <div class="strike-group">
-      <label>Bull strike:</label>
+      <label>Up strike:</label>
       <select id="bull-select" onchange="onStrikeChange()"><option>—</option></select>
     </div>
-    <button class="btn btn-primary" onclick="resetToDefault()">Reset to ATM ±100</button>
+    <button class="btn btn-primary" onclick="resetToDefault()">Reset to ATM</button>
   </div>
   <div class="strike-badges" id="strike-chips"></div>
 </div>
@@ -261,26 +275,26 @@ tr.row-bull{background:rgba(29,158,117,.04);}
 <!-- OI cards -->
 <div class="grid2">
   <div class="card">
-    <div class="card-title" id="bear-card-title">Bear strike</div>
+    <div class="card-title" id="bear-card-title">Down strike</div>
     <div class="oi-row"><span class="oi-muted" id="bc-lbl">— CE</span><span id="bc-oi" style="font-weight:500">—</span></div>
     <div class="oi-row"><span class="oi-muted">CE 30s Δ</span><span id="bc-id">—</span></div>
     <div class="oi-row"><span class="oi-muted">CE total Δ</span><span id="bc-td">—</span></div>
     <div class="oi-row"><span class="oi-muted" id="bp-lbl">— PE</span><span id="bp-oi" style="font-weight:500">—</span></div>
     <div class="oi-row"><span class="oi-muted">PE 30s Δ</span><span id="bp-id">—</span></div>
     <div class="oi-row"><span class="oi-muted">PE total Δ</span><span id="bp-td">—</span></div>
-    <div style="font-size:11px;color:#888;margin-top:8px;">Call dominance (bearish if &gt;50%)</div>
+    <div style="font-size:11px;color:#888;margin-top:8px;">Call dominance</div>
     <div class="bar-wrap"><div class="bar" id="bear-bar" style="background:#D85A30;width:50%;"></div></div>
     <div class="dom-label" id="bear-dom-label"></div>
   </div>
   <div class="card">
-    <div class="card-title" id="bull-card-title">Bull strike</div>
+    <div class="card-title" id="bull-card-title">Up strike</div>
     <div class="oi-row"><span class="oi-muted" id="uc-lbl">— CE</span><span id="uc-oi" style="font-weight:500">—</span></div>
     <div class="oi-row"><span class="oi-muted">CE 30s Δ</span><span id="uc-id">—</span></div>
     <div class="oi-row"><span class="oi-muted">CE total Δ</span><span id="uc-td">—</span></div>
     <div class="oi-row"><span class="oi-muted" id="up-lbl">— PE</span><span id="up-oi" style="font-weight:500">—</span></div>
     <div class="oi-row"><span class="oi-muted">PE 30s Δ</span><span id="up-id">—</span></div>
     <div class="oi-row"><span class="oi-muted">PE total Δ</span><span id="up-td">—</span></div>
-    <div style="font-size:11px;color:#888;margin-top:8px;">Put dominance (bullish if &gt;50%)</div>
+    <div style="font-size:11px;color:#888;margin-top:8px;">Put dominance</div>
     <div class="bar-wrap"><div class="bar" id="bull-bar" style="background:#1D9E75;width:50%;"></div></div>
     <div class="dom-label" id="bull-dom-label"></div>
   </div>
@@ -388,8 +402,8 @@ tr.row-bull{background:rgba(29,158,117,.04);}
 
   <!-- Bear lens -->
   <div class="conf-card bear-card">
-    <div class="conf-title bear" id="bear-conf-title">Bear strike lens — 24,050</div>
-    <div class="conf-sub" id="bear-conf-sub">Bear strike CE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)</div>
+    <div class="conf-title bear" id="bear-conf-title">Down strike lens</div>
+    <div class="conf-sub" id="bear-conf-sub">Down strike CE option LTP price · colour = activity type</div>
     <div class="conf-legend">
       <span class="cl-item"><span class="cl-sq" style="background:#0F6E56;"></span>Long Buildup 🔥 (↑price ↑OI)</span>
       <span class="cl-item"><span class="cl-sq" style="background:#8B1A1A;"></span>Short Buildup 🔥 (↓price ↑OI)</span>
@@ -412,8 +426,8 @@ tr.row-bull{background:rgba(29,158,117,.04);}
 
   <!-- Bull lens -->
   <div class="conf-card bull-card">
-    <div class="conf-title bull" id="bull-conf-title">Bull strike lens — 24,150</div>
-    <div class="conf-sub" id="bull-conf-sub">Bull strike PE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)</div>
+    <div class="conf-title bull" id="bull-conf-title">Up strike lens</div>
+    <div class="conf-sub" id="bull-conf-sub">Up strike PE option LTP price · colour = activity type</div>
     <div class="conf-legend">
       <span class="cl-item"><span class="cl-sq" style="background:#0F6E56;"></span>Long Buildup 🔥 (↑price ↑OI)</span>
       <span class="cl-item"><span class="cl-sq" style="background:#8B1A1A;"></span>Short Buildup 🔥 (↓price ↑OI)</span>
@@ -452,82 +466,107 @@ tr.row-bull{background:rgba(29,158,117,.04);}
   <div class="conf-interp" id="conf-interp">Waiting for first candle...</div>
 </div>
 
-<!-- Bear OI delta chart -->
-<div class="chart-card">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
-    <div class="chart-title" id="bear-chart-title">Bear strike — CE vs PE OI delta</div>
-    <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
-      <label style="color:#888;white-space:nowrap;">Bear strike:</label>
-      <select id="bear-select-2" onchange="onStrikeChange2('bear',this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
-      <label style="color:#888;white-space:nowrap;">Bull strike:</label>
-      <select id="bull-select-2b" onchange="onStrikeChange2('bull',this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
-      <button class="btn" style="font-size:11px;padding:3px 8px;" onclick="resetToDefault()">Reset ATM</button>
-    </div>
-  </div>
-  <div class="chart-sub" id="bear-chart-sub">Waiting...</div>
-  <div class="ltp-bar">
-    <div class="ltp-box"><span class="ltp-label" id="bear-ce-sym">— CE</span><span class="ltp-val" id="bear-ce-ltp">—</span><span class="ltp-tag">LTP</span></div>
-    <div class="ltp-divider"></div>
-    <div class="ltp-box"><span class="ltp-label" id="bear-pe-sym">— PE</span><span class="ltp-val" id="bear-pe-ltp">—</span><span class="ltp-tag">LTP</span></div>
-    <div class="ltp-pulse" id="bear-pulse"></div>
-  </div>
-  <div class="legend">
-    <span class="leg-item"><span class="leg-sq" style="background:#D85A30;"></span>CE building (bearish)</span>
-    <span class="leg-item"><span class="leg-sq" style="background:#93c5e8;"></span>CE unwinding</span>
-    <span class="leg-item"><span class="leg-sq" style="background:#1D9E75;"></span>PE building (bullish pressure)</span>
-    <span class="leg-item"><span class="leg-sq" style="background:#f0a080;"></span>PE unwinding</span>
-  </div>
-  <div style="position:relative;display:flex;">
-    <canvas id="bearYAxis" style="flex-shrink:0;position:sticky;left:0;z-index:10;background:#fff;border-right:0.5px solid #eee;"></canvas>
-    <div class="chart-scroll-outer" id="bear-scroll" style="flex:1;min-width:0;">
-      <div class="chart-scroll-inner" id="bearChartWrap"><canvas id="bearChart"></canvas></div>
-    </div>
-  </div>
-  <div class="net-row">
-    <div class="net-box"><div class="net-label">Net CE Δ</div><div class="net-val" id="net-bc">—</div></div>
-    <div class="net-box"><div class="net-label">Net PE Δ</div><div class="net-val" id="net-bp">—</div></div>
-    <div class="net-box"><div class="net-label">Bear bias</div><div class="net-val" id="bear-score">—</div></div>
-  </div>
-</div>
 
-<!-- Bull OI delta chart -->
-<div class="chart-card">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
-    <div class="chart-title" id="bull-chart-title">Bull strike — CE vs PE OI delta</div>
-    <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
-      <label style="color:#888;white-space:nowrap;">Bear strike:</label>
-      <select id="bear-select-2b" onchange="onStrikeChange2('bear',this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
-      <label style="color:#888;white-space:nowrap;">Bull strike:</label>
-      <select id="bull-select-2" onchange="onStrikeChange2('bull',this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
-      <button class="btn" style="font-size:11px;padding:3px 8px;" onclick="resetToDefault()">Reset ATM</button>
-    </div>
-  </div>
-  <div class="chart-sub" id="bull-chart-sub">Waiting...</div>
-  <div class="ltp-bar">
-    <div class="ltp-box"><span class="ltp-label" id="bull-ce-sym">— CE</span><span class="ltp-val" id="bull-ce-ltp">—</span><span class="ltp-tag">LTP</span></div>
-    <div class="ltp-divider"></div>
-    <div class="ltp-box"><span class="ltp-label" id="bull-pe-sym">— PE</span><span class="ltp-val" id="bull-pe-ltp">—</span><span class="ltp-tag">LTP</span></div>
-    <div class="ltp-pulse" id="bull-pulse"></div>
-  </div>
-  <div class="legend">
-    <span class="leg-item"><span class="leg-sq" style="background:#1D9E75;"></span>PE building (bullish)</span>
-    <span class="leg-item"><span class="leg-sq" style="background:#f0a080;"></span>PE unwinding</span>
-    <span class="leg-item"><span class="leg-sq" style="background:#D85A30;"></span>CE building (bearish pressure)</span>
-    <span class="leg-item"><span class="leg-sq" style="background:#93c5e8;"></span>CE unwinding</span>
-  </div>
-  <div style="position:relative;display:flex;">
-    <canvas id="bullYAxis" style="flex-shrink:0;position:sticky;left:0;z-index:10;background:#fff;border-right:0.5px solid #eee;"></canvas>
-    <div class="chart-scroll-outer" id="bull-scroll" style="flex:1;min-width:0;">
-      <div class="chart-scroll-inner" id="bullChartWrap"><canvas id="bullChart"></canvas></div>
-    </div>
-  </div>
-  <div class="net-row">
-    <div class="net-box"><div class="net-label">Net CE Δ</div><div class="net-val" id="net-uc">—</div></div>
-    <div class="net-box"><div class="net-label">Net PE Δ</div><div class="net-val" id="net-up">—</div></div>
-    <div class="net-box"><div class="net-label">Bull bias</div><div class="net-val" id="bull-score">—</div></div>
-  </div>
-</div>
+<!-- ── ATM 3-STRIKE OI DELTA CHARTS ── -->
+<div class="three-grid" id="atm-three-grid">
 
+  <!-- Up strike (above ATM) -->
+  <div class="atm-card atm-above">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+      <div>
+        <span class="atm-card-title" id="atm-above-title">Up</span>
+        <span class="atm-nifty-tag tag-above" id="atm-above-nifty-tag">Nifty —</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;">
+        <select id="atm-above-select" onchange="onATMStrikeChange('above',this.value)" style="font-size:11px;padding:2px 6px;border:0.5px solid #ccc;border-radius:5px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
+        <button class="btn" style="font-size:10px;padding:2px 7px;" onclick="resetATMStrikes()">Reset</button>
+      </div>
+    </div>
+    <div class="atm-card-sub">CE vs PE OI delta · strike above ATM</div>
+    <div class="legend" style="margin-bottom:6px;">
+      <span class="leg-item"><span class="leg-sq" style="background:#D85A30;"></span>CE building</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#93c5e8;"></span>CE unwinding</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#1D9E75;"></span>PE building</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#f0a080;"></span>PE unwinding</span>
+    </div>
+    <div style="position:relative;display:flex;">
+      <canvas id="atmAboveYAxis" style="flex-shrink:0;position:sticky;left:0;z-index:10;background:#fff;border-right:0.5px solid #eee;"></canvas>
+      <div class="chart-scroll-outer" id="atm-above-scroll" style="flex:1;min-width:0;">
+        <div class="chart-scroll-inner" id="atmAboveChartWrap"><canvas id="atmAboveChart"></canvas></div>
+      </div>
+    </div>
+    <div class="net-row" style="margin-top:8px;">
+      <div class="net-box"><div class="net-label">Net CE Δ</div><div class="net-val" id="net-atm-above-ce">—</div></div>
+      <div class="net-box"><div class="net-label">Net PE Δ</div><div class="net-val" id="net-atm-above-pe">—</div></div>
+      <div class="net-box"><div class="net-label">Bias</div><div class="net-val" id="atm-above-bias">—</div></div>
+    </div>
+  </div>
+
+  <!-- ATM strike (centre) -->
+  <div class="atm-card atm-center">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+      <div>
+        <span class="atm-card-title" id="atm-center-title">ATM</span>
+        <span class="atm-nifty-tag tag-atm" id="atm-center-nifty-tag">Nifty —</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;">
+        <select id="atm-center-select" onchange="onATMStrikeChange('center',this.value)" style="font-size:11px;padding:2px 6px;border:0.5px solid #ccc;border-radius:5px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
+        <button class="btn" style="font-size:10px;padding:2px 7px;" onclick="resetATMStrikes()">Reset</button>
+      </div>
+    </div>
+    <div class="atm-card-sub">CE vs PE OI delta · ATM strike</div>
+    <div class="legend" style="margin-bottom:6px;">
+      <span class="leg-item"><span class="leg-sq" style="background:#D85A30;"></span>CE building</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#93c5e8;"></span>CE unwinding</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#1D9E75;"></span>PE building</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#f0a080;"></span>PE unwinding</span>
+    </div>
+    <div style="position:relative;display:flex;">
+      <canvas id="atmCenterYAxis" style="flex-shrink:0;position:sticky;left:0;z-index:10;background:#fff;border-right:0.5px solid #eee;"></canvas>
+      <div class="chart-scroll-outer" id="atm-center-scroll" style="flex:1;min-width:0;">
+        <div class="chart-scroll-inner" id="atmCenterChartWrap"><canvas id="atmCenterChart"></canvas></div>
+      </div>
+    </div>
+    <div class="net-row" style="margin-top:8px;">
+      <div class="net-box"><div class="net-label">Net CE Δ</div><div class="net-val" id="net-atm-center-ce">—</div></div>
+      <div class="net-box"><div class="net-label">Net PE Δ</div><div class="net-val" id="net-atm-center-pe">—</div></div>
+      <div class="net-box"><div class="net-label">Bias</div><div class="net-val" id="atm-center-bias">—</div></div>
+    </div>
+  </div>
+
+  <!-- Down strike (below ATM) -->
+  <div class="atm-card atm-below">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+      <div>
+        <span class="atm-card-title" id="atm-below-title">Down</span>
+        <span class="atm-nifty-tag tag-below" id="atm-below-nifty-tag">Nifty —</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;">
+        <select id="atm-below-select" onchange="onATMStrikeChange('below',this.value)" style="font-size:11px;padding:2px 6px;border:0.5px solid #ccc;border-radius:5px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
+        <button class="btn" style="font-size:10px;padding:2px 7px;" onclick="resetATMStrikes()">Reset</button>
+      </div>
+    </div>
+    <div class="atm-card-sub">CE vs PE OI delta · strike below ATM</div>
+    <div class="legend" style="margin-bottom:6px;">
+      <span class="leg-item"><span class="leg-sq" style="background:#D85A30;"></span>CE building</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#93c5e8;"></span>CE unwinding</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#1D9E75;"></span>PE building</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#f0a080;"></span>PE unwinding</span>
+    </div>
+    <div style="position:relative;display:flex;">
+      <canvas id="atmBelowYAxis" style="flex-shrink:0;position:sticky;left:0;z-index:10;background:#fff;border-right:0.5px solid #eee;"></canvas>
+      <div class="chart-scroll-outer" id="atm-below-scroll" style="flex:1;min-width:0;">
+        <div class="chart-scroll-inner" id="atmBelowChartWrap"><canvas id="atmBelowChart"></canvas></div>
+      </div>
+    </div>
+    <div class="net-row" style="margin-top:8px;">
+      <div class="net-box"><div class="net-label">Net CE Δ</div><div class="net-val" id="net-atm-below-ce">—</div></div>
+      <div class="net-box"><div class="net-label">Net PE Δ</div><div class="net-val" id="net-atm-below-pe">—</div></div>
+      <div class="net-box"><div class="net-label">Bias</div><div class="net-val" id="atm-below-bias">—</div></div>
+    </div>
+  </div>
+
+</div>
 <!-- Roll log -->
 <div class="roll-log">
   <div class="card-title" style="margin-bottom:8px;">Strike roll history</div>
@@ -642,8 +681,6 @@ let biasStreak     = [];
 let currentBias    = null;
 let prevRollCount  = 0;
 let currentSession = 0;
-let bearChart      = null;
-let bullChart      = null;
 let allStrikes     = [];
 let atmStrike      = null;
 let selectedBear   = null;
@@ -651,9 +688,18 @@ let selectedBull   = null;
 let defaultBear    = null;
 let defaultBull    = null;
 let lastOIData     = null;
-let chipClickState = 'bear';
+let chipClickState = 'down';
 let liveCandle     = null;    // currently forming candle from /oi/live-candle
 let latestCandles  = [];      // last built candle array (needed for live overlay)
+let atmBelowChart  = null;    // Chart.js instance for ATM-1 OI chart
+let atmCenterChart = null;    // Chart.js instance for ATM OI chart
+let atmAboveChart  = null;    // Chart.js instance for ATM+1 OI chart
+// Selected strikes for the 3-strike ATM grid (null = auto from ATM)
+let selectedATMBelow  = null;
+let selectedATMCenter = null;
+let selectedATMAbove  = null;
+let selectedDate   = null;    // null = live today mode
+const MAX_DATE_PILLS = 24;
 const prevLtp      = {};
 
 // ── HELPERS ───────────────────────────────────────────────────────
@@ -714,8 +760,8 @@ function populateStrikeSelectors(strikes, atm, defBear, defBull) {
 }
 
 function onChipClick(strike) {
-  if(chipClickState==='bear'){selectedBear=strike;chipClickState='bull';}
-  else{selectedBull=strike;chipClickState='bear';}
+  if(chipClickState==='down'){selectedBear=strike;chipClickState='up';}
+  else{selectedBull=strike;chipClickState='down';}
   refreshDisplay();
 }
 
@@ -743,7 +789,7 @@ function onStrikeChange() {
 
 function resetToDefault() {
   selectedBear=defaultBear; selectedBull=defaultBull;
-  chipClickState='bear'; refreshDisplay();
+  chipClickState='down'; refreshDisplay();
 }
 
 function refreshDisplay() {
@@ -794,12 +840,18 @@ async function fetchOI() {
     currentSession=data.session_id??0;
     if(allStrikes.length===0&&data.strikes){
       allStrikes=data.strikes.map(Number).sort((a,b)=>a-b);
-      atmStrike=data.atm_strike; defaultBear=data.bear_strike; defaultBull=data.bull_strike;
+      atmStrike=data.atm_strike;
+      // Default strikes: ATM itself as down (below), ATM+1 as up (above) based on sorted strikes list
+      const atmIdx = nearestATMIndex();
+      defaultBear = atmIdx > 0 ? allStrikes[atmIdx - 1] : allStrikes[atmIdx];
+      defaultBull = atmIdx < allStrikes.length - 1 ? allStrikes[atmIdx + 1] : allStrikes[atmIdx];
       if(!selectedBear) selectedBear=defaultBear;
       if(!selectedBull) selectedBull=defaultBull;
       populateStrikeSelectors(allStrikes,atmStrike,defaultBear,defaultBull);
+      populateATMDropdowns();
     }
-    defaultBear=data.bear_strike; defaultBull=data.bull_strike;
+    // defaultBear/defaultBull already set from ATM on first load; refresh ATM only
+    if(data.atm_strike) atmStrike=data.atm_strike;
     lastOIData=data; processSnapshot(data); return data;
   }catch(e){
     document.getElementById('conn-dot').style.background='#D85A30';
@@ -923,14 +975,14 @@ function processSnapshot(data){
   const uc=opts[rk(selectedBull,'ce')],up=opts[rk(selectedBull,'pe')];
   if(!bc||!bp||!uc||!up) return;
 
-  document.getElementById('bear-card-title').textContent='Bear strike ('+selectedBear+')';
-  document.getElementById('bull-card-title').textContent='Bull strike ('+selectedBull+')';
-  document.getElementById('bear-chart-title').textContent='Bear strike '+selectedBear+' — CE vs PE OI delta';
-  document.getElementById('bull-chart-title').textContent='Bull strike '+selectedBull+' — CE vs PE OI delta';
-  document.getElementById('bear-conf-title').textContent='Bear strike lens — '+selectedBear;
-  document.getElementById('bull-conf-title').textContent='Bull strike lens — '+selectedBull;
-  document.getElementById('bear-conf-sub').textContent=selectedBear+' CE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)';
-  document.getElementById('bull-conf-sub').textContent=selectedBull+' PE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)';
+  document.getElementById('bear-card-title').textContent='Down strike ('+selectedBear+')';
+  document.getElementById('bull-card-title').textContent='Up strike ('+selectedBull+')';
+  document.getElementById('bear-chart-title').textContent='Down strike '+selectedBear+' — CE vs PE OI delta';
+  document.getElementById('bull-chart-title').textContent='Up strike '+selectedBull+' — CE vs PE OI delta';
+  document.getElementById('bear-conf-title').textContent='Down strike — '+selectedBear;
+  document.getElementById('bull-conf-title').textContent='Up strike — '+selectedBull;
+  document.getElementById('bear-conf-sub').textContent='Down '+selectedBear+' · CE option LTP · colour = activity type';
+  document.getElementById('bull-conf-sub').textContent='Up '+selectedBull+' · PE option LTP · colour = activity type';
   document.getElementById('bc-lbl').textContent=selectedBear+' CE';
   document.getElementById('bp-lbl').textContent=selectedBear+' PE';
   document.getElementById('uc-lbl').textContent=selectedBull+' CE';
@@ -1428,8 +1480,8 @@ function updateConfluenceSummary(candles, bearSigs, bullSigs){
   const pDir=priceUp?'up':priceDown?'down':'flat';
 
   document.getElementById('conf-sum-title').textContent='Confluence reading — '+last.label+' (Nifty price '+pDir+')';
-  document.getElementById('bear-sum-label').textContent='Bear '+selectedBear+' CE';
-  document.getElementById('bull-sum-label').textContent='Bull '+selectedBull+' PE';
+  document.getElementById('bear-sum-label').textContent='Down '+selectedBear+' CE';
+  document.getElementById('bull-sum-label').textContent='Up '+selectedBull+' PE';
 
   const bBadge=document.getElementById('bear-sum-badge');
   bBadge.textContent=bAct.label;
@@ -1592,7 +1644,7 @@ function scrollToLatest(){
     if (el) el.scrollLeft = el.scrollWidth;
   });
   setTimeout(()=>{
-    ['bear-scroll','bull-scroll'].forEach(id=>document.getElementById(id)?.scrollTo({left:99999,behavior:'smooth'}));
+    // OI scroll handled by ATM grid
   },300);
 }
 
@@ -2003,12 +2055,12 @@ function drawOIMovers(rows, atmStr) {
 function rebuildCharts(){requestAnimationFrame(_doRebuild);}
 
 function _doRebuild(){
-  if(!selectedBear||!selectedBull) return;
-  const candles=buildCandles(minuteRows,intervalMin,selectedBear,selectedBull);
+  // Allow partial render even if Down/Up not yet set
+  const candles = (selectedBear && selectedBull)
+    ? buildCandles(minuteRows, intervalMin, selectedBear, selectedBull)
+    : [];
 
   const sub=intervalMin+'-min · '+minuteRows.length+' rows · '+candles.length+' candles · session '+currentSession;
-  document.getElementById('bear-chart-sub').textContent=sub;
-  document.getElementById('bull-chart-sub').textContent=sub;
   const logMeta = document.getElementById('log-meta');
   if (logMeta) logMeta.textContent='('+minuteRows.length+' rows → '+candles.length+' candles)';
   document.getElementById('index-chart-sub').textContent='Nifty 50 · '+intervalMin+'m candles · colour = dominant OI move (CE/PE building or unwinding across both strikes)';
@@ -2045,69 +2097,159 @@ function _doRebuild(){
 
   if(!candles.length) return;
 
-  // ── OI bar charts ──
-  const labels=candles.map(c=>c.label);
-  const outerW=Math.floor(document.getElementById('bear-scroll')?.getBoundingClientRect().width||(window.innerWidth-80));
-  const oiW=Math.max(candles.length*MIN_BAR_PX,outerW);
-  const oiH=OI_CHART_H;
-
-  document.getElementById('bearChartWrap').style.width=oiW+'px';
-  document.getElementById('bullChartWrap').style.width=oiW+'px';
-  document.getElementById('bearChartWrap').style.height=oiH+'px';
-  document.getElementById('bullChartWrap').style.height=oiH+'px';
-  setCanvas('bearChart',oiW,oiH);
-  setCanvas('bullChart',oiW,oiH);
-
-  const bceCol=candles.map(c=>c.dbce>=0?'#D85A30':'#93c5e8');
-  const bpeCol=candles.map(c=>c.dbpe>=0?'#1D9E75':'#f0a080');
-  const uceCol=candles.map(c=>c.duce>=0?'#D85A30':'#93c5e8');
-  const upeCol=candles.map(c=>c.dupe>=0?'#1D9E75':'#f0a080');
-
-  if(bearChart){bearChart.destroy();bearChart=null;}
-  if(bullChart){bullChart.destroy();bullChart=null;}
-
-  const bearOpts = oiChartOptions();
-  bearOpts.animation = { duration:250, onComplete: () => drawStickyYAxis(bearChart, 'bearYAxis') };
-  bearChart=new Chart(document.getElementById('bearChart'),{
-    type:'bar',
-    data:{labels,datasets:[makeDS('CE OI Δ',candles.map(c=>c.dbce),bceCol),makeDS('PE OI Δ',candles.map(c=>c.dbpe),bpeCol)]},
-    options:bearOpts
-  });
-  const bullOpts = oiChartOptions();
-  bullOpts.animation = { duration:250, onComplete: () => drawStickyYAxis(bullChart, 'bullYAxis') };
-  bullChart=new Chart(document.getElementById('bullChart'),{
-    type:'bar',
-    data:{labels,datasets:[makeDS('CE OI Δ',candles.map(c=>c.duce),uceCol),makeDS('PE OI Δ',candles.map(c=>c.dupe),upeCol)]},
-    options:bullOpts
-  });
-
-  const netBce=candles.reduce((s,c)=>s+c.dbce,0);
-  const netBpe=candles.reduce((s,c)=>s+c.dbpe,0);
-  const netUce=candles.reduce((s,c)=>s+c.duce,0);
-  const netUpe=candles.reduce((s,c)=>s+c.dupe,0);
-  const setNet=(id,v)=>{const el=document.getElementById(id);el.textContent=fmtD(v);el.className='net-val '+dcls(v);};
-  setNet('net-bc',netBce);setNet('net-bp',netBpe);setNet('net-uc',netUce);setNet('net-up',netUpe);
-  // Bear chart bias: PE delta > CE delta → Bullish, else Bearish
-  const bearBiasEl = document.getElementById('bear-score');
-  if(Math.abs(netBce)<3000 && Math.abs(netBpe)<3000){
-    bearBiasEl.textContent='Neutral'; bearBiasEl.className='net-val dfl';
-  } else if(netBpe > netBce){
-    bearBiasEl.textContent='▲ Bullish'; bearBiasEl.className='net-val dup';
-  } else {
-    bearBiasEl.textContent='▼ Bearish'; bearBiasEl.className='net-val ddn';
-  }
-  // Bull chart bias: PE delta > CE delta → Bullish, else Bearish
-  const bullBiasEl = document.getElementById('bull-score');
-  if(Math.abs(netUce)<3000 && Math.abs(netUpe)<3000){
-    bullBiasEl.textContent='Neutral'; bullBiasEl.className='net-val dfl';
-  } else if(netUpe > netUce){
-    bullBiasEl.textContent='▲ Bullish'; bullBiasEl.className='net-val dup';
-  } else {
-    bullBiasEl.textContent='▼ Bearish'; bullBiasEl.className='net-val ddn';
-  }
+  // ── ATM 3-strike OI bar charts (Down / ATM / Up) ──
+  drawATMCharts(candles, minuteRows);
 
   updateCandleLog(candles,bearSigs,bullSigs);
   scrollToLatest();
+}
+
+// ── ATM 3-STRIKE OI CHARTS ────────────────────────────────────────
+function nearestATMIndex() {
+  // Find index of the strike closest to (and <= ) the current ATM/spot value
+  if (!allStrikes.length) return -1;
+  const spot = Number(atmStrike);
+  if (!spot) return -1;
+  // allStrikes is sorted ascending; find largest strike <= spot
+  let best = 0;
+  for (let i = 0; i < allStrikes.length; i++) {
+    if (allStrikes[i] <= spot) best = i;
+    else break;
+  }
+  return best;
+}
+
+function getATMDefaults() {
+  if (!atmStrike || !allStrikes.length) return { below: null, center: null, above: null };
+  const idx = nearestATMIndex();
+  return {
+    below:  idx > 0                   ? allStrikes[idx - 1] : allStrikes[0],
+    center: allStrikes[idx],
+    above:  idx < allStrikes.length-1 ? allStrikes[idx + 1] : allStrikes[allStrikes.length-1],
+  };
+}
+
+function populateATMDropdowns() {
+  if (!allStrikes.length) return;
+  const defs = getATMDefaults();
+  if (!selectedATMBelow)  selectedATMBelow  = defs.below;
+  if (!selectedATMCenter) selectedATMCenter = defs.center;
+  if (!selectedATMAbove)  selectedATMAbove  = defs.above;
+
+  ['below','center','above'].forEach(pos => {
+    const sel = document.getElementById('atm-' + pos + '-select');
+    if (!sel) return;
+    const cur = pos === 'below' ? selectedATMBelow : pos === 'center' ? selectedATMCenter : selectedATMAbove;
+    sel.innerHTML = allStrikes.map(st =>
+      `<option value="${st}"${st === cur ? ' selected' : ''}>${st}</option>`
+    ).join('');
+  });
+}
+
+function onATMStrikeChange(pos, value) {
+  const v = parseInt(value);
+  if (pos === 'below')  selectedATMBelow  = v;
+  if (pos === 'center') selectedATMCenter = v;
+  if (pos === 'above')  selectedATMAbove  = v;
+  rebuildCharts();
+}
+
+function resetATMStrikes() {
+  selectedATMBelow  = null;
+  selectedATMCenter = null;
+  selectedATMAbove  = null;
+  rebuildCharts();
+}
+
+function drawATMCharts(candles, rows) {
+  if (!atmStrike || !allStrikes.length || !candles.length) return;
+
+  populateATMDropdowns();
+
+  const stBelow  = selectedATMBelow;
+  const stCenter = selectedATMCenter;
+  const stAbove  = selectedATMAbove;
+
+  // Latest Nifty spot (from last candle close)
+  const lastClose = candles[candles.length-1]?.close || 0;
+  const spotStr   = lastClose ? fmt(lastClose) : '—';
+
+  // Update card titles: "Down 23950", "ATM 24000", "Up 24050" + Nifty tag
+  const setCardHeader = (titleId, tagId, selectId, strike, label) => {
+    const t = document.getElementById(titleId);
+    const g = document.getElementById(tagId);
+    if (t) t.textContent = label + (strike ? ' — ' + strike : '');
+    if (g) g.textContent = 'Nifty ' + spotStr;
+  };
+  setCardHeader('atm-below-title',  'atm-below-nifty-tag',  'atm-below-select',  stBelow,  'Down');
+  setCardHeader('atm-center-title', 'atm-center-nifty-tag', 'atm-center-select', stCenter, 'ATM');
+  setCardHeader('atm-above-title',  'atm-above-nifty-tag',  'atm-above-select',  stAbove,  'Up');
+
+  const labels = candles.map(c => c.label);
+  const outerW = Math.floor(document.getElementById('atm-below-scroll')?.getBoundingClientRect().width || (window.innerWidth - 80));
+  const oiW    = Math.max(candles.length * MIN_BAR_PX, outerW);
+  const oiH    = OI_CHART_H;
+
+  // Build per-strike candle deltas from raw minute rows
+  function strikeDeltaFromRows(strike) {
+    const ceK = 's' + strike + '_ce';
+    const peK = 's' + strike + '_pe';
+    const result = [];
+    for (let i = 0; i < rows.length; i += intervalMin) {
+      const slice = rows.slice(i, i + intervalMin);
+      result.push({
+        dce: slice.reduce((s, r) => s + pf(r[ceK + '_delta']), 0),
+        dpe: slice.reduce((s, r) => s + pf(r[peK + '_delta']), 0),
+      });
+    }
+    return result;
+  }
+
+  function renderATMChart(canvasId, wrapId, yAxisId, biasId, netCeId, netPeId, strike) {
+    const wrap = document.getElementById(wrapId);
+    if (!wrap || !strike) return;
+    wrap.style.width  = oiW + 'px';
+    wrap.style.height = oiH + 'px';
+    setCanvas(canvasId, oiW, oiH);
+
+    const deltas   = strikeDeltaFromRows(strike);
+    const ceVals   = deltas.map(d => d.dce);
+    const peVals   = deltas.map(d => d.dpe);
+    const ceColors = ceVals.map(v => v >= 0 ? '#D85A30' : '#93c5e8');
+    const peColors = peVals.map(v => v >= 0 ? '#1D9E75' : '#f0a080');
+
+    const existing = Chart.getChart(canvasId);
+    if (existing) existing.destroy();
+
+    const opts = oiChartOptions();
+    opts.animation = { duration: 250, onComplete: () => drawStickyYAxis(Chart.getChart(canvasId), yAxisId) };
+    new Chart(document.getElementById(canvasId), {
+      type: 'bar',
+      data: { labels, datasets: [makeDS('CE OI Δ', ceVals, ceColors), makeDS('PE OI Δ', peVals, peColors)] },
+      options: opts,
+    });
+
+    const netCe  = ceVals.reduce((s,v) => s+v, 0);
+    const netPe  = peVals.reduce((s,v) => s+v, 0);
+    const ceEl   = document.getElementById(netCeId);
+    const peEl   = document.getElementById(netPeId);
+    const biasEl = document.getElementById(biasId);
+    if (ceEl)   { ceEl.textContent = fmtD(netCe); ceEl.className = 'net-val ' + dcls(netCe); }
+    if (peEl)   { peEl.textContent = fmtD(netPe); peEl.className = 'net-val ' + dcls(netPe); }
+    if (biasEl) {
+      if (Math.abs(netCe) < 3000 && Math.abs(netPe) < 3000) {
+        biasEl.textContent = 'Neutral'; biasEl.className = 'net-val dfl';
+      } else if (netPe > netCe) {
+        biasEl.textContent = '▲ Bullish'; biasEl.className = 'net-val dup';
+      } else {
+        biasEl.textContent = '▼ Bearish'; biasEl.className = 'net-val ddn';
+      }
+    }
+  }
+
+  if (stBelow)  renderATMChart('atmBelowChart',  'atmBelowChartWrap',  'atmBelowYAxis',  'atm-below-bias',  'net-atm-below-ce',  'net-atm-below-pe',  stBelow);
+  if (stCenter) renderATMChart('atmCenterChart', 'atmCenterChartWrap', 'atmCenterYAxis', 'atm-center-bias', 'net-atm-center-ce', 'net-atm-center-pe', stCenter);
+  if (stAbove)  renderATMChart('atmAboveChart',  'atmAboveChartWrap',  'atmAboveYAxis',  'atm-above-bias',  'net-atm-above-ce',  'net-atm-above-pe',  stAbove);
 }
 
 // ── LOG TABLE ─────────────────────────────────────────────────────
@@ -2156,9 +2298,6 @@ let resizeTimer;
 window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(rebuildCharts,200);});
 
 // ── DATE PICKER ───────────────────────────────────────────────────
-let selectedDate = null;   // null = live/today mode
-const MAX_DATE_PILLS = 24; // max available dates to show
-
 async function fetchAvailableDates() {
   try {
     const res = await fetch(BRIDGE + '/oi/dates');
@@ -2188,8 +2327,7 @@ function selectDate(date) {
   document.getElementById('date-input').value = date;
   document.getElementById('replay-badge').style.display = 'inline-flex';
   document.getElementById('replay-date-label').textContent = date;
-  const pills = document.querySelectorAll('#date-pills .pill');
-  pills.forEach(p => {
+  document.querySelectorAll('#date-pills .pill').forEach(p => {
     p.classList.toggle('active', p.textContent.trim() === date);
   });
   fetchHistoryForDate(date);
@@ -2200,12 +2338,10 @@ function switchToLive() {
   const today = new Date().toISOString().slice(0,10);
   document.getElementById('date-input').value = today;
   document.getElementById('replay-badge').style.display = 'none';
-  const todayBtn = document.getElementById('today-btn');
-  todayBtn.style.background = '#185FA5';
-  todayBtn.style.color = '#fff';
-  setTimeout(() => { todayBtn.style.background=''; todayBtn.style.color=''; }, 1000);
-  const pills = document.querySelectorAll('#date-pills .pill');
-  pills.forEach(p => {
+  const btn = document.getElementById('today-btn');
+  btn.style.background='#185FA5'; btn.style.color='#fff';
+  setTimeout(()=>{btn.style.background='';btn.style.color='';}, 1000);
+  document.querySelectorAll('#date-pills .pill').forEach(p => {
     p.classList.toggle('active', p.textContent.trim() === today);
   });
   fetchHistory();
@@ -2213,8 +2349,7 @@ function switchToLive() {
 
 function onDateInputChange() {
   const date = document.getElementById('date-input').value;
-  if (!date) return;
-  selectDate(date);
+  if (date) selectDate(date);
 }
 
 async function fetchHistoryForDate(date) {
