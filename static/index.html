@@ -32,8 +32,9 @@ select{font-size:13px;padding:5px 10px;border:0.5px solid #ccc;border-radius:6px
 .strike-chip{font-size:11px;padding:3px 10px;border-radius:20px;border:0.5px solid #ddd;background:#f8f8f5;color:#666;cursor:pointer;transition:all .12s;white-space:nowrap;}
 .strike-chip:hover{border-color:#185FA5;color:#185FA5;}
 .strike-chip.atm{border-color:#534AB7;color:#534AB7;background:#EEEDFE;}
-.strike-chip.bear-active{border-color:#D85A30;color:#712B13;background:#FAECE7;font-weight:500;}
-.strike-chip.bull-active{border-color:#1D9E75;color:#085041;background:#E1F5EE;font-weight:500;}
+.strike-chip.s1-active{border-color:#D85A30;color:#712B13;background:#FAECE7;font-weight:500;}
+.strike-chip.s2-active{border-color:#534AB7;color:#2D2680;background:#EEEDFE;font-weight:500;}
+.strike-chip.s3-active{border-color:#1D9E75;color:#085041;background:#E1F5EE;font-weight:500;}
 
 .alert{padding:11px 16px;border-radius:8px;font-size:13px;margin-bottom:10px;display:none;}
 .alert-break{background:#FAEEDA;color:#854F0B;border:0.5px solid #EF9F27;}
@@ -82,11 +83,11 @@ select{font-size:13px;padding:5px 10px;border:0.5px solid #ccc;border-radius:6px
 
 /* ── Strike activity badge ── */
 .activity-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:6px;margin-top:6px;}
-.act-lb{background:#E1F5EE;color:#085041;}   /* Long Buildup */
-.act-sb{background:#FAECE7;color:#712B13;}   /* Short Buildup */
-.act-sc{background:#FAEEDA;color:#854F0B;}   /* Short Covering */
-.act-lu{background:#EAF3DE;color:#3B6D11;}   /* Long Unwinding */
-.act-n {background:#F1EFE8;color:#5F5E5A;}   /* Neutral */
+.act-lb{background:#E1F5EE;color:#085041;}
+.act-sb{background:#FAECE7;color:#712B13;}
+.act-sc{background:#FAEEDA;color:#854F0B;}
+.act-lu{background:#EAF3DE;color:#3B6D11;}
+.act-n {background:#F1EFE8;color:#5F5E5A;}
 
 /* ── Dual confluence chart grid ── */
 .dual-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
@@ -128,13 +129,31 @@ select{font-size:13px;padding:5px 10px;border:0.5px solid #ccc;border-radius:6px
 .conf-sum-text{font-size:11px;color:#666;flex:1;}
 .conf-interp{margin-top:10px;padding-top:10px;border-top:0.5px solid #eee;font-size:12px;color:#666;}
 
+/* ── THREE-CHART LAYOUT ── */
+.three-charts-col{display:flex;flex-direction:column;gap:12px;margin-bottom:12px;}
+
 /* ── OI bar chart cards ── */
-.chart-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;}
+.chart-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:0;}
 .chart-title{font-size:13px;font-weight:500;margin-bottom:2px;}
 .chart-sub{font-size:11px;color:#888;margin-bottom:10px;}
 .legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;}
 .leg-item{display:flex;align-items:center;gap:4px;font-size:11px;color:#666;}
 .leg-sq{width:10px;height:10px;border-radius:2px;display:inline-block;}
+
+/* Strike chart header with spot badge */
+.chart-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;}
+.chart-header-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.spot-badge{font-size:11px;padding:2px 9px;border-radius:20px;background:#f0f0ec;color:#555;border:0.5px solid #ddd;font-variant-numeric:tabular-nums;font-weight:500;}
+.spot-badge.s1-badge{background:#FAECE7;color:#712B13;border-color:#f0c0b0;}
+.spot-badge.s2-badge{background:#EEEDFE;color:#2D2680;border-color:#c8c5f0;}
+.spot-badge.s3-badge{background:#E1F5EE;color:#085041;border-color:#a0dcc8;}
+.chart-header-right{display:flex;align-items:center;gap:8px;font-size:12px;}
+
+/* Candle label styles */
+.chart-label-top{font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;letter-spacing:.02em;}
+.label-s1{background:#FAECE7;color:#712B13;border:0.5px solid #f0c0b0;}
+.label-s2{background:#EEEDFE;color:#2D2680;border:0.5px solid #c8c5f0;}
+.label-s3{background:#E1F5EE;color:#085041;border:0.5px solid #a0dcc8;}
 
 .ltp-bar{display:flex;align-items:center;background:#f8f8f5;border:0.5px solid #e0e0da;border-radius:8px;padding:8px 14px;margin-bottom:10px;position:relative;}
 .ltp-box{display:flex;align-items:baseline;gap:7px;flex:1;}
@@ -164,8 +183,6 @@ table{width:100%;border-collapse:collapse;font-size:12px;}
 th{text-align:left;padding:5px 8px;border-bottom:0.5px solid #ccc;color:#888;font-weight:400;font-size:11px;white-space:nowrap;}
 td{padding:5px 8px;border-bottom:0.5px solid #eee;white-space:nowrap;}
 tr:last-child td{border-bottom:none;}
-tr.row-bear{background:rgba(216,90,48,.04);}
-tr.row-bull{background:rgba(29,158,117,.04);}
 
 .bearish{color:#D85A30} .bullish{color:#1D9E75} .neutral{color:#888}
 .dup{color:#1D9E75;font-weight:500} .ddn{color:#D85A30;font-weight:500} .dfl{color:#888}
@@ -180,6 +197,25 @@ tr.row-bull{background:rgba(29,158,117,.04);}
 .sig-wg{background:#EAF3DE;color:#3B6D11;}
 .sig-n{background:#F1EFE8;color:#5F5E5A;}
 
+/* ── Date picker / replay bar ── */
+.date-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:9px 14px;margin-bottom:12px;font-size:12px;}
+.date-bar label{color:#888;white-space:nowrap;}
+.date-bar input[type=date]{font-size:12px;padding:4px 9px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;}
+.date-btn{font-size:11px;padding:3px 10px;border-radius:20px;border:0.5px solid #ccc;background:#fff;color:#666;cursor:pointer;white-space:nowrap;transition:all .12s;}
+.date-btn:hover{border-color:#185FA5;color:#185FA5;}
+.date-btn.active{background:#185FA5;color:#fff;border-color:#185FA5;}
+.date-mode-badge{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500;display:none;}
+.date-mode-badge.historical{background:#FAEEDA;color:#854F0B;border:0.5px solid #EF9F27;display:inline-flex;align-items:center;gap:5px;}
+.date-mode-badge.live{background:#E1F5EE;color:#085041;border:0.5px solid #a0dcc8;display:inline-flex;align-items:center;gap:5px;}
+.date-avail{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;}
+.date-chip{font-size:11px;padding:2px 9px;border-radius:20px;border:0.5px solid #ddd;background:#f8f8f5;color:#666;cursor:pointer;transition:all .12s;white-space:nowrap;}
+.date-chip:hover{border-color:#185FA5;color:#185FA5;}
+.date-chip.today{border-color:#1D9E75;color:#085041;background:#E1F5EE;}
+.date-chip.selected{background:#185FA5;color:#fff;border-color:#185FA5;}
+.chart-card.strike-s1{border-top:2px solid #D85A30;}
+.chart-card.strike-s2{border-top:2px solid #534AB7;}
+.chart-card.strike-s3{border-top:2px solid #1D9E75;}
+
 @media(max-width:700px){
   .grid2,.dual-grid{grid-template-columns:1fr;}
   .chart-scroll-inner{height:180px;}
@@ -191,7 +227,18 @@ tr.row-bull{background:rgba(29,158,117,.04);}
 
 <h1>Nifty OI Bias Monitor</h1>
 
-<!-- Status bar -->
+<!-- Date picker / history replay bar -->
+<div class="date-bar">
+  <label>📅 Date:</label>
+  <input type="date" id="date-picker" onchange="onDatePickerChange(this.value)">
+  <button class="btn btn-primary" onclick="goToToday()" id="today-btn">Today (Live)</button>
+  <span class="date-mode-badge" id="date-mode-badge"></span>
+  <span style="color:#aaa;font-size:11px;" id="date-rows-info"></span>
+  <div style="flex:1;min-width:120px;">
+    <div style="font-size:11px;color:#888;margin-bottom:4px;">Available dates:</div>
+    <div class="date-avail" id="date-chips">Loading...</div>
+  </div>
+</div>
 <div class="status-bar">
   <span><span class="conn-dot" id="conn-dot"></span><span id="conn-status">Connecting...</span></span>
   <span>Spot: <span class="sval" id="spot-val">—</span></span>
@@ -213,19 +260,16 @@ tr.row-bull{background:rgba(29,158,117,.04);}
   </div>
 </div>
 
-<!-- Strike selector -->
+<!-- Strike selector (legacy global panel kept for bear/bull OI card summary) -->
 <div class="strike-panel">
-  <div class="strike-panel-title">Strike selection — click chip: 1st click = bear, 2nd = bull</div>
+  <div class="strike-panel-title">Strike chips — click to set chart strikes (1st = top chart, 2nd = middle, 3rd = bottom)</div>
   <div class="strike-row">
-    <div class="strike-group">
-      <label>Bear strike:</label>
-      <select id="bear-select" onchange="onStrikeChange()"><option>—</option></select>
-    </div>
-    <div class="strike-group">
-      <label>Bull strike:</label>
-      <select id="bull-select" onchange="onStrikeChange()"><option>—</option></select>
-    </div>
-    <button class="btn btn-primary" onclick="resetToDefault()">Reset to ATM ±100</button>
+    <button class="btn btn-primary" onclick="resetToDefault()">Reset to ATM ±1 step</button>
+    <span style="font-size:11px;color:#888;">
+      Top: <strong id="chip-s1-label">—</strong> &nbsp;|&nbsp;
+      Mid: <strong id="chip-s2-label">—</strong> &nbsp;|&nbsp;
+      Bot: <strong id="chip-s3-label">—</strong>
+    </span>
   </div>
   <div class="strike-badges" id="strike-chips"></div>
 </div>
@@ -245,10 +289,10 @@ tr.row-bull{background:rgba(29,158,117,.04);}
   </div>
 </div>
 
-<!-- OI cards -->
+<!-- OI summary cards (uses s2 = ATM/middle chart strike) -->
 <div class="grid2">
   <div class="card">
-    <div class="card-title" id="bear-card-title">Bear strike</div>
+    <div class="card-title" id="bear-card-title">Strike 1 (top)</div>
     <div class="oi-row"><span class="oi-muted" id="bc-lbl">— CE</span><span id="bc-oi" style="font-weight:500">—</span></div>
     <div class="oi-row"><span class="oi-muted">CE 30s Δ</span><span id="bc-id">—</span></div>
     <div class="oi-row"><span class="oi-muted">CE total Δ</span><span id="bc-td">—</span></div>
@@ -260,7 +304,7 @@ tr.row-bull{background:rgba(29,158,117,.04);}
     <div class="dom-label" id="bear-dom-label"></div>
   </div>
   <div class="card">
-    <div class="card-title" id="bull-card-title">Bull strike</div>
+    <div class="card-title" id="bull-card-title">Strike 3 (bottom)</div>
     <div class="oi-row"><span class="oi-muted" id="uc-lbl">— CE</span><span id="uc-oi" style="font-weight:500">—</span></div>
     <div class="oi-row"><span class="oi-muted">CE 30s Δ</span><span id="uc-id">—</span></div>
     <div class="oi-row"><span class="oi-muted">CE total Δ</span><span id="uc-td">—</span></div>
@@ -273,7 +317,7 @@ tr.row-bull{background:rgba(29,158,117,.04);}
   </div>
 </div>
 
-<!-- ── NIFTY INDEX CHART (OI-coloured) ── -->
+<!-- ── NIFTY INDEX CHART ── -->
 <div class="index-chart-card">
   <div class="index-chart-title">Nifty 50 — price chart · candle colour = dominant OI move</div>
   <div class="index-chart-sub" id="index-chart-sub">Colour = dominant OI move across both selected strikes (CE building / PE building / CE unwinding / PE unwinding)</div>
@@ -332,14 +376,12 @@ tr.row-bull{background:rgba(29,158,117,.04);}
     </div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-    <!-- CE Movers -->
     <div>
       <div style="font-size:11px;font-weight:500;color:#712B13;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;padding-bottom:5px;border-bottom:1.5px solid #D85A30;">
         📞 CE — Calls (Resistance / Short side)
       </div>
       <div id="ce-movers-list" style="max-height:400px;overflow-y:auto;"></div>
     </div>
-    <!-- PE Movers -->
     <div>
       <div style="font-size:11px;font-weight:500;color:#085041;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;padding-bottom:5px;border-bottom:1.5px solid #1D9E75;">
         📤 PE — Puts (Support / Long side)
@@ -351,32 +393,25 @@ tr.row-bull{background:rgba(29,158,117,.04);}
 
 <!-- ── CHART SIZE CONTROLS ── -->
 <div class="chart-controls">
-  <label>Candle width:</label>
-  <input type="range" id="ctrl-cw" min="8" max="60" value="20" oninput="onCtrlChange()">
-  <span id="ctrl-cw-val">20</span>px
-  <label style="margin-left:10px;">Chart height:</label>
-  <input type="range" id="ctrl-ch" min="150" max="600" value="240" step="10" oninput="onCtrlChange()">
-  <span id="ctrl-ch-val">240</span>px
-  <label style="margin-left:10px;">Index height:</label>
-  <input type="range" id="ctrl-ih" min="100" max="400" value="200" step="10" oninput="onCtrlChange()">
-  <span id="ctrl-ih-val">200</span>px
-  <label style="margin-left:10px;">Index candle width:</label>
-  <input type="range" id="ctrl-icw" min="4" max="40" value="12" oninput="onCtrlChange()">
-  <span id="ctrl-icw-val">12</span>px
-  <label style="margin-left:10px;">OI bar width:</label>
+  <label>OI bar width:</label>
   <input type="range" id="ctrl-bw" min="8" max="120" value="32" oninput="onCtrlChange()">
   <span id="ctrl-bw-val">32</span>px
   <label style="margin-left:10px;">OI chart height:</label>
   <input type="range" id="ctrl-oih" min="100" max="600" value="220" step="10" oninput="onCtrlChange()">
   <span id="ctrl-oih-val">220</span>px
+  <label style="margin-left:10px;">Index candle width:</label>
+  <input type="range" id="ctrl-icw" min="4" max="40" value="12" oninput="onCtrlChange()">
+  <span id="ctrl-icw-val">12</span>px
+  <label style="margin-left:10px;">Index height:</label>
+  <input type="range" id="ctrl-ih" min="100" max="400" value="200" step="10" oninput="onCtrlChange()">
+  <span id="ctrl-ih-val">200</span>px
 </div>
-<!-- ── DUAL CONFLUENCE CANDLESTICK CHARTS ── -->
-<div class="dual-grid">
 
-  <!-- Bear lens -->
+<!-- ── DUAL CONFLUENCE CHARTS (kept for bear/bull CE/PE activity) ── -->
+<div class="dual-grid">
   <div class="conf-card bear-card">
-    <div class="conf-title bear" id="bear-conf-title">Bear strike lens — 24,050</div>
-    <div class="conf-sub" id="bear-conf-sub">Bear strike CE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)</div>
+    <div class="conf-title bear" id="bear-conf-title">Top strike lens</div>
+    <div class="conf-sub" id="bear-conf-sub">CE option LTP price · colour = activity type</div>
     <div class="conf-legend">
       <span class="cl-item"><span class="cl-sq" style="background:#0F6E56;"></span>Long Buildup 🔥 (↑price ↑OI)</span>
       <span class="cl-item"><span class="cl-sq" style="background:#8B1A1A;"></span>Short Buildup 🔥 (↓price ↑OI)</span>
@@ -397,10 +432,9 @@ tr.row-bull{background:rgba(29,158,117,.04);}
     <div id="bear-activity-badge" class="activity-badge act-n" style="margin-top:4px;">—</div>
   </div>
 
-  <!-- Bull lens -->
   <div class="conf-card bull-card">
-    <div class="conf-title bull" id="bull-conf-title">Bull strike lens — 24,150</div>
-    <div class="conf-sub" id="bull-conf-sub">Bull strike PE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)</div>
+    <div class="conf-title bull" id="bull-conf-title">Bottom strike lens</div>
+    <div class="conf-sub" id="bull-conf-sub">PE option LTP price · colour = activity type</div>
     <div class="conf-legend">
       <span class="cl-item"><span class="cl-sq" style="background:#0F6E56;"></span>Long Buildup 🔥 (↑price ↑OI)</span>
       <span class="cl-item"><span class="cl-sq" style="background:#8B1A1A;"></span>Short Buildup 🔥 (↓price ↑OI)</span>
@@ -420,100 +454,153 @@ tr.row-bull{background:rgba(29,158,117,.04);}
     <div id="bull-conf-badge" class="conf-badge cb-n" style="margin-top:8px;">Waiting for data...</div>
     <div id="bull-activity-badge" class="activity-badge act-n" style="margin-top:4px;">—</div>
   </div>
-
 </div>
 
 <!-- Confluence summary -->
 <div class="conf-summary">
   <div class="conf-sum-title" id="conf-sum-title">Confluence reading — latest interval</div>
   <div class="conf-sum-row">
-    <span class="conf-sum-label" id="bear-sum-label">Bear —</span>
+    <span class="conf-sum-label" id="bear-sum-label">Strike 1 —</span>
     <span class="conf-sum-badge" id="bear-sum-badge">—</span>
     <span class="conf-sum-text" id="bear-sum-text">—</span>
   </div>
   <div class="conf-sum-row">
-    <span class="conf-sum-label" id="bull-sum-label">Bull —</span>
+    <span class="conf-sum-label" id="bull-sum-label">Strike 3 —</span>
     <span class="conf-sum-badge" id="bull-sum-badge">—</span>
     <span class="conf-sum-text" id="bull-sum-text">—</span>
   </div>
   <div class="conf-interp" id="conf-interp">Waiting for first candle...</div>
 </div>
 
-<!-- Bear OI delta chart -->
-<div class="chart-card">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
-    <div class="chart-title" id="bear-chart-title">Bear strike — CE vs PE OI delta</div>
-    <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
-      <label style="color:#888;white-space:nowrap;">Bear strike:</label>
-      <select id="bear-select-2" onchange="onStrikeChange2('bear',this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
-      <label style="color:#888;white-space:nowrap;">Bull strike:</label>
-      <select id="bull-select-2b" onchange="onStrikeChange2('bull',this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
-      <button class="btn" style="font-size:11px;padding:3px 8px;" onclick="resetToDefault()">Reset ATM</button>
-    </div>
-  </div>
-  <div class="chart-sub" id="bear-chart-sub">Waiting...</div>
-  <div class="ltp-bar">
-    <div class="ltp-box"><span class="ltp-label" id="bear-ce-sym">— CE</span><span class="ltp-val" id="bear-ce-ltp">—</span><span class="ltp-tag">LTP</span></div>
-    <div class="ltp-divider"></div>
-    <div class="ltp-box"><span class="ltp-label" id="bear-pe-sym">— PE</span><span class="ltp-val" id="bear-pe-ltp">—</span><span class="ltp-tag">LTP</span></div>
-    <div class="ltp-pulse" id="bear-pulse"></div>
-  </div>
-  <div class="legend">
-    <span class="leg-item"><span class="leg-sq" style="background:#D85A30;"></span>CE building (bearish)</span>
-    <span class="leg-item"><span class="leg-sq" style="background:#93c5e8;"></span>CE unwinding</span>
-    <span class="leg-item"><span class="leg-sq" style="background:#1D9E75;"></span>PE building (bullish pressure)</span>
-    <span class="leg-item"><span class="leg-sq" style="background:#f0a080;"></span>PE unwinding</span>
-  </div>
-  <div style="position:relative;display:flex;">
-    <canvas id="bearYAxis" style="flex-shrink:0;position:sticky;left:0;z-index:10;background:#fff;border-right:0.5px solid #eee;"></canvas>
-    <div class="chart-scroll-outer" id="bear-scroll" style="flex:1;min-width:0;">
-      <div class="chart-scroll-inner" id="bearChartWrap"><canvas id="bearChart"></canvas></div>
-    </div>
-  </div>
-  <div class="net-row">
-    <div class="net-box"><div class="net-label">Net CE Δ</div><div class="net-val" id="net-bc">—</div></div>
-    <div class="net-box"><div class="net-label">Net PE Δ</div><div class="net-val" id="net-bp">—</div></div>
-    <div class="net-box"><div class="net-label">Bear bias</div><div class="net-val" id="bear-score">—</div></div>
-  </div>
-</div>
+<!-- ═══════════════════════════════════════════════════════════════
+     THREE STRIKE OI DELTA CHARTS (stacked vertically)
+     S1 = top (ATM + step by default)
+     S2 = middle (ATM by default)
+     S3 = bottom (ATM - step by default)
+════════════════════════════════════════════════════════════════ -->
+<div class="three-charts-col">
 
-<!-- Bull OI delta chart -->
-<div class="chart-card">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
-    <div class="chart-title" id="bull-chart-title">Bull strike — CE vs PE OI delta</div>
-    <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
-      <label style="color:#888;white-space:nowrap;">Bear strike:</label>
-      <select id="bear-select-2b" onchange="onStrikeChange2('bear',this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
-      <label style="color:#888;white-space:nowrap;">Bull strike:</label>
-      <select id="bull-select-2" onchange="onStrikeChange2('bull',this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
-      <button class="btn" style="font-size:11px;padding:3px 8px;" onclick="resetToDefault()">Reset ATM</button>
+  <!-- ── CHART 1 (top, ATM+1 by default) ── -->
+  <div class="chart-card strike-s1">
+    <div class="chart-header">
+      <div class="chart-header-left">
+        <div class="chart-title" id="s1-chart-title">Strike — CE vs PE OI delta</div>
+        <span class="chart-label-top label-s1">▲ Higher</span>
+        <span class="spot-badge s1-badge" id="s1-spot-badge">Nifty —</span>
+      </div>
+      <div class="chart-header-right">
+        <label style="color:#888;white-space:nowrap;">Strike:</label>
+        <select id="s1-select" onchange="onStrikeSelectChange(0, this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
+        <button class="btn" style="font-size:11px;padding:3px 8px;" onclick="resetToDefault()">Reset ATM</button>
+      </div>
+    </div>
+    <div class="chart-sub" id="s1-chart-sub">Waiting...</div>
+    <div class="ltp-bar">
+      <div class="ltp-box"><span class="ltp-label" id="s1-ce-sym">— CE</span><span class="ltp-val" id="s1-ce-ltp">—</span><span class="ltp-tag">LTP</span></div>
+      <div class="ltp-divider"></div>
+      <div class="ltp-box"><span class="ltp-label" id="s1-pe-sym">— PE</span><span class="ltp-val" id="s1-pe-ltp">—</span><span class="ltp-tag">LTP</span></div>
+      <div class="ltp-pulse" id="s1-pulse"></div>
+    </div>
+    <div class="legend">
+      <span class="leg-item"><span class="leg-sq" style="background:#D85A30;"></span>CE building (bearish)</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#93c5e8;"></span>CE unwinding</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#1D9E75;"></span>PE building (bullish)</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#f0a080;"></span>PE unwinding</span>
+    </div>
+    <div style="position:relative;display:flex;">
+      <canvas id="s1YAxis" style="flex-shrink:0;position:sticky;left:0;z-index:10;background:#fff;border-right:0.5px solid #eee;"></canvas>
+      <div class="chart-scroll-outer" id="s1-scroll" style="flex:1;min-width:0;">
+        <div class="chart-scroll-inner" id="s1ChartWrap"><canvas id="s1Chart"></canvas></div>
+      </div>
+    </div>
+    <div class="net-row">
+      <div class="net-box"><div class="net-label">Net CE Δ</div><div class="net-val" id="s1-net-ce">—</div></div>
+      <div class="net-box"><div class="net-label">Net PE Δ</div><div class="net-val" id="s1-net-pe">—</div></div>
+      <div class="net-box"><div class="net-label">Bias</div><div class="net-val" id="s1-score">—</div></div>
     </div>
   </div>
-  <div class="chart-sub" id="bull-chart-sub">Waiting...</div>
-  <div class="ltp-bar">
-    <div class="ltp-box"><span class="ltp-label" id="bull-ce-sym">— CE</span><span class="ltp-val" id="bull-ce-ltp">—</span><span class="ltp-tag">LTP</span></div>
-    <div class="ltp-divider"></div>
-    <div class="ltp-box"><span class="ltp-label" id="bull-pe-sym">— PE</span><span class="ltp-val" id="bull-pe-ltp">—</span><span class="ltp-tag">LTP</span></div>
-    <div class="ltp-pulse" id="bull-pulse"></div>
-  </div>
-  <div class="legend">
-    <span class="leg-item"><span class="leg-sq" style="background:#1D9E75;"></span>PE building (bullish)</span>
-    <span class="leg-item"><span class="leg-sq" style="background:#f0a080;"></span>PE unwinding</span>
-    <span class="leg-item"><span class="leg-sq" style="background:#D85A30;"></span>CE building (bearish pressure)</span>
-    <span class="leg-item"><span class="leg-sq" style="background:#93c5e8;"></span>CE unwinding</span>
-  </div>
-  <div style="position:relative;display:flex;">
-    <canvas id="bullYAxis" style="flex-shrink:0;position:sticky;left:0;z-index:10;background:#fff;border-right:0.5px solid #eee;"></canvas>
-    <div class="chart-scroll-outer" id="bull-scroll" style="flex:1;min-width:0;">
-      <div class="chart-scroll-inner" id="bullChartWrap"><canvas id="bullChart"></canvas></div>
+
+  <!-- ── CHART 2 (middle, ATM by default) ── -->
+  <div class="chart-card strike-s2">
+    <div class="chart-header">
+      <div class="chart-header-left">
+        <div class="chart-title" id="s2-chart-title">Strike — CE vs PE OI delta</div>
+        <span class="chart-label-top label-s2">◆ ATM</span>
+        <span class="spot-badge s2-badge" id="s2-spot-badge">Nifty —</span>
+      </div>
+      <div class="chart-header-right">
+        <label style="color:#888;white-space:nowrap;">Strike:</label>
+        <select id="s2-select" onchange="onStrikeSelectChange(1, this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
+        <button class="btn" style="font-size:11px;padding:3px 8px;" onclick="resetToDefault()">Reset ATM</button>
+      </div>
+    </div>
+    <div class="chart-sub" id="s2-chart-sub">Waiting...</div>
+    <div class="ltp-bar">
+      <div class="ltp-box"><span class="ltp-label" id="s2-ce-sym">— CE</span><span class="ltp-val" id="s2-ce-ltp">—</span><span class="ltp-tag">LTP</span></div>
+      <div class="ltp-divider"></div>
+      <div class="ltp-box"><span class="ltp-label" id="s2-pe-sym">— PE</span><span class="ltp-val" id="s2-pe-ltp">—</span><span class="ltp-tag">LTP</span></div>
+      <div class="ltp-pulse" id="s2-pulse"></div>
+    </div>
+    <div class="legend">
+      <span class="leg-item"><span class="leg-sq" style="background:#D85A30;"></span>CE building (bearish)</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#93c5e8;"></span>CE unwinding</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#1D9E75;"></span>PE building (bullish)</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#f0a080;"></span>PE unwinding</span>
+    </div>
+    <div style="position:relative;display:flex;">
+      <canvas id="s2YAxis" style="flex-shrink:0;position:sticky;left:0;z-index:10;background:#fff;border-right:0.5px solid #eee;"></canvas>
+      <div class="chart-scroll-outer" id="s2-scroll" style="flex:1;min-width:0;">
+        <div class="chart-scroll-inner" id="s2ChartWrap"><canvas id="s2Chart"></canvas></div>
+      </div>
+    </div>
+    <div class="net-row">
+      <div class="net-box"><div class="net-label">Net CE Δ</div><div class="net-val" id="s2-net-ce">—</div></div>
+      <div class="net-box"><div class="net-label">Net PE Δ</div><div class="net-val" id="s2-net-pe">—</div></div>
+      <div class="net-box"><div class="net-label">Bias</div><div class="net-val" id="s2-score">—</div></div>
     </div>
   </div>
-  <div class="net-row">
-    <div class="net-box"><div class="net-label">Net CE Δ</div><div class="net-val" id="net-uc">—</div></div>
-    <div class="net-box"><div class="net-label">Net PE Δ</div><div class="net-val" id="net-up">—</div></div>
-    <div class="net-box"><div class="net-label">Bull bias</div><div class="net-val" id="bull-score">—</div></div>
+
+  <!-- ── CHART 3 (bottom, ATM-1 by default) ── -->
+  <div class="chart-card strike-s3">
+    <div class="chart-header">
+      <div class="chart-header-left">
+        <div class="chart-title" id="s3-chart-title">Strike — CE vs PE OI delta</div>
+        <span class="chart-label-top label-s3">▼ Lower</span>
+        <span class="spot-badge s3-badge" id="s3-spot-badge">Nifty —</span>
+      </div>
+      <div class="chart-header-right">
+        <label style="color:#888;white-space:nowrap;">Strike:</label>
+        <select id="s3-select" onchange="onStrikeSelectChange(2, this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
+        <button class="btn" style="font-size:11px;padding:3px 8px;" onclick="resetToDefault()">Reset ATM</button>
+      </div>
+    </div>
+    <div class="chart-sub" id="s3-chart-sub">Waiting...</div>
+    <div class="ltp-bar">
+      <div class="ltp-box"><span class="ltp-label" id="s3-ce-sym">— CE</span><span class="ltp-val" id="s3-ce-ltp">—</span><span class="ltp-tag">LTP</span></div>
+      <div class="ltp-divider"></div>
+      <div class="ltp-box"><span class="ltp-label" id="s3-pe-sym">— PE</span><span class="ltp-val" id="s3-pe-ltp">—</span><span class="ltp-tag">LTP</span></div>
+      <div class="ltp-pulse" id="s3-pulse"></div>
+    </div>
+    <div class="legend">
+      <span class="leg-item"><span class="leg-sq" style="background:#D85A30;"></span>CE building (bearish)</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#93c5e8;"></span>CE unwinding</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#1D9E75;"></span>PE building (bullish)</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#f0a080;"></span>PE unwinding</span>
+    </div>
+    <div style="position:relative;display:flex;">
+      <canvas id="s3YAxis" style="flex-shrink:0;position:sticky;left:0;z-index:10;background:#fff;border-right:0.5px solid #eee;"></canvas>
+      <div class="chart-scroll-outer" id="s3-scroll" style="flex:1;min-width:0;">
+        <div class="chart-scroll-inner" id="s3ChartWrap"><canvas id="s3Chart"></canvas></div>
+      </div>
+    </div>
+    <div class="net-row">
+      <div class="net-box"><div class="net-label">Net CE Δ</div><div class="net-val" id="s3-net-ce">—</div></div>
+      <div class="net-box"><div class="net-label">Net PE Δ</div><div class="net-val" id="s3-net-pe">—</div></div>
+      <div class="net-box"><div class="net-label">Bias</div><div class="net-val" id="s3-score">—</div></div>
+    </div>
   </div>
-</div>
+
+</div><!-- end three-charts-col -->
 
 <!-- Roll log -->
 <div class="roll-log">
@@ -521,30 +608,174 @@ tr.row-bull{background:rgba(29,158,117,.04);}
   <div id="roll-log-body" style="font-size:12px;color:#888;">No rolls today.</div>
 </div>
 
-<!-- Table removed -->
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────
-const BRIDGE       = '';  // served from same origin on Railway
+const BRIDGE       = '';
 const POLL_OI_SEC  = 30;
 const POLL_HX_SEC  = 60;
 const POLL_LTP_SEC = 2;
-const POLL_LIVE_SEC = 5;   // live forming candle refresh
+const POLL_LIVE_SEC = 5;
 let MIN_BAR_PX   = 32;
 let OI_CHART_H   = 220;
-let CANDLE_W_PX    = 20;   // candle width for SVG bear/bull charts
-let INDEX_CANDLE_W = 12;   // candle width for index (Nifty) chart
-let CHART_H        = 240;  // height of bear/bull SVG charts
-let INDEX_H        = 200;  // height of index SVG chart
+let INDEX_CANDLE_W = 12;
+let INDEX_H        = 200;
+
+// ── DATE / REPLAY STATE ───────────────────────────────────────────
+let selectedDate   = null;   // null = live/today mode; 'YYYY-MM-DD' = historical
+let availableDates = [];     // list from /oi/dates
+let isHistoricalMode = false;
+let pollingSuspended = false; // true when viewing historical date
+
+// ── DATE PICKER FUNCTIONS ─────────────────────────────────────────
+
+function todayIST() {
+  // Returns today's date in IST as YYYY-MM-DD
+  const now = new Date();
+  const ist = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+  return ist.toISOString().slice(0, 10);
+}
+
+async function fetchAvailableDates() {
+  try {
+    const res = await fetch(BRIDGE + '/oi/dates');
+    if (!res.ok) return;
+    const data = await res.json();
+    availableDates = data.dates || [];
+    renderDateChips();
+  } catch(e) {
+    document.getElementById('date-chips').textContent = 'Unavailable';
+  }
+}
+
+function renderDateChips() {
+  const container = document.getElementById('date-chips');
+  const today = todayIST();
+  if (!availableDates.length) {
+    container.innerHTML = '<span style="color:#aaa;font-size:11px;">No historical data yet</span>';
+    return;
+  }
+  container.innerHTML = availableDates.map(d => {
+    const isToday = d === today;
+    const isSel   = d === selectedDate || (isToday && !selectedDate);
+    let cls = 'date-chip';
+    if (isToday) cls += ' today';
+    if (isSel)   cls += ' selected';
+    const label = isToday ? d + ' (Today)' : d;
+    return `<span class="${cls}" onclick="onDateChipClick('${d}')">${label}</span>`;
+  }).join('');
+}
+
+function onDateChipClick(date) {
+  const today = todayIST();
+  if (date === today) { goToToday(); return; }
+  selectDate(date);
+}
+
+function onDatePickerChange(val) {
+  if (!val) return;
+  const today = todayIST();
+  if (val === today) { goToToday(); return; }
+  selectDate(val);
+}
+
+async function selectDate(date) {
+  selectedDate = date;
+  isHistoricalMode = true;
+  pollingSuspended = true;
+
+  // Update UI
+  document.getElementById('date-picker').value = date;
+  const badge = document.getElementById('date-mode-badge');
+  badge.textContent = '📂 Viewing ' + date + ' — historical replay';
+  badge.className = 'date-mode-badge historical';
+  document.getElementById('today-btn').classList.remove('active');
+  document.getElementById('conn-status').textContent = 'Historical mode — ' + date;
+  document.getElementById('conn-dot').style.background = '#EF9F27';
+  document.getElementById('live-candle-status').style.display = 'none';
+  renderDateChips();
+
+  // Load historical data
+  await loadHistoricalData(date);
+}
+
+async function loadHistoricalData(date) {
+  document.getElementById('date-rows-info').textContent = 'Loading ' + date + '…';
+  try {
+    const res = await fetch(BRIDGE + '/oi/history?date=' + date);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const raw = await res.json();
+    minuteRows = filterMarketRows(raw);
+    document.getElementById('date-rows-info').textContent = minuteRows.length + ' rows for ' + date;
+    document.getElementById('rows-info').textContent = minuteRows.length + ' 1-min rows (historical)';
+
+    // Try to derive strike list from the data itself
+    if (minuteRows.length && allStrikes.length === 0) {
+      _deriveStrikesFromRows(minuteRows);
+    }
+
+    rebuildCharts();
+  } catch(e) {
+    document.getElementById('date-rows-info').textContent = 'Error loading ' + date;
+  }
+}
+
+function _deriveStrikesFromRows(rows) {
+  // Extract strikes from column names like s24000_ce_oi
+  const sample = rows[rows.length - 1] || rows[0];
+  const strikesSet = new Set();
+  Object.keys(sample).forEach(k => {
+    const m = k.match(/^s(\d+)_ce_oi$/);
+    if (m) strikesSet.add(Number(m[1]));
+  });
+  if (!strikesSet.size) return;
+  allStrikes = Array.from(strikesSet).sort((a,b)=>a-b);
+  if (allStrikes.length >= 2) STRIKE_STEP = allStrikes[1] - allStrikes[0];
+
+  // Find ATM from bear/bull columns in last row
+  const lastRow = rows[rows.length - 1];
+  const bull = lastRow?.bull_strike ? Number(lastRow.bull_strike) : null;
+  const bear = lastRow?.bear_strike ? Number(lastRow.bear_strike) : null;
+  if (bull && bear) {
+    atmStrike = Math.round((bull + bear) / 2 / STRIKE_STEP) * STRIKE_STEP;
+    // clamp to available strikes
+    if (!allStrikes.includes(atmStrike)) atmStrike = allStrikes[Math.floor(allStrikes.length/2)];
+  } else {
+    atmStrike = allStrikes[Math.floor(allStrikes.length/2)];
+  }
+
+  const atmIdx = allStrikes.indexOf(atmStrike);
+  const s2 = atmStrike;
+  const s1 = atmIdx + 1 < allStrikes.length ? allStrikes[atmIdx+1] : allStrikes[Math.min(atmIdx, allStrikes.length-1)];
+  const s3 = atmIdx - 1 >= 0 ? allStrikes[atmIdx-1] : allStrikes[Math.max(0, atmIdx)];
+  defaultStrikes  = [s1, s2, s3];
+  selectedStrikes = [...defaultStrikes];
+  populateStrikeSelectors(allStrikes);
+}
+
+function goToToday() {
+  selectedDate = null;
+  isHistoricalMode = false;
+  pollingSuspended = false;
+
+  const badge = document.getElementById('date-mode-badge');
+  badge.className = 'date-mode-badge live';
+  badge.textContent = '● Live';
+
+  const today = todayIST();
+  document.getElementById('date-picker').value = today;
+  document.getElementById('today-btn').classList.add('active');
+  document.getElementById('date-rows-info').textContent = '';
+  renderDateChips();
+
+  // Reload today's data
+  fetchAll();
+}
 
 // ── MARKET HOURS FILTER ───────────────────────────────────────────
-// Client-side safety net: strips any rows whose time_label falls outside
-// NSE market hours (09:15–15:29 IST) before they reach the chart builder.
-// This catches any stale after-hours rows already in the DB.
 function isMarketHourLabel(label) {
   if (!label) return false;
-  const clean = label.replace('*', '').trim();   // handle live "15:29*"
+  const clean = label.replace('*', '').trim();
   const [h, m] = clean.split(':').map(Number);
   if (isNaN(h) || isNaN(m)) return false;
   const t = h * 60 + m;
@@ -555,23 +786,18 @@ function filterMarketRows(rows) {
 }
 
 function onCtrlChange() {
-  CANDLE_W_PX    = parseInt(document.getElementById('ctrl-cw').value);
-  CHART_H        = parseInt(document.getElementById('ctrl-ch').value);
-  INDEX_H        = parseInt(document.getElementById('ctrl-ih').value);
-  INDEX_CANDLE_W = parseInt(document.getElementById('ctrl-icw').value);
   MIN_BAR_PX     = parseInt(document.getElementById('ctrl-bw').value);
   OI_CHART_H     = parseInt(document.getElementById('ctrl-oih').value);
-  document.getElementById('ctrl-cw-val').textContent  = CANDLE_W_PX;
-  document.getElementById('ctrl-ch-val').textContent  = CHART_H;
-  document.getElementById('ctrl-ih-val').textContent  = INDEX_H;
-  document.getElementById('ctrl-icw-val').textContent = INDEX_CANDLE_W;
+  INDEX_H        = parseInt(document.getElementById('ctrl-ih').value);
+  INDEX_CANDLE_W = parseInt(document.getElementById('ctrl-icw').value);
   document.getElementById('ctrl-bw-val').textContent  = MIN_BAR_PX;
   document.getElementById('ctrl-oih-val').textContent = OI_CHART_H;
+  document.getElementById('ctrl-ih-val').textContent  = INDEX_H;
+  document.getElementById('ctrl-icw-val').textContent = INDEX_CANDLE_W;
   rebuildCharts();
 }
 
 // ── SIGNAL COLOURS ────────────────────────────────────────────────
-// SB=strong bear, WB=weak bear, SG=strong bull, WG=weak bull, N=neutral
 const SIG_COLOR = {
   SB: { body:'#8B1A1A', wick:'#6B1111', badge:'cb-sb', label:'CE building', cls:'sig-sb' },
   WB: { body:'#EF9F27', wick:'#9A6010', badge:'cb-wb', label:'PE unwinding', cls:'sig-wb' },
@@ -580,12 +806,6 @@ const SIG_COLOR = {
   N:  { body:'#888780', wick:'#5F5E5A', badge:'cb-n',  label:'Neutral',      cls:'sig-n'  },
 };
 
-// ── ACTIVITY TYPE (Price + OI) ────────────────────────────────────
-// LB = Long Buildup  (price↑, OI↑)  🔥 Strong Bullish
-// SB_act = Short Buildup (price↓, OI↑)  🔥 Strong Bearish
-// SC = Short Covering (price↑, OI↓)  ⚠️ Weak Bullish
-// LU = Long Unwinding (price↓, OI↓)  ⚠️ Weak Bearish
-// N  = Neutral
 const ACT_COLOR = {
   LB: { body:'#0F6E56', wick:'#085041', cls:'act-lb', label:'🔥 Long Buildup',    desc:'Strong Bullish — price↑ OI↑' },
   SB: { body:'#8B1A1A', wick:'#6B1111', cls:'act-sb', label:'🔥 Short Buildup',   desc:'Strong Bearish — price↓ OI↑' },
@@ -594,7 +814,6 @@ const ACT_COLOR = {
   N:  { body:'#888780', wick:'#5F5E5A', cls:'act-n',  label:'Neutral',            desc:'No dominant move'            },
 };
 
-// Determine activity type from price direction and net OI delta
 function getActivityType(priceOpen, priceClose, oiDelta) {
   const priceUp = priceClose > priceOpen + 0.5;
   const priceDn = priceClose < priceOpen - 0.5;
@@ -607,11 +826,10 @@ function getActivityType(priceOpen, priceClose, oiDelta) {
   return 'N';
 }
 
-// OI signal for index chart — CE building / PE building / CE unwinding / PE unwinding
-// Uses combined CE and PE deltas across both selected strikes to find dominant move
 function getIndexOISignal(c) {
-  const totalCeDelta = (c.dbce||0) + (c.duce||0);
-  const totalPeDelta = (c.dbpe||0) + (c.dupe||0);
+  // Use s1 (top) and s3 (bottom) as the bear/bull reference for index colouring
+  const totalCeDelta = (c.s1ce||0) + (c.s3ce||0);
+  const totalPeDelta = (c.s1pe||0) + (c.s3pe||0);
   const candidates = [
     { key:'SB', abs: totalCeDelta > 0 ? totalCeDelta : 0 },
     { key:'WB', abs: totalPeDelta < 0 ? Math.abs(totalPeDelta) : 0 },
@@ -624,24 +842,27 @@ function getIndexOISignal(c) {
 // ── STATE ─────────────────────────────────────────────────────────
 let intervalMin    = 3;
 let minuteRows     = [];
-let snapHistory    = [];
 let biasStreak     = [];
 let currentBias    = null;
 let prevRollCount  = 0;
 let currentSession = 0;
-let bearChart      = null;
-let bullChart      = null;
 let allStrikes     = [];
 let atmStrike      = null;
-let selectedBear   = null;
-let selectedBull   = null;
-let defaultBear    = null;
-let defaultBull    = null;
+let STRIKE_STEP    = 50;  // default, overridden from data
+
+// Three independent strikes: [s1=top, s2=mid/ATM, s3=bottom]
+let selectedStrikes = [null, null, null];
+let defaultStrikes  = [null, null, null];
+
+// Chart.js instances for each of the 3 charts
+let chartInstances = [null, null, null];
+
 let lastOIData     = null;
-let chipClickState = 'bear';
-let liveCandle     = null;    // currently forming candle from /oi/live-candle
-let latestCandles  = [];      // last built candle array (needed for live overlay)
+let liveCandle     = null;
+let latestCandles  = [[], [], []]; // per-strike candle arrays
+let chipClickIdx   = 0;  // 0=s1, 1=s2, 2=s3 (cycles through on chip click)
 const prevLtp      = {};
+let currentSpot    = null;
 
 // ── HELPERS ───────────────────────────────────────────────────────
 const fmt   = n => Math.round(n).toLocaleString('en-IN');
@@ -651,352 +872,387 @@ const dhtml = n => `<span class="${dcls(n)}">${fmtD(n)}</span>`;
 const pf    = v => parseFloat(v)||0;
 const rk    = (strike,type) => `s${strike}_${type.toLowerCase()}`;
 
-// ── SIGNAL LOGIC ─────────────────────────────────────────────────
-
 // ── INTERVAL SELECTOR ─────────────────────────────────────────────
 function setIv(el) {
   document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');
   intervalMin = parseInt(el.dataset.min);
-  const ivLabel = document.getElementById('iv-label');
-  if (ivLabel) ivLabel.textContent = intervalMin+'m';
   rebuildCharts();
 }
 
 // ── STRIKE SELECTOR ───────────────────────────────────────────────
-function populateStrikeSelectors(strikes, atm, defBear, defBull) {
-  // All bear selects and bull selects (top + inline)
-  const bearSelectIds = ['bear-select', 'bear-select-2', 'bear-select-2b'];
-  const bullSelectIds = ['bull-select', 'bull-select-2', 'bull-select-2b'];
-  bearSelectIds.forEach(id => {
+function populateStrikeSelectors(strikes) {
+  ['s1-select','s2-select','s3-select'].forEach((id, idx) => {
     const sel = document.getElementById(id);
     if (!sel) return;
-    sel.innerHTML='';
-    strikes.forEach(st=>{
-      const o=document.createElement('option');
-      o.value=st; o.textContent=st;
-      if(st===selectedBear) o.selected=true;
+    sel.innerHTML = '';
+    strikes.forEach(st => {
+      const o = document.createElement('option');
+      o.value = st; o.textContent = st;
+      if (st === selectedStrikes[idx]) o.selected = true;
       sel.appendChild(o);
     });
   });
-  bullSelectIds.forEach(id => {
-    const sel = document.getElementById(id);
-    if (!sel) return;
-    sel.innerHTML='';
-    strikes.forEach(st=>{
-      const o=document.createElement('option');
-      o.value=st; o.textContent=st;
-      if(st===selectedBull) o.selected=true;
-      sel.appendChild(o);
-    });
-  });
-  const chipsEl=document.getElementById('strike-chips');
-  chipsEl.innerHTML=strikes.map(st=>{
-    let cls='strike-chip';
-    if(st===atm) cls+=' atm';
-    if(st===selectedBear) cls+=' bear-active';
-    if(st===selectedBull) cls+=' bull-active';
-    return `<span class="${cls}" onclick="onChipClick(${st})" title="1st click=bear, 2nd=bull">${st}</span>`;
+
+  // Update chip display
+  const chipsEl = document.getElementById('strike-chips');
+  chipsEl.innerHTML = strikes.map(st => {
+    let cls = 'strike-chip';
+    if (st === atmStrike)          cls += ' atm';
+    if (st === selectedStrikes[0]) cls += ' s1-active';
+    if (st === selectedStrikes[1]) cls += ' s2-active';
+    if (st === selectedStrikes[2]) cls += ' s3-active';
+    return `<span class="${cls}" onclick="onChipClick(${st})" title="Click cycles: top→mid→bottom">${st}</span>`;
   }).join('');
+
+  // Update chip labels
+  document.getElementById('chip-s1-label').textContent = selectedStrikes[0] || '—';
+  document.getElementById('chip-s2-label').textContent = selectedStrikes[1] || '—';
+  document.getElementById('chip-s3-label').textContent = selectedStrikes[2] || '—';
 }
 
 function onChipClick(strike) {
-  if(chipClickState==='bear'){selectedBear=strike;chipClickState='bull';}
-  else{selectedBull=strike;chipClickState='bear';}
+  selectedStrikes[chipClickIdx] = strike;
+  chipClickIdx = (chipClickIdx + 1) % 3;
   refreshDisplay();
 }
 
-// Called by the inline selects in the OI chart cards
-function onStrikeChange2(type, value) {
-  const v = parseInt(value);
-  if (type === 'bear') selectedBear = v;
-  else selectedBull = v;
-  if(selectedBear === selectedBull){
-    alert('Bear and Bull strikes cannot be the same. Please select different strikes.');
-    return;
-  }
-  refreshDisplay();
-}
-
-function onStrikeChange() {
-  selectedBear=parseInt(document.getElementById('bear-select').value);
-  selectedBull=parseInt(document.getElementById('bull-select').value);
-  if(selectedBear === selectedBull){
-    alert('Bear and Bull strikes cannot be the same. Please select different strikes.');
-    return;
-  }
+function onStrikeSelectChange(idx, value) {
+  selectedStrikes[idx] = parseInt(value);
   refreshDisplay();
 }
 
 function resetToDefault() {
-  selectedBear=defaultBear; selectedBull=defaultBull;
-  chipClickState='bear'; refreshDisplay();
+  selectedStrikes = [...defaultStrikes];
+  chipClickIdx = 0;
+  refreshDisplay();
 }
 
 function refreshDisplay() {
-  populateStrikeSelectors(allStrikes,atmStrike,defaultBear,defaultBull);
-  if(lastOIData) processSnapshot(lastOIData);
+  populateStrikeSelectors(allStrikes);
+  if (lastOIData) processSnapshot(lastOIData);
   rebuildCharts();
+}
+
+// ── UPDATE SPOT BADGES ────────────────────────────────────────────
+function updateSpotBadges() {
+  const spotTxt = currentSpot ? fmt(currentSpot) : '—';
+  ['s1','s2','s3'].forEach(id => {
+    const el = document.getElementById(id + '-spot-badge');
+    if (el) el.textContent = 'Nifty ' + spotTxt;
+  });
 }
 
 // ── LTP ───────────────────────────────────────────────────────────
 async function fetchLTP() {
-  try{const res=await fetch(BRIDGE+'/ltp');if(!res.ok)return;updateLTP(await res.json());}catch(e){}
+  try { const res = await fetch(BRIDGE+'/ltp'); if(!res.ok) return; updateLTP(await res.json()); } catch(e) {}
 }
 
 function updateLTP(data) {
-  if(!selectedBear||!selectedBull) return;
-  const opts=data.options||{};
-  const map=[
-    {key:rk(selectedBear,'ce'),symId:'bear-ce-sym',ltpId:'bear-ce-ltp',pulseId:'bear-pulse'},
-    {key:rk(selectedBear,'pe'),symId:'bear-pe-sym',ltpId:'bear-pe-ltp',pulseId:'bear-pulse'},
-    {key:rk(selectedBull,'ce'),symId:'bull-ce-sym',ltpId:'bull-ce-ltp',pulseId:'bull-pulse'},
-    {key:rk(selectedBull,'pe'),symId:'bull-pe-sym',ltpId:'bull-pe-ltp',pulseId:'bull-pulse'},
-  ];
-  map.forEach(({key,symId,ltpId,pulseId})=>{
-    const d=opts[key];if(!d)return;
-    document.getElementById(symId).textContent=d.strike+' '+d.type;
-    const ltp=d.ltp,prev=prevLtp[key]||0;
-    const el=document.getElementById(ltpId);
-    el.textContent=ltp?fmt(ltp):'—';
-    if(prev&&ltp!==prev){const cls=ltp>prev?'flash-up':'flash-down';el.classList.add(cls);setTimeout(()=>el.classList.remove(cls),600);}
-    prevLtp[key]=ltp;
-    const pulse=document.getElementById(pulseId);
-    if(pulse){pulse.classList.add('live');setTimeout(()=>pulse.classList.remove('live'),1500);}
+  if (data.spot) {
+    currentSpot = data.spot;
+    document.getElementById('spot-val').textContent = fmt(data.spot);
+    updateSpotBadges();
+  }
+
+  const opts = data.options || {};
+  // Update LTP for all 3 charts
+  [0,1,2].forEach(idx => {
+    const st = selectedStrikes[idx];
+    if (!st) return;
+    const pfx = ['s1','s2','s3'][idx];
+
+    const ceKey = rk(st,'ce'), peKey = rk(st,'pe');
+    const ceD = opts[ceKey], peD = opts[peKey];
+
+    if (ceD) {
+      document.getElementById(pfx+'-ce-sym').textContent = ceD.strike + ' CE';
+      const ltp = ceD.ltp, prev = prevLtp[ceKey]||0;
+      const el = document.getElementById(pfx+'-ce-ltp');
+      el.textContent = ltp ? fmt(ltp) : '—';
+      if (prev && ltp !== prev) { const cls = ltp>prev?'flash-up':'flash-down'; el.classList.add(cls); setTimeout(()=>el.classList.remove(cls),600); }
+      prevLtp[ceKey] = ltp;
+    }
+    if (peD) {
+      document.getElementById(pfx+'-pe-sym').textContent = peD.strike + ' PE';
+      const ltp = peD.ltp, prev = prevLtp[peKey]||0;
+      const el = document.getElementById(pfx+'-pe-ltp');
+      el.textContent = ltp ? fmt(ltp) : '—';
+      if (prev && ltp !== prev) { const cls = ltp>prev?'flash-up':'flash-down'; el.classList.add(cls); setTimeout(()=>el.classList.remove(cls),600); }
+      prevLtp[peKey] = ltp;
+    }
+    const pulse = document.getElementById(pfx+'-pulse');
+    if (pulse && (ceD || peD)) { pulse.classList.add('live'); setTimeout(()=>pulse.classList.remove('live'),1500); }
   });
-  if(data.spot) document.getElementById('spot-val').textContent=fmt(data.spot);
 }
 
 // ── FETCH /oi ─────────────────────────────────────────────────────
 async function fetchOI() {
-  try{
-    const res=await fetch(BRIDGE+'/oi');
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const data=await res.json();
+  try {
+    const res = await fetch(BRIDGE+'/oi');
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
     document.getElementById('conn-dot').style.background='#1D9E75';
     document.getElementById('conn-status').textContent='Connected';
-    document.getElementById('as-of').textContent=data.as_of||'—';
-    document.getElementById('session-id').textContent=data.session_id??'0';
-    document.getElementById('atm-val').textContent=data.atm_strike??'—';
-    currentSession=data.session_id??0;
-    if(allStrikes.length===0&&data.strikes){
-      allStrikes=data.strikes.map(Number).sort((a,b)=>a-b);
-      atmStrike=data.atm_strike; defaultBear=data.bear_strike; defaultBull=data.bull_strike;
-      if(!selectedBear) selectedBear=defaultBear;
-      if(!selectedBull) selectedBull=defaultBull;
-      populateStrikeSelectors(allStrikes,atmStrike,defaultBear,defaultBull);
+    document.getElementById('as-of').textContent = data.as_of||'—';
+    document.getElementById('session-id').textContent = data.session_id??'0';
+    document.getElementById('atm-val').textContent = data.atm_strike??'—';
+    currentSession = data.session_id??0;
+    if (data.spot) { currentSpot = data.spot; document.getElementById('spot-val').textContent = fmt(data.spot); }
+
+    if (allStrikes.length === 0 && data.strikes) {
+      allStrikes = data.strikes.map(Number).sort((a,b)=>a-b);
+      atmStrike  = data.atm_strike;
+
+      // Detect step size from strikes array
+      if (allStrikes.length >= 2) STRIKE_STEP = allStrikes[1] - allStrikes[0];
+
+      // Default: s1=ATM+step (higher), s2=ATM, s3=ATM-step (lower)
+      const atmIdx = allStrikes.indexOf(atmStrike);
+      const s2 = atmStrike;
+      const s1 = atmIdx + 1 < allStrikes.length ? allStrikes[atmIdx + 1] : allStrikes[Math.min(atmIdx, allStrikes.length-1)];
+      const s3 = atmIdx - 1 >= 0 ? allStrikes[atmIdx - 1] : allStrikes[Math.max(0, atmIdx)];
+
+      defaultStrikes  = [s1, s2, s3];
+      selectedStrikes = [...defaultStrikes];
+
+      populateStrikeSelectors(allStrikes);
     }
-    defaultBear=data.bear_strike; defaultBull=data.bull_strike;
-    lastOIData=data; processSnapshot(data); return data;
-  }catch(e){
+
+    // Refresh ATM default on each /oi poll (strikes might roll)
+    if (data.atm_strike && allStrikes.length) {
+      atmStrike = data.atm_strike;
+      const atmIdx = allStrikes.indexOf(atmStrike);
+      if (atmIdx >= 0) {
+        const s2 = atmStrike;
+        const s1 = atmIdx + 1 < allStrikes.length ? allStrikes[atmIdx + 1] : allStrikes[Math.min(atmIdx, allStrikes.length-1)];
+        const s3 = atmIdx - 1 >= 0 ? allStrikes[atmIdx - 1] : allStrikes[Math.max(0, atmIdx)];
+        defaultStrikes = [s1, s2, s3];
+      }
+    }
+
+    // Legacy bear/bull kept so old processSnapshot OI card still works
+    lastOIData = data;
+    processSnapshot(data);
+    updateSpotBadges();
+    return data;
+  } catch(e) {
     document.getElementById('conn-dot').style.background='#D85A30';
     document.getElementById('conn-status').textContent='Bridge offline — run kite_oi_bridge.py';
   }
 }
 
 async function fetchHistory() {
-  cdHX=POLL_HX_SEC;
-  try{
-    const res=await fetch(BRIDGE+'/oi/history');if(!res.ok)return;
-    const raw=await res.json();
-    minuteRows=filterMarketRows(raw);   // drop any off-hours rows before charting
-    document.getElementById('rows-info').textContent=minuteRows.length+' 1-min rows (market hours)';
+  if (pollingSuspended) return;   // don't overwrite historical view
+  cdHX = POLL_HX_SEC;
+  try {
+    const url = selectedDate ? (BRIDGE+'/oi/history?date='+selectedDate) : (BRIDGE+'/oi/history');
+    const res = await fetch(url); if(!res.ok) return;
+    const raw = await res.json();
+    minuteRows = filterMarketRows(raw);
+    document.getElementById('rows-info').textContent = minuteRows.length+' 1-min rows (market hours)';
     rebuildCharts();
-  }catch(e){}
+  } catch(e) {}
 }
 
-async function fetchAll(){await fetchOI();await fetchHistory();}
+async function fetchAll() { await fetchOI(); await fetchHistory(); }
 
-// ── FETCH /oi/live-candle (every 5s) ─────────────────────────────
+// ── FETCH /oi/live-candle ─────────────────────────────────────────
 async function fetchLiveCandle() {
   try {
     const res = await fetch(BRIDGE + '/oi/live-candle');
     if (!res.ok) return;
     const data = await res.json();
-    if (!data.available || !selectedBear || !selectedBull) {
+    if (!data.available || selectedStrikes.some(s=>!s)) {
       liveCandle = null;
       document.getElementById('live-candle-status').style.display='none';
       return;
     }
 
-    const bCeKey = rk(selectedBear, 'ce');
-    const bPeKey = rk(selectedBear, 'pe');
-    const uCeKey = rk(selectedBull, 'ce');
-    const uPeKey = rk(selectedBull, 'pe');
-
+    // Build a live candle with fields for all 3 selected strikes
     liveCandle = {
       label:   data.time_label,
       open:    data.spot_open,
       high:    data.spot_high,
       low:     data.spot_low,
       close:   data.spot_close,
-      dbce:    data.deltas[bCeKey]?.delta || 0,
-      dbpe:    data.deltas[bPeKey]?.delta || 0,
-      duce:    data.deltas[uCeKey]?.delta || 0,
-      dupe:    data.deltas[uPeKey]?.delta || 0,
-      bce:     data.deltas[bCeKey]?.oi   || 0,
-      bpe:     data.deltas[bPeKey]?.oi   || 0,
       elapsed: data.elapsed_sec,
       isLive:  true,
-      // Strike LTP from prevLtp cache for live candle
-      bce_ltp_open:  prevLtp[bCeKey]||0, bce_ltp_high: prevLtp[bCeKey]||0,
-      bce_ltp_low:   prevLtp[bCeKey]||0, bce_ltp_close: prevLtp[bCeKey]||0,
-      bce_oi_delta:  data.deltas[bCeKey]?.delta || 0,
-      bpe_ltp_open:  prevLtp[bPeKey]||0, bpe_ltp_high: prevLtp[bPeKey]||0,
-      bpe_ltp_low:   prevLtp[bPeKey]||0, bpe_ltp_close: prevLtp[bPeKey]||0,
-      bpe_oi_delta:  data.deltas[bPeKey]?.delta || 0,
-      uce_ltp_open:  prevLtp[uCeKey]||0, uce_ltp_high: prevLtp[uCeKey]||0,
-      uce_ltp_low:   prevLtp[uCeKey]||0, uce_ltp_close: prevLtp[uCeKey]||0,
-      uce_oi_delta:  data.deltas[uCeKey]?.delta || 0,
-      upe_ltp_open:  prevLtp[uPeKey]||0, upe_ltp_high: prevLtp[uPeKey]||0,
-      upe_ltp_low:   prevLtp[uPeKey]||0, upe_ltp_close: prevLtp[uPeKey]||0,
-      upe_oi_delta:  data.deltas[uPeKey]?.delta || 0,
     };
 
-    // Update status bar indicator
-    document.getElementById('live-candle-status').style.display='inline';
-    document.getElementById('live-elapsed').textContent=data.elapsed_sec;
+    // Attach OI deltas for each of the 3 strikes
+    [0,1,2].forEach(idx => {
+      const st = selectedStrikes[idx];
+      const pfx = ['s1','s2','s3'][idx];
+      const ceK = rk(st,'ce'), peK = rk(st,'pe');
+      liveCandle[pfx+'_dce'] = data.deltas[ceK]?.delta || 0;
+      liveCandle[pfx+'_dpe'] = data.deltas[peK]?.delta || 0;
+      // For index OI signal compat
+      liveCandle['s1ce'] = liveCandle['s1_dce'] || 0;
+      liveCandle['s3ce'] = liveCandle['s3_dce'] || 0;
+      liveCandle['s1pe'] = liveCandle['s1_dpe'] || 0;
+      liveCandle['s3pe'] = liveCandle['s3_dpe'] || 0;
+      // LTP from cache
+      liveCandle[pfx+'_bce_ltp_open']  = prevLtp[ceK]||0;
+      liveCandle[pfx+'_bce_ltp_close'] = prevLtp[ceK]||0;
+      liveCandle[pfx+'_bce_ltp_high']  = prevLtp[ceK]||0;
+      liveCandle[pfx+'_bce_ltp_low']   = prevLtp[ceK]||0;
+      liveCandle[pfx+'_bce_oi_delta']  = liveCandle[pfx+'_dce'];
+      liveCandle[pfx+'_upe_ltp_open']  = prevLtp[peK]||0;
+      liveCandle[pfx+'_upe_ltp_close'] = prevLtp[peK]||0;
+      liveCandle[pfx+'_upe_ltp_high']  = prevLtp[peK]||0;
+      liveCandle[pfx+'_upe_ltp_low']   = prevLtp[peK]||0;
+      liveCandle[pfx+'_upe_oi_delta']  = liveCandle[pfx+'_dpe'];
+    });
 
-    // Redraw SVG charts only — no need to rebuild OI bar charts
+    document.getElementById('live-candle-status').style.display='inline';
+    document.getElementById('live-elapsed').textContent = data.elapsed_sec;
     _redrawSVGOnly();
   } catch(e) {}
 }
 
 function _redrawSVGOnly() {
-  if (!latestCandles.length && !liveCandle) return;
-  const allWithLive = liveCandle ? [...latestCandles, liveCandle] : latestCandles;
-  drawIndexChart(allWithLive);
-  const bearSigs = drawStrikeActivityChart(
-    'svgBear', allWithLive,
-    c=>c.bce_ltp_open, c=>c.bce_ltp_high, c=>c.bce_ltp_low, c=>c.bce_ltp_close,
-    c=>c.bce_oi_delta,
-    'bear-activity-badge'
-  );
-  const bullSigs = drawStrikeActivityChart(
-    'svgBull', allWithLive,
-    c=>c.upe_ltp_open, c=>c.upe_ltp_high, c=>c.upe_ltp_low, c=>c.upe_ltp_close,
-    c=>c.upe_oi_delta,
-    'bull-activity-badge'
-  );
+  // Only redraws SVG index chart and confluence charts from cached data
+  const s1Candles = latestCandles[0];
+  const s3Candles = latestCandles[2];
+  const allWithLive0 = liveCandle ? [...s1Candles, liveCandle] : s1Candles;
+  const allWithLive2 = liveCandle ? [...s3Candles, liveCandle] : s3Candles;
+  drawIndexChart(liveCandle ? [...latestCandles[1], liveCandle] : latestCandles[1]);
+  const bearSigs = drawStrikeActivityChart('svgBear', allWithLive0,
+    c=>c.s1_bce_ltp_open||0, c=>c.s1_bce_ltp_high||0, c=>c.s1_bce_ltp_low||0, c=>c.s1_bce_ltp_close||0,
+    c=>c.s1_bce_oi_delta||0, 'bear-activity-badge');
+  const bullSigs = drawStrikeActivityChart('svgBull', allWithLive2,
+    c=>c.s3_upe_ltp_open||0, c=>c.s3_upe_ltp_high||0, c=>c.s3_upe_ltp_low||0, c=>c.s3_upe_ltp_close||0,
+    c=>c.s3_upe_oi_delta||0, 'bull-activity-badge');
   buildStrip('bear-strip', bearSigs);
   buildStrip('bull-strip', bullSigs);
-  if (allWithLive.length) updateConfluenceSummary(allWithLive, bearSigs, bullSigs);
 }
 
-async function resetCSV(){
-  if(!confirm('Wipe oi_history.csv?\nAll chart history cleared.')) return;
-  try{
-    const res=await fetch(BRIDGE+'/reset-csv',{method:'POST'});const data=await res.json();
-    minuteRows=[];currentSession=0;liveCandle=null;
+async function resetCSV() {
+  if (!confirm('Wipe oi_history.csv?\nAll chart history cleared.')) return;
+  try {
+    const res = await fetch(BRIDGE+'/reset-csv',{method:'POST'}); const data=await res.json();
+    minuteRows=[]; currentSession=0; liveCandle=null;
     document.getElementById('session-id').textContent='0';
     document.getElementById('rows-info').textContent='0 rows';
     document.getElementById('live-candle-status').style.display='none';
-    rebuildCharts();alert(data.message);
-  }catch(e){alert('Could not reach bridge.');}
+    rebuildCharts(); alert(data.message);
+  } catch(e) { alert('Could not reach bridge.'); }
 }
 
 // ── PROCESS SNAPSHOT ─────────────────────────────────────────────
-function processSnapshot(data){
-  if(!selectedBear||!selectedBull) return;
+function processSnapshot(data) {
+  if (selectedStrikes.some(s=>!s)) return;
+  const opts = data.options || {};
 
-  // Guard — warn if both strikes are the same (edge case from clamping)
-  if(selectedBear === selectedBull){
-    document.getElementById('bias-desc').textContent =
-      'Warning: Bear and Bull strikes are the same ('+selectedBear+'). Please select different strikes.';
-    return;
+  // Update OI summary cards using s1 (top) and s3 (bottom) as the bear/bull pair
+  const s1 = selectedStrikes[0], s3 = selectedStrikes[2];
+  const bc = opts[rk(s1,'ce')], bp = opts[rk(s1,'pe')];
+  const uc = opts[rk(s3,'ce')], up = opts[rk(s3,'pe')];
+
+  document.getElementById('bear-card-title').textContent = 'Strike 1 — ' + s1;
+  document.getElementById('bull-card-title').textContent = 'Strike 3 — ' + s3;
+
+  if (bc && bp) {
+    document.getElementById('bc-lbl').textContent = s1 + ' CE';
+    document.getElementById('bp-lbl').textContent = s1 + ' PE';
+    const s=(id,v)=>{document.getElementById(id).innerHTML=v;};
+    s('bc-oi',fmt(bc.oi)); s('bc-id',dhtml(bc.oi_change_since_last_poll)); s('bc-td',dhtml(bc.oi_change_total));
+    s('bp-oi',fmt(bp.oi)); s('bp-id',dhtml(bp.oi_change_since_last_poll)); s('bp-td',dhtml(bp.oi_change_total));
+    const bearPct = Math.round(bc.oi/(bc.oi+bp.oi||1)*100);
+    document.getElementById('bear-bar').style.width = bearPct+'%';
+    document.getElementById('bear-dom-label').textContent = bearPct+'% call dominated';
+    document.getElementById('bear-dom-label').className = 'dom-label '+(bearPct>55?'bearish':bearPct<45?'bullish':'neutral');
   }
-  const opts=data.options||{};
-  const bc=opts[rk(selectedBear,'ce')],bp=opts[rk(selectedBear,'pe')];
-  const uc=opts[rk(selectedBull,'ce')],up=opts[rk(selectedBull,'pe')];
-  if(!bc||!bp||!uc||!up) return;
+  if (uc && up) {
+    document.getElementById('uc-lbl').textContent = s3 + ' CE';
+    document.getElementById('up-lbl').textContent = s3 + ' PE';
+    const s=(id,v)=>{document.getElementById(id).innerHTML=v;};
+    s('uc-oi',fmt(uc.oi)); s('uc-id',dhtml(uc.oi_change_since_last_poll)); s('uc-td',dhtml(uc.oi_change_total));
+    s('up-oi',fmt(up.oi)); s('up-id',dhtml(up.oi_change_since_last_poll)); s('up-td',dhtml(up.oi_change_total));
+    const bullPct = Math.round(up.oi/(uc.oi+up.oi||1)*100);
+    document.getElementById('bull-bar').style.width = bullPct+'%';
+    document.getElementById('bull-dom-label').textContent = bullPct+'% put dominated';
+    document.getElementById('bull-dom-label').className = 'dom-label '+(bullPct>55?'bullish':bullPct<45?'bearish':'neutral');
+  }
 
-  document.getElementById('bear-card-title').textContent='Bear strike ('+selectedBear+')';
-  document.getElementById('bull-card-title').textContent='Bull strike ('+selectedBull+')';
-  document.getElementById('bear-chart-title').textContent='Bear strike '+selectedBear+' — CE vs PE OI delta';
-  document.getElementById('bull-chart-title').textContent='Bull strike '+selectedBull+' — CE vs PE OI delta';
-  document.getElementById('bear-conf-title').textContent='Bear strike lens — '+selectedBear;
-  document.getElementById('bull-conf-title').textContent='Bull strike lens — '+selectedBull;
-  document.getElementById('bear-conf-sub').textContent=selectedBear+' CE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)';
-  document.getElementById('bull-conf-sub').textContent=selectedBull+' PE option LTP price · colour = activity type (Long/Short Buildup/Covering/Unwinding)';
-  document.getElementById('bc-lbl').textContent=selectedBear+' CE';
-  document.getElementById('bp-lbl').textContent=selectedBear+' PE';
-  document.getElementById('uc-lbl').textContent=selectedBull+' CE';
-  document.getElementById('up-lbl').textContent=selectedBull+' PE';
+  // Bias uses top vs bottom strike
+  if (bc && bp && uc && up) {
+    const bias = computeBias(bc, bp, uc, up, s1, s3);
+    updateBiasUI(bias);
+    updateStreak(bias);
+  }
 
-  const s=(id,v)=>{document.getElementById(id).innerHTML=v;};
-  s('bc-oi',fmt(bc.oi));s('bc-id',dhtml(bc.oi_change_since_last_poll));s('bc-td',dhtml(bc.oi_change_total));
-  s('bp-oi',fmt(bp.oi));s('bp-id',dhtml(bp.oi_change_since_last_poll));s('bp-td',dhtml(bp.oi_change_total));
-  s('uc-oi',fmt(uc.oi));s('uc-id',dhtml(uc.oi_change_since_last_poll));s('uc-td',dhtml(uc.oi_change_total));
-  s('up-oi',fmt(up.oi));s('up-id',dhtml(up.oi_change_since_last_poll));s('up-td',dhtml(up.oi_change_total));
+  updateRollLog(data.roll_log||[]);
+  populateStrikeSelectors(allStrikes);
 
-  const bearPct=Math.round(bc.oi/(bc.oi+bp.oi||1)*100);
-  const bullPct=Math.round(up.oi/(uc.oi+up.oi||1)*100);
-  document.getElementById('bear-bar').style.width=bearPct+'%';
-  document.getElementById('bull-bar').style.width=bullPct+'%';
-  document.getElementById('bear-dom-label').textContent=bearPct+'% call dominated';
-  document.getElementById('bear-dom-label').className='dom-label '+(bearPct>55?'bearish':bearPct<45?'bullish':'neutral');
-  document.getElementById('bull-dom-label').textContent=bullPct+'% put dominated';
-  document.getElementById('bull-dom-label').className='dom-label '+(bullPct>55?'bullish':bullPct<45?'bearish':'neutral');
+  // Update chart titles
+  [0,1,2].forEach(idx => {
+    const st = selectedStrikes[idx];
+    const pfx = ['s1','s2','s3'][idx];
+    document.getElementById(pfx+'-chart-title').textContent = st + ' — CE vs PE OI delta';
+  });
 
-  const bias=computeBias(bc,bp,uc,up);
-  updateBiasUI(bias);updateStreak(bias);updateRollLog(data.roll_log||[]);
-  snapHistory.push({time:data.as_of,spot:data.spot,bc,bp,uc,up,bias});
-  populateStrikeSelectors(allStrikes,atmStrike,defaultBear,defaultBull);
+  // Update confluence titles
+  document.getElementById('bear-conf-title').textContent = 'Strike 1 lens — ' + s1;
+  document.getElementById('bull-conf-title').textContent = 'Strike 3 lens — ' + s3;
+  document.getElementById('bear-conf-sub').textContent   = s1 + ' CE option LTP · activity type';
+  document.getElementById('bull-conf-sub').textContent   = s3 + ' PE option LTP · activity type';
+  document.getElementById('bear-sum-label').textContent  = 'Strike 1 ' + s1 + ' CE';
+  document.getElementById('bull-sum-label').textContent  = 'Strike 3 ' + s3 + ' PE';
 }
 
-function computeBias(bc,bp,uc,up){
-  const bearCallDom=bc.oi>bp.oi,bullPutDom=up.oi>uc.oi;
-  const bearRatio=bc.oi/(bc.oi+bp.oi||1),bullRatio=up.oi/(uc.oi+up.oi||1);
-  const bDC=bc.oi_change_since_last_poll>0&&bp.oi_change_since_last_poll<0;
-  const uDC=up.oi_change_since_last_poll>0&&uc.oi_change_since_last_poll<0;
-  if(bearCallDom&&!bullPutDom) return{signal:'BEARISH',note:'Call OI dominant at '+selectedBear+(bDC?' — CE building, PE unwinding':'')};
-  if(bullPutDom&&!bearCallDom) return{signal:'BULLISH',note:'Put OI dominant at '+selectedBull+(uDC?' — PE building, CE unwinding':'')};
-  if(bearCallDom&&bullPutDom) return bearRatio>bullRatio
-    ?{signal:'BEARISH',note:'Both dominant — bear stronger ('+Math.round(bearRatio*100)+'%)'}
-    :{signal:'BULLISH',note:'Both dominant — bull stronger ('+Math.round(bullRatio*100)+'%)'};
-  return{signal:'NEUTRAL',note:'No clear OI dominance at either strike'};
+function computeBias(bc, bp, uc, up, s1, s3) {
+  const bearCallDom=bc.oi>bp.oi, bullPutDom=up.oi>uc.oi;
+  const bearRatio=bc.oi/(bc.oi+bp.oi||1), bullRatio=up.oi/(uc.oi+up.oi||1);
+  if (bearCallDom&&!bullPutDom) return{signal:'BEARISH',note:'Call OI dominant at '+s1};
+  if (bullPutDom&&!bearCallDom) return{signal:'BULLISH',note:'Put OI dominant at '+s3};
+  if (bearCallDom&&bullPutDom) return bearRatio>bullRatio
+    ?{signal:'BEARISH',note:'Both dominant — top strike stronger ('+Math.round(bearRatio*100)+'%)'}
+    :{signal:'BULLISH',note:'Both dominant — bottom strike stronger ('+Math.round(bullRatio*100)+'%)'};
+  return{signal:'NEUTRAL',note:'No clear OI dominance'};
 }
 
-function updateBiasUI(bias){
-  const el=document.getElementById('bias-big');
-  if(bias.signal==='BEARISH'){el.textContent='▼ Bearish';el.className='bias-big bearish';}
-  else if(bias.signal==='BULLISH'){el.textContent='▲ Bullish';el.className='bias-big bullish';}
-  else{el.textContent='— Neutral';el.className='bias-big neutral';}
-  document.getElementById('bias-desc').textContent=bias.note;
+function updateBiasUI(bias) {
+  const el = document.getElementById('bias-big');
+  if (bias.signal==='BEARISH') { el.textContent='▼ Bearish'; el.className='bias-big bearish'; }
+  else if (bias.signal==='BULLISH') { el.textContent='▲ Bullish'; el.className='bias-big bullish'; }
+  else { el.textContent='— Neutral'; el.className='bias-big neutral'; }
+  document.getElementById('bias-desc').textContent = bias.note;
 }
 
-function updateStreak(bias){
-  const prev=currentBias;
-  if(!prev||prev==='NEUTRAL'){currentBias=bias.signal;biasStreak=[bias.signal];}
-  else if(bias.signal===prev){biasStreak.push(bias.signal);}
-  else if(bias.signal!=='NEUTRAL'){biasStreak.push(bias.signal);showBreakAlert(prev,bias.signal);currentBias=bias.signal;}
-  else{biasStreak.push(bias.signal);}
+function updateStreak(bias) {
+  const prev = currentBias;
+  if (!prev||prev==='NEUTRAL') { currentBias=bias.signal; biasStreak=[bias.signal]; }
+  else if (bias.signal===prev) { biasStreak.push(bias.signal); }
+  else if (bias.signal!=='NEUTRAL') { biasStreak.push(bias.signal); showBreakAlert(prev,bias.signal); currentBias=bias.signal; }
+  else { biasStreak.push(bias.signal); }
   const last=biasStreak[biasStreak.length-1];
-  let cons=0;for(let i=biasStreak.length-1;i>=0;i--){if(biasStreak[i]===last)cons++;else break;}
+  let cons=0; for(let i=biasStreak.length-1;i>=0;i--){ if(biasStreak[i]===last)cons++; else break; }
   const isBreak=biasStreak.length>1&&biasStreak[biasStreak.length-1]!==biasStreak[biasStreak.length-2];
   document.getElementById('streak-dots').innerHTML=biasStreak.slice(-12).map(s=>{
     const c=s==='BEARISH'?'#D85A30':s==='BULLISH'?'#1D9E75':'#aaa';
     return `<span class="sdot" style="background:${c};"></span>`;
   }).join('');
   const lbl=document.getElementById('streak-label');
-  if(isBreak){lbl.textContent='Break — '+last+' emerging';lbl.style.color='#854F0B';}
-  else{lbl.textContent=cons+' consecutive '+last.toLowerCase();lbl.style.color=last==='BEARISH'?'#993C1D':last==='BULLISH'?'#0F6E56':'#888';}
+  if (isBreak) { lbl.textContent='Break — '+last+' emerging'; lbl.style.color='#854F0B'; }
+  else { lbl.textContent=cons+' consecutive '+last.toLowerCase(); lbl.style.color=last==='BEARISH'?'#993C1D':last==='BULLISH'?'#0F6E56':'#888'; }
 }
 
-function showBreakAlert(prev,cur){
+function showBreakAlert(prev,cur) {
   const box=document.getElementById('alert-break');
   box.textContent='Bias break: '+prev+' invalidated — '+cur+' emerging.';
-  box.style.display='block';setTimeout(()=>{box.style.display='none';},20000);
+  box.style.display='block'; setTimeout(()=>{box.style.display='none';},20000);
 }
 
-function updateRollLog(rolls){
+function updateRollLog(rolls) {
   const body=document.getElementById('roll-log-body');
-  if(!rolls.length){body.textContent='No rolls today.';return;}
-  if(rolls.length>prevRollCount){
+  if (!rolls.length) { body.textContent='No rolls today.'; return; }
+  if (rolls.length>prevRollCount) {
     const r=rolls[rolls.length-1];
     const box=document.getElementById('alert-roll');
-    box.textContent='Roll at '+r.time+' (session → '+r.session_id+') → Bear '+r.to_bear+' / Bull '+r.to_bull+'. Full history retained.';
-    box.style.display='block';setTimeout(()=>{box.style.display='none';},20000);
+    box.textContent='Roll at '+r.time+' (session → '+r.session_id+')';
+    box.style.display='block'; setTimeout(()=>{box.style.display='none';},20000);
     prevRollCount=rolls.length;
   }
   body.innerHTML=rolls.map(r=>
@@ -1009,91 +1265,81 @@ function updateRollLog(rolls){
   ).join('');
 }
 
-// ── CANDLE BUILDER ────────────────────────────────────────────────
-function buildCandles(rows,mins,bear,bull){
-  if(!rows.length||!bear||!bull) return[];
-  const bCeK=`s${bear}_ce`,bPeK=`s${bear}_pe`;
-  const uCeK=`s${bull}_ce`,uPeK=`s${bull}_pe`;
-  const candles=[];
-  for(let i=0;i<rows.length;i+=mins){
-    const slice=rows.slice(i,i+mins);
-    const first=slice[0],last=slice[slice.length-1];
-    const opens=slice.map(r=>pf(r.spot_open)).filter(v=>v>0);
-    const highs=slice.map(r=>pf(r.spot_high)).filter(v=>v>0);
-    const lows=slice.map(r=>pf(r.spot_low)).filter(v=>v>0);
-    const closes=slice.map(r=>pf(r.spot_close)).filter(v=>v>0);
+// ── CANDLE BUILDER (per-strike) ───────────────────────────────────
+function buildCandlesForStrike(rows, mins, strike) {
+  if (!rows.length || !strike) return [];
+  const ceK = `s${strike}_ce`, peK = `s${strike}_pe`;
+  const candles = [];
+  for (let i = 0; i < rows.length; i += mins) {
+    const slice = rows.slice(i, i+mins);
+    const first = slice[0], last = slice[slice.length-1];
+    const opens  = slice.map(r=>pf(r.spot_open)).filter(v=>v>0);
+    const highs  = slice.map(r=>pf(r.spot_high)).filter(v=>v>0);
+    const lows   = slice.map(r=>pf(r.spot_low)).filter(v=>v>0);
+    const closes = slice.map(r=>pf(r.spot_close)).filter(v=>v>0);
 
-    // Strike LTP values from history rows (stored as *_ltp columns)
-    const bCeLtps=slice.map(r=>pf(r[bCeK+'_ltp'])).filter(v=>v>0);
-    const bPeLtps=slice.map(r=>pf(r[bPeK+'_ltp'])).filter(v=>v>0);
-    const uCeLtps=slice.map(r=>pf(r[uCeK+'_ltp'])).filter(v=>v>0);
-    const uPeLtps=slice.map(r=>pf(r[uPeK+'_ltp'])).filter(v=>v>0);
-
-    const bCeOiStart=pf(first[bCeK+'_oi']),bCeOiEnd=pf(last[bCeK+'_oi']);
-    const bPeOiStart=pf(first[bPeK+'_oi']),bPeOiEnd=pf(last[bPeK+'_oi']);
-    const uCeOiStart=pf(first[uCeK+'_oi']),uCeOiEnd=pf(last[uCeK+'_oi']);
-    const uPeOiStart=pf(first[uPeK+'_oi']),uPeOiEnd=pf(last[uPeK+'_oi']);
+    const ceLtps = slice.map(r=>pf(r[ceK+'_ltp'])).filter(v=>v>0);
+    const peLtps = slice.map(r=>pf(r[peK+'_ltp'])).filter(v=>v>0);
+    const ceOiStart = pf(first[ceK+'_oi']), ceOiEnd = pf(last[ceK+'_oi']);
+    const peOiStart = pf(first[peK+'_oi']), peOiEnd = pf(last[peK+'_oi']);
 
     candles.push({
-      label:first.time_label,
-      ts:pf(first.ts)*1000,
-      open:opens.length?opens[0]:0,
-      high:highs.length?Math.max(...highs):0,
-      low:lows.length?Math.min(...lows):0,
-      close:closes.length?closes[closes.length-1]:0,
-      dbce:slice.reduce((s,r)=>s+pf(r[bCeK+'_delta']),0),
-      dbpe:slice.reduce((s,r)=>s+pf(r[bPeK+'_delta']),0),
-      duce:slice.reduce((s,r)=>s+pf(r[uCeK+'_delta']),0),
-      dupe:slice.reduce((s,r)=>s+pf(r[uPeK+'_delta']),0),
-      bce:pf(last[bCeK+'_oi']),
-      bpe:pf(last[bPeK+'_oi']),
-      bce_td:pf(last[bCeK+'_oi'])-pf(first[bCeK+'_baseline']),
-      bpe_td:pf(last[bPeK+'_oi'])-pf(first[bPeK+'_baseline']),
-      // Strike LTP OHLC — used for the strike price candle charts
-      bce_ltp_open:  bCeLtps.length ? bCeLtps[0] : 0,
-      bce_ltp_high:  bCeLtps.length ? Math.max(...bCeLtps) : 0,
-      bce_ltp_low:   bCeLtps.length ? Math.min(...bCeLtps) : 0,
-      bce_ltp_close: bCeLtps.length ? bCeLtps[bCeLtps.length-1] : 0,
-      bce_oi_delta:  bCeOiEnd - bCeOiStart,
-      bpe_ltp_open:  bPeLtps.length ? bPeLtps[0] : 0,
-      bpe_ltp_high:  bPeLtps.length ? Math.max(...bPeLtps) : 0,
-      bpe_ltp_low:   bPeLtps.length ? Math.min(...bPeLtps) : 0,
-      bpe_ltp_close: bPeLtps.length ? bPeLtps[bPeLtps.length-1] : 0,
-      bpe_oi_delta:  bPeOiEnd - bPeOiStart,
-      uce_ltp_open:  uCeLtps.length ? uCeLtps[0] : 0,
-      uce_ltp_high:  uCeLtps.length ? Math.max(...uCeLtps) : 0,
-      uce_ltp_low:   uCeLtps.length ? Math.min(...uCeLtps) : 0,
-      uce_ltp_close: uCeLtps.length ? uCeLtps[uCeLtps.length-1] : 0,
-      uce_oi_delta:  uCeOiEnd - uCeOiStart,
-      upe_ltp_open:  uPeLtps.length ? uPeLtps[0] : 0,
-      upe_ltp_high:  uPeLtps.length ? Math.max(...uPeLtps) : 0,
-      upe_ltp_low:   uPeLtps.length ? Math.min(...uPeLtps) : 0,
-      upe_ltp_close: uPeLtps.length ? uPeLtps[uPeLtps.length-1] : 0,
-      upe_oi_delta:  uPeOiEnd - uPeOiStart,
+      label: first.time_label,
+      ts:    pf(first.ts)*1000,
+      open:  opens.length ? opens[0] : 0,
+      high:  highs.length ? Math.max(...highs) : 0,
+      low:   lows.length  ? Math.min(...lows)  : 0,
+      close: closes.length ? closes[closes.length-1] : 0,
+      dce:   slice.reduce((s,r)=>s+pf(r[ceK+'_delta']),0),
+      dpe:   slice.reduce((s,r)=>s+pf(r[peK+'_delta']),0),
+      // for index signal compat (used externally)
+      s1ce: 0, s1pe: 0, s3ce: 0, s3pe: 0,
+      // LTP candle data for confluence chart
+      bce_ltp_open:  ceLtps.length ? ceLtps[0] : 0,
+      bce_ltp_high:  ceLtps.length ? Math.max(...ceLtps) : 0,
+      bce_ltp_low:   ceLtps.length ? Math.min(...ceLtps) : 0,
+      bce_ltp_close: ceLtps.length ? ceLtps[ceLtps.length-1] : 0,
+      bce_oi_delta:  ceOiEnd - ceOiStart,
+      upe_ltp_open:  peLtps.length ? peLtps[0] : 0,
+      upe_ltp_high:  peLtps.length ? Math.max(...peLtps) : 0,
+      upe_ltp_low:   peLtps.length ? Math.min(...peLtps) : 0,
+      upe_ltp_close: peLtps.length ? peLtps[peLtps.length-1] : 0,
+      upe_oi_delta:  peOiEnd - peOiStart,
     });
   }
   return candles;
 }
 
+// Build merged candles (for index chart) combining s1 and s3 deltas
+function buildMergedCandles(rows, mins, s1, s2, s3) {
+  const base = buildCandlesForStrike(rows, mins, s2); // use s2 for price OHLC
+  const c1   = buildCandlesForStrike(rows, mins, s1);
+  const c3   = buildCandlesForStrike(rows, mins, s3);
+  base.forEach((c, i) => {
+    c.s1ce = c1[i]?.dce || 0;
+    c.s1pe = c1[i]?.dpe || 0;
+    c.s3ce = c3[i]?.dce || 0;
+    c.s3pe = c3[i]?.dpe || 0;
+  });
+  return base;
+}
 
-function buildStrip(stripId, signals){
-  const strip=document.getElementById(stripId);
-  strip.innerHTML='';
-  signals.forEach(k=>{
-    const b=document.createElement('div');
-    b.className='sig-block';
-    // Support both ACT_COLOR and SIG_COLOR key sets
-    b.style.background=(ACT_COLOR[k]||SIG_COLOR[k]||{body:'#888'}).body;
+function buildStrip(stripId, signals) {
+  const strip = document.getElementById(stripId);
+  strip.innerHTML = '';
+  signals.forEach(k => {
+    const b = document.createElement('div');
+    b.className = 'sig-block';
+    b.style.background = (ACT_COLOR[k]||SIG_COLOR[k]||{body:'#888'}).body;
     strip.appendChild(b);
   });
-  const lbl=document.createElement('span');
-  lbl.className='sig-strip-label';
-  lbl.textContent='← signals';
+  const lbl = document.createElement('span');
+  lbl.className = 'sig-strip-label';
+  lbl.textContent = '← signals';
   strip.appendChild(lbl);
 }
 
-// ── INDEX CHART — Nifty price, coloured by dominant OI activity ───
-// ── STICKY Y-AXIS OVERLAY ─────────────────────────────────────────────────
+// ── STICKY Y-AXIS OVERLAY ─────────────────────────────────────────
 function drawYAxisOverlay(yAxisSvgId, H, padL, padT, padB, yMin, yMax, ticks) {
   const ya = document.getElementById(yAxisSvgId);
   if (!ya) return;
@@ -1104,33 +1350,31 @@ function drawYAxisOverlay(yAxisSvgId, H, padL, padT, padB, yMin, yMax, ticks) {
   const ns = 'http://www.w3.org/2000/svg';
   const aH = H - padT - padB;
   const yS = v => padT + aH * (1 - (v - yMin) / (yMax - yMin));
-  // white background so labels sit cleanly over scrolled content
   const bg = document.createElementNS(ns, 'rect');
-  bg.setAttribute('x', 0); bg.setAttribute('y', 0);
-  bg.setAttribute('width', padL); bg.setAttribute('height', H);
-  bg.setAttribute('fill', '#fff'); bg.setAttribute('opacity', '0.92');
+  bg.setAttribute('x',0); bg.setAttribute('y',0);
+  bg.setAttribute('width',padL); bg.setAttribute('height',H);
+  bg.setAttribute('fill','#fff'); bg.setAttribute('opacity','0.92');
   ya.appendChild(bg);
   ticks.forEach(price => {
     const y = yS(price);
     const txt = document.createElementNS(ns, 'text');
-    txt.setAttribute('x', padL - 4); txt.setAttribute('y', y + 4);
-    txt.setAttribute('text-anchor', 'end'); txt.setAttribute('font-size', '9');
-    txt.setAttribute('fill', '#888780'); txt.textContent = price;
+    txt.setAttribute('x', padL-4); txt.setAttribute('y', y+4);
+    txt.setAttribute('text-anchor','end'); txt.setAttribute('font-size','9');
+    txt.setAttribute('fill','#888780'); txt.textContent = price;
     ya.appendChild(txt);
-    // small tick mark
     const tk = document.createElementNS(ns, 'line');
-    tk.setAttribute('x1', padL - 3); tk.setAttribute('x2', padL);
-    tk.setAttribute('y1', y); tk.setAttribute('y2', y);
-    tk.setAttribute('stroke', 'rgba(136,135,128,0.4)'); tk.setAttribute('stroke-width', '0.5');
+    tk.setAttribute('x1',padL-3); tk.setAttribute('x2',padL);
+    tk.setAttribute('y1',y); tk.setAttribute('y2',y);
+    tk.setAttribute('stroke','rgba(136,135,128,0.4)'); tk.setAttribute('stroke-width','0.5');
     ya.appendChild(tk);
   });
 }
 
+// ── INDEX CHART ───────────────────────────────────────────────────
 function drawIndexChart(candles) {
   const svgEl = document.getElementById('svgIndex');
   svgEl.innerHTML = '';
   if (!candles.length) { svgEl.setAttribute('height','60'); return []; }
-
   const scrollEl   = document.getElementById('index-scroll');
   const containerW = scrollEl ? scrollEl.offsetWidth : 600;
   const H = INDEX_H;
@@ -1141,282 +1385,262 @@ function drawIndexChart(candles) {
   svgEl.setAttribute('height', H);
   svgEl.parentElement.style.width = W + 'px';
 
-  const padL=48, padR=12, padT=10, padB=26;
-  const aW = W - padL - padR, aH = H - padT - padB;
-  const ns = 'http://www.w3.org/2000/svg';
-
-  const allP = candles.flatMap(c=>[c.open,c.high,c.low,c.close]).filter(v=>v>0);
+  const padL=48,padR=12,padT=10,padB=26;
+  const aW=W-padL-padR, aH=H-padT-padB;
+  const ns='http://www.w3.org/2000/svg';
+  const allP=candles.flatMap(c=>[c.open,c.high,c.low,c.close]).filter(v=>v>0);
   if (!allP.length) return [];
-  const yMin = Math.min(...allP) - 20, yMax = Math.max(...allP) + 20;
-  const yS = v => padT + aH * (1 - (v - yMin) / (yMax - yMin));
+  const yMin=Math.min(...allP)-20, yMax=Math.max(...allP)+20;
+  const yS=v=>padT+aH*(1-(v-yMin)/(yMax-yMin));
 
-  // grid
-  for (let i = 0; i <= 3; i++) {
-    const y = padT + i * aH / 3;
-    const price = Math.round(yMax - i * (yMax - yMin) / 3);
-    const line = document.createElementNS(ns, 'line');
-    line.setAttribute('x1', padL); line.setAttribute('x2', padL + aW);
-    line.setAttribute('y1', y);    line.setAttribute('y2', y);
-    line.setAttribute('stroke', 'rgba(136,135,128,0.15)'); line.setAttribute('stroke-width', '0.5');
+  for (let i=0;i<=3;i++) {
+    const y=padT+i*aH/3;
+    const price=Math.round(yMax-i*(yMax-yMin)/3);
+    const line=document.createElementNS(ns,'line');
+    line.setAttribute('x1',padL); line.setAttribute('x2',padL+aW);
+    line.setAttribute('y1',y); line.setAttribute('y2',y);
+    line.setAttribute('stroke','rgba(136,135,128,0.15)'); line.setAttribute('stroke-width','0.5');
     svgEl.appendChild(line);
-    const txt = document.createElementNS(ns, 'text');
-    txt.setAttribute('x', padL - 4); txt.setAttribute('y', y + 4);
-    txt.setAttribute('text-anchor', 'end'); txt.setAttribute('font-size', '9');
-    txt.setAttribute('fill', '#888780'); txt.textContent = price;
+    const txt=document.createElementNS(ns,'text');
+    txt.setAttribute('x',padL-4); txt.setAttribute('y',y+4);
+    txt.setAttribute('text-anchor','end'); txt.setAttribute('font-size','9');
+    txt.setAttribute('fill','#888780'); txt.textContent=price;
     svgEl.appendChild(txt);
   }
 
-  const slot = slotPx;
-  const cW = Math.min(INDEX_CANDLE_W, slot - 2);
-  const actSigs = [];
-
+  const slot=slotPx, cW=Math.min(INDEX_CANDLE_W, slot-2);
+  const actSigs=[];
   candles.forEach((c, i) => {
-    if (!c.open || !c.close) { actSigs.push('N'); return; }
-    const actKey = getIndexOISignal(c);
-    const act = SIG_COLOR[actKey];
+    if (!c.open||!c.close) { actSigs.push('N'); return; }
+    const actKey=getIndexOISignal(c);
+    const act=SIG_COLOR[actKey];
     actSigs.push(actKey);
-    const cx = padL + i * slot + slot / 2;
-    const bodyT = yS(Math.max(c.open, c.close));
-    const bodyB = yS(Math.min(c.open, c.close));
-    const bodyH = Math.max(bodyB - bodyT, 2);
+    const cx=padL+i*slot+slot/2;
+    const bodyT=yS(Math.max(c.open,c.close));
+    const bodyB=yS(Math.min(c.open,c.close));
+    const bodyH=Math.max(bodyB-bodyT,2);
 
-    const wick = document.createElementNS(ns, 'line');
-    wick.setAttribute('x1', cx); wick.setAttribute('x2', cx);
-    wick.setAttribute('y1', yS(c.high || c.close)); wick.setAttribute('y2', yS(c.low || c.close));
-    wick.setAttribute('stroke', act.wick); wick.setAttribute('stroke-width', '1.5');
-    if (c.isLive) wick.setAttribute('opacity', '0.6');
+    const wick=document.createElementNS(ns,'line');
+    wick.setAttribute('x1',cx); wick.setAttribute('x2',cx);
+    wick.setAttribute('y1',yS(c.high||c.close)); wick.setAttribute('y2',yS(c.low||c.close));
+    wick.setAttribute('stroke',act.wick); wick.setAttribute('stroke-width','1.5');
+    if (c.isLive) wick.setAttribute('opacity','0.6');
     svgEl.appendChild(wick);
 
-    const body = document.createElementNS(ns, 'rect');
-    body.setAttribute('x', cx - cW / 2); body.setAttribute('y', bodyT);
-    body.setAttribute('width', cW); body.setAttribute('height', bodyH);
-    body.setAttribute('fill', act.body); body.setAttribute('rx', '2');
-    if (c.isLive) body.setAttribute('opacity', '0.45');
+    const body=document.createElementNS(ns,'rect');
+    body.setAttribute('x',cx-cW/2); body.setAttribute('y',bodyT);
+    body.setAttribute('width',cW); body.setAttribute('height',bodyH);
+    body.setAttribute('fill',act.body); body.setAttribute('rx','2');
+    if (c.isLive) body.setAttribute('opacity','0.45');
     svgEl.appendChild(body);
 
     if (c.isLive) {
-      const outline = document.createElementNS(ns, 'rect');
-      outline.setAttribute('x', cx - cW / 2); outline.setAttribute('y', bodyT);
-      outline.setAttribute('width', cW); outline.setAttribute('height', bodyH);
-      outline.setAttribute('fill', 'none');
-      outline.setAttribute('stroke', act.body); outline.setAttribute('stroke-width', '1.2');
-      outline.setAttribute('stroke-dasharray', '2,2'); outline.setAttribute('rx', '2');
+      const outline=document.createElementNS(ns,'rect');
+      outline.setAttribute('x',cx-cW/2); outline.setAttribute('y',bodyT);
+      outline.setAttribute('width',cW); outline.setAttribute('height',bodyH);
+      outline.setAttribute('fill','none');
+      outline.setAttribute('stroke',act.body); outline.setAttribute('stroke-width','1.2');
+      outline.setAttribute('stroke-dasharray','2,2'); outline.setAttribute('rx','2');
       svgEl.appendChild(outline);
-      const dot = document.createElementNS(ns, 'circle');
-      dot.setAttribute('cx', cx); dot.setAttribute('cy', yS(c.high || c.close) - 5);
-      dot.setAttribute('r', '3'); dot.setAttribute('fill', act.body); dot.setAttribute('opacity', '0.9');
+      const dot=document.createElementNS(ns,'circle');
+      dot.setAttribute('cx',cx); dot.setAttribute('cy',yS(c.high||c.close)-5);
+      dot.setAttribute('r','3'); dot.setAttribute('fill',act.body); dot.setAttribute('opacity','0.9');
       svgEl.appendChild(dot);
-      const liveTxt = document.createElementNS(ns, 'text');
-      liveTxt.setAttribute('x', cx); liveTxt.setAttribute('y', bodyT - 4);
-      liveTxt.setAttribute('text-anchor', 'middle'); liveTxt.setAttribute('font-size', '8');
-      liveTxt.setAttribute('fill', act.body); liveTxt.setAttribute('font-weight', '600');
-      liveTxt.textContent = 'LIVE';
+      const liveTxt=document.createElementNS(ns,'text');
+      liveTxt.setAttribute('x',cx); liveTxt.setAttribute('y',bodyT-4);
+      liveTxt.setAttribute('text-anchor','middle'); liveTxt.setAttribute('font-size','8');
+      liveTxt.setAttribute('fill',act.body); liveTxt.setAttribute('font-weight','600');
+      liveTxt.textContent='LIVE';
       svgEl.appendChild(liveTxt);
     }
 
-    if (i % 2 === 0 || candles.length <= 8) {
-      const lbl = document.createElementNS(ns, 'text');
-      lbl.setAttribute('x', cx); lbl.setAttribute('y', H - 6);
-      lbl.setAttribute('text-anchor', 'middle'); lbl.setAttribute('font-size', '8.5');
-      lbl.setAttribute('fill', '#888780'); lbl.textContent = c.label;
+    if (i%2===0||candles.length<=8) {
+      const lbl=document.createElementNS(ns,'text');
+      lbl.setAttribute('x',cx); lbl.setAttribute('y',H-6);
+      lbl.setAttribute('text-anchor','middle'); lbl.setAttribute('font-size','8.5');
+      lbl.setAttribute('fill','#888780'); lbl.textContent=c.label;
       svgEl.appendChild(lbl);
     }
   });
 
-  // current price dashed line
-  const last = candles[candles.length - 1];
-  if (last && last.close) {
-    const curY = yS(last.close);
-    const dl = document.createElementNS(ns, 'line');
-    dl.setAttribute('x1', padL); dl.setAttribute('x2', padL + aW);
-    dl.setAttribute('y1', curY); dl.setAttribute('y2', curY);
-    dl.setAttribute('stroke', '#378ADD'); dl.setAttribute('stroke-width', '0.8');
-    dl.setAttribute('stroke-dasharray', '3,2');
+  const last=candles[candles.length-1];
+  if (last&&last.close) {
+    const curY=yS(last.close);
+    const dl=document.createElementNS(ns,'line');
+    dl.setAttribute('x1',padL); dl.setAttribute('x2',padL+aW);
+    dl.setAttribute('y1',curY); dl.setAttribute('y2',curY);
+    dl.setAttribute('stroke','#378ADD'); dl.setAttribute('stroke-width','0.8');
+    dl.setAttribute('stroke-dasharray','3,2');
     svgEl.appendChild(dl);
-    const pt = document.createElementNS(ns, 'text');
-    pt.setAttribute('x', padL + aW - 2); pt.setAttribute('y', curY - 3);
-    pt.setAttribute('text-anchor', 'end'); pt.setAttribute('font-size', '9');
-    pt.setAttribute('fill', '#185FA5'); pt.textContent = fmt(last.close);
+    const pt=document.createElementNS(ns,'text');
+    pt.setAttribute('x',padL+aW-2); pt.setAttribute('y',curY-3);
+    pt.setAttribute('text-anchor','end'); pt.setAttribute('font-size','9');
+    pt.setAttribute('fill','#185FA5'); pt.textContent=fmt(last.close);
     svgEl.appendChild(pt);
   }
 
-  // draw sticky y-axis overlay
-  const indexTicks = Array.from({length:4}, (_,i) => Math.round(yMax - i*(yMax-yMin)/3));
-  drawYAxisOverlay('svgIndexYAxis', H, padL, padT, padB, yMin, yMax, indexTicks);
-  document.getElementById('svgIndexYAxis').style.height = H + 'px';
+  const indexTicks=Array.from({length:4},(_,i)=>Math.round(yMax-i*(yMax-yMin)/3));
+  drawYAxisOverlay('svgIndexYAxis',H,padL,padT,padB,yMin,yMax,indexTicks);
+  document.getElementById('svgIndexYAxis').style.height=H+'px';
 
-  // build signal strip for index
-  const strip = document.getElementById('index-strip');
-  strip.innerHTML = '';
-  actSigs.forEach(k => {
-    const b = document.createElement('div');
-    b.className = 'sig-block';
-    b.style.background = SIG_COLOR[k].body;
+  const strip=document.getElementById('index-strip');
+  strip.innerHTML='';
+  actSigs.forEach(k=>{
+    const b=document.createElement('div');
+    b.className='sig-block';
+    b.style.background=SIG_COLOR[k].body;
     strip.appendChild(b);
   });
-  const lbl2 = document.createElement('span');
-  lbl2.className = 'sig-strip-label';
-  lbl2.textContent = '← signals';
+  const lbl2=document.createElement('span');
+  lbl2.className='sig-strip-label';
+  lbl2.textContent='← signals';
   strip.appendChild(lbl2);
 
   return actSigs;
 }
 
-// ── STRIKE ACTIVITY CHART — strike LTP price, coloured by Price+OI activity ──
+// ── STRIKE ACTIVITY CHART (confluence) ───────────────────────────
 function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpLow, getLtpClose, getOiDelta, actBadgeId) {
-  const svgEl = document.getElementById(svgId);
-  svgEl.innerHTML = '';
-  if (!candles.length) { svgEl.setAttribute('height', '60'); return []; }
+  const svgEl=document.getElementById(svgId);
+  svgEl.innerHTML='';
+  if (!candles.length) { svgEl.setAttribute('height','60'); return []; }
+  const containerW=svgEl.parentElement.offsetWidth||400;
+  const H=200; // fixed height for confluence charts
+  const slotPx=Math.max(12+4,12);
+  const W=Math.max(candles.length*slotPx+60,containerW);
+  svgEl.setAttribute('width',W);
+  svgEl.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svgEl.setAttribute('height',H);
+  svgEl.parentElement.style.width=W+'px';
 
-  const containerW = svgEl.parentElement.offsetWidth || 400;
-  const H = CHART_H;
-  const slotPx = Math.max(CANDLE_W_PX + 4, 12);
-  const W = Math.max(candles.length * slotPx + 60, containerW);
-  svgEl.setAttribute('width', W);
-  svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svgEl.setAttribute('height', H);
-  svgEl.parentElement.style.width = W + 'px';
+  const padL=48,padR=12,padT=10,padB=26;
+  const aW=W-padL-padR, aH=H-padT-padB;
+  const ns='http://www.w3.org/2000/svg';
 
-  const padL=48, padR=12, padT=10, padB=26;
-  const aW = W - padL - padR, aH = H - padT - padB;
-  const ns = 'http://www.w3.org/2000/svg';
-
-  const allP = candles.flatMap(c => [getLtpOpen(c), getLtpHigh(c), getLtpLow(c), getLtpClose(c)]).filter(v => v > 0);
+  const allP=candles.flatMap(c=>[getLtpOpen(c),getLtpHigh(c),getLtpLow(c),getLtpClose(c)]).filter(v=>v>0);
   if (!allP.length) return [];
-  const yMin = Math.min(...allP) * 0.98, yMax = Math.max(...allP) * 1.02;
-  const yS = v => padT + aH * (1 - (v - yMin) / (yMax - yMin));
+  const yMin=Math.min(...allP)*0.98, yMax=Math.max(...allP)*1.02;
+  const yS=v=>padT+aH*(1-(v-yMin)/(yMax-yMin));
 
-  for (let i = 0; i <= 3; i++) {
-    const y = padT + i * aH / 3;
-    const price = (yMax - i * (yMax - yMin) / 3).toFixed(1);
-    const line = document.createElementNS(ns, 'line');
-    line.setAttribute('x1', padL); line.setAttribute('x2', padL + aW);
-    line.setAttribute('y1', y);    line.setAttribute('y2', y);
-    line.setAttribute('stroke', 'rgba(136,135,128,0.15)'); line.setAttribute('stroke-width', '0.5');
+  for (let i=0;i<=3;i++) {
+    const y=padT+i*aH/3;
+    const price=(yMax-i*(yMax-yMin)/3).toFixed(1);
+    const line=document.createElementNS(ns,'line');
+    line.setAttribute('x1',padL); line.setAttribute('x2',padL+aW);
+    line.setAttribute('y1',y); line.setAttribute('y2',y);
+    line.setAttribute('stroke','rgba(136,135,128,0.15)'); line.setAttribute('stroke-width','0.5');
     svgEl.appendChild(line);
-    const txt = document.createElementNS(ns, 'text');
-    txt.setAttribute('x', padL - 4); txt.setAttribute('y', y + 4);
-    txt.setAttribute('text-anchor', 'end'); txt.setAttribute('font-size', '9');
-    txt.setAttribute('fill', '#888780'); txt.textContent = price;
+    const txt=document.createElementNS(ns,'text');
+    txt.setAttribute('x',padL-4); txt.setAttribute('y',y+4);
+    txt.setAttribute('text-anchor','end'); txt.setAttribute('font-size','9');
+    txt.setAttribute('fill','#888780'); txt.textContent=price;
     svgEl.appendChild(txt);
   }
 
-  const slot = slotPx;
-  const cW = Math.min(CANDLE_W_PX, slot - 2);
-  const actSigs = [];
+  const slot=slotPx, cW=Math.min(12,slot-2);
+  const actSigs=[];
 
-  candles.forEach((c, i) => {
-    const ltpO = getLtpOpen(c), ltpH = getLtpHigh(c), ltpL = getLtpLow(c), ltpC = getLtpClose(c);
-    const oiD  = getOiDelta(c);
-    if (!ltpO || !ltpC) { actSigs.push('N'); return; }
-
-    const actKey = getActivityType(ltpO, ltpC, oiD);
-    const act = ACT_COLOR[actKey];
+  candles.forEach((c,i) => {
+    const ltpO=getLtpOpen(c),ltpH=getLtpHigh(c),ltpL=getLtpLow(c),ltpC=getLtpClose(c);
+    const oiD=getOiDelta(c);
+    if (!ltpO||!ltpC) { actSigs.push('N'); return; }
+    const actKey=getActivityType(ltpO,ltpC,oiD);
+    const act=ACT_COLOR[actKey];
     actSigs.push(actKey);
-    const cx = padL + i * slot + slot / 2;
-    const bodyT = yS(Math.max(ltpO, ltpC));
-    const bodyB = yS(Math.min(ltpO, ltpC));
-    const bodyH = Math.max(bodyB - bodyT, 2);
+    const cx=padL+i*slot+slot/2;
+    const bodyT=yS(Math.max(ltpO,ltpC));
+    const bodyB=yS(Math.min(ltpO,ltpC));
+    const bodyH=Math.max(bodyB-bodyT,2);
 
-    const wick = document.createElementNS(ns, 'line');
-    wick.setAttribute('x1', cx); wick.setAttribute('x2', cx);
-    wick.setAttribute('y1', yS(ltpH || ltpC)); wick.setAttribute('y2', yS(ltpL || ltpC));
-    wick.setAttribute('stroke', act.wick); wick.setAttribute('stroke-width', '1.5');
-    if (c.isLive) wick.setAttribute('opacity', '0.6');
+    const wick=document.createElementNS(ns,'line');
+    wick.setAttribute('x1',cx); wick.setAttribute('x2',cx);
+    wick.setAttribute('y1',yS(ltpH||ltpC)); wick.setAttribute('y2',yS(ltpL||ltpC));
+    wick.setAttribute('stroke',act.wick); wick.setAttribute('stroke-width','1.5');
+    if (c.isLive) wick.setAttribute('opacity','0.6');
     svgEl.appendChild(wick);
 
-    const body = document.createElementNS(ns, 'rect');
-    body.setAttribute('x', cx - cW / 2); body.setAttribute('y', bodyT);
-    body.setAttribute('width', cW); body.setAttribute('height', bodyH);
-    body.setAttribute('fill', act.body); body.setAttribute('rx', '2');
-    if (c.isLive) body.setAttribute('opacity', '0.45');
+    const body=document.createElementNS(ns,'rect');
+    body.setAttribute('x',cx-cW/2); body.setAttribute('y',bodyT);
+    body.setAttribute('width',cW); body.setAttribute('height',bodyH);
+    body.setAttribute('fill',act.body); body.setAttribute('rx','2');
+    if (c.isLive) body.setAttribute('opacity','0.45');
     svgEl.appendChild(body);
 
-    // Tooltip-like label on hover using SVG title
-    const titleEl = document.createElementNS(ns, 'title');
-    titleEl.textContent = `${c.label}  ${act.label} | OI Δ ${oiD>0?'+':''}${Math.round(oiD/100)*100} | LTP ${ltpC.toFixed(1)}`;
+    const titleEl=document.createElementNS(ns,'title');
+    titleEl.textContent=`${c.label}  ${act.label} | OI Δ ${oiD>0?'+':''}${Math.round(oiD/100)*100} | LTP ${ltpC.toFixed(1)}`;
     body.appendChild(titleEl);
 
     if (c.isLive) {
-      const outline = document.createElementNS(ns, 'rect');
-      outline.setAttribute('x', cx - cW / 2); outline.setAttribute('y', bodyT);
-      outline.setAttribute('width', cW); outline.setAttribute('height', bodyH);
-      outline.setAttribute('fill', 'none');
-      outline.setAttribute('stroke', act.body); outline.setAttribute('stroke-width', '1.2');
-      outline.setAttribute('stroke-dasharray', '2,2'); outline.setAttribute('rx', '2');
+      const outline=document.createElementNS(ns,'rect');
+      outline.setAttribute('x',cx-cW/2); outline.setAttribute('y',bodyT);
+      outline.setAttribute('width',cW); outline.setAttribute('height',bodyH);
+      outline.setAttribute('fill','none');
+      outline.setAttribute('stroke',act.body); outline.setAttribute('stroke-width','1.2');
+      outline.setAttribute('stroke-dasharray','2,2'); outline.setAttribute('rx','2');
       svgEl.appendChild(outline);
-      const dot = document.createElementNS(ns, 'circle');
-      dot.setAttribute('cx', cx); dot.setAttribute('cy', yS(ltpH || ltpC) - 5);
-      dot.setAttribute('r', '3'); dot.setAttribute('fill', act.body); dot.setAttribute('opacity', '0.9');
+      const dot=document.createElementNS(ns,'circle');
+      dot.setAttribute('cx',cx); dot.setAttribute('cy',yS(ltpH||ltpC)-5);
+      dot.setAttribute('r','3'); dot.setAttribute('fill',act.body); dot.setAttribute('opacity','0.9');
       svgEl.appendChild(dot);
-      const liveTxt = document.createElementNS(ns, 'text');
-      liveTxt.setAttribute('x', cx); liveTxt.setAttribute('y', bodyT - 4);
-      liveTxt.setAttribute('text-anchor', 'middle'); liveTxt.setAttribute('font-size', '8');
-      liveTxt.setAttribute('fill', act.body); liveTxt.setAttribute('font-weight', '600');
-      liveTxt.textContent = 'LIVE';
+      const liveTxt=document.createElementNS(ns,'text');
+      liveTxt.setAttribute('x',cx); liveTxt.setAttribute('y',bodyT-4);
+      liveTxt.setAttribute('text-anchor','middle'); liveTxt.setAttribute('font-size','8');
+      liveTxt.setAttribute('fill',act.body); liveTxt.setAttribute('font-weight','600');
+      liveTxt.textContent='LIVE';
       svgEl.appendChild(liveTxt);
     }
 
-    if (i % 2 === 0 || candles.length <= 8) {
-      const lbl = document.createElementNS(ns, 'text');
-      lbl.setAttribute('x', cx); lbl.setAttribute('y', H - 6);
-      lbl.setAttribute('text-anchor', 'middle'); lbl.setAttribute('font-size', '8.5');
-      lbl.setAttribute('fill', '#888780'); lbl.textContent = c.label;
+    if (i%2===0||candles.length<=8) {
+      const lbl=document.createElementNS(ns,'text');
+      lbl.setAttribute('x',cx); lbl.setAttribute('y',H-6);
+      lbl.setAttribute('text-anchor','middle'); lbl.setAttribute('font-size','8.5');
+      lbl.setAttribute('fill','#888780'); lbl.textContent=c.label;
       svgEl.appendChild(lbl);
     }
   });
 
-  // draw sticky y-axis overlay
-  const yAxisId = svgId === 'svgBear' ? 'svgBearYAxis' : 'svgBullYAxis';
-  const strikeTicks = Array.from({length:4}, (_,i) => parseFloat((yMax - i*(yMax-yMin)/3).toFixed(1)));
-  drawYAxisOverlay(yAxisId, H, padL, padT, padB, yMin, yMax, strikeTicks);
-  document.getElementById(yAxisId).style.height = H + 'px';
+  const yAxisId=svgId==='svgBear'?'svgBearYAxis':'svgBullYAxis';
+  const strikeTicks=Array.from({length:4},(_,i)=>parseFloat((yMax-i*(yMax-yMin)/3).toFixed(1)));
+  drawYAxisOverlay(yAxisId,H,padL,padT,padB,yMin,yMax,strikeTicks);
+  document.getElementById(yAxisId).style.height=H+'px';
 
-  // current LTP dashed line
-  const lastC = candles[candles.length - 1];
-  const lastLtp = getLtpClose(lastC);
+  const lastC=candles[candles.length-1];
+  const lastLtp=getLtpClose(lastC);
   if (lastLtp) {
-    const curY = yS(lastLtp);
-    const dl = document.createElementNS(ns, 'line');
-    dl.setAttribute('x1', padL); dl.setAttribute('x2', padL + aW);
-    dl.setAttribute('y1', curY); dl.setAttribute('y2', curY);
-    dl.setAttribute('stroke', '#378ADD'); dl.setAttribute('stroke-width', '0.8');
-    dl.setAttribute('stroke-dasharray', '3,2');
+    const curY=yS(lastLtp);
+    const dl=document.createElementNS(ns,'line');
+    dl.setAttribute('x1',padL); dl.setAttribute('x2',padL+aW);
+    dl.setAttribute('y1',curY); dl.setAttribute('y2',curY);
+    dl.setAttribute('stroke','#378ADD'); dl.setAttribute('stroke-width','0.8');
+    dl.setAttribute('stroke-dasharray','3,2');
     svgEl.appendChild(dl);
-    const pt = document.createElementNS(ns, 'text');
-    pt.setAttribute('x', padL + aW - 2); pt.setAttribute('y', curY - 3);
-    pt.setAttribute('text-anchor', 'end'); pt.setAttribute('font-size', '9');
-    pt.setAttribute('fill', '#185FA5'); pt.textContent = lastLtp.toFixed(1);
+    const pt=document.createElementNS(ns,'text');
+    pt.setAttribute('x',padL+aW-2); pt.setAttribute('y',curY-3);
+    pt.setAttribute('text-anchor','end'); pt.setAttribute('font-size','9');
+    pt.setAttribute('fill','#185FA5'); pt.textContent=lastLtp.toFixed(1);
     svgEl.appendChild(pt);
   }
 
-  // Update activity badge
-  if (actBadgeId && actSigs.length) {
-    const latestAct = ACT_COLOR[actSigs[actSigs.length - 1]];
-    const badge = document.getElementById(actBadgeId);
-    if (badge) {
-      badge.textContent = latestAct.label + ' — ' + latestAct.desc;
-      badge.className = 'activity-badge ' + latestAct.cls;
-    }
+  if (actBadgeId&&actSigs.length) {
+    const latestAct=ACT_COLOR[actSigs[actSigs.length-1]];
+    const badge=document.getElementById(actBadgeId);
+    if (badge) { badge.textContent=latestAct.label+' — '+latestAct.desc; badge.className='activity-badge '+latestAct.cls; }
   }
-
   return actSigs;
 }
 
-function updateConfluenceSummary(candles, bearSigs, bullSigs){
-  if(!candles.length) return;
+function updateConfluenceSummary(c1, c3, bearSigs, bullSigs) {
+  const candles = c1; // use s1 candles for time reference
+  if (!candles.length) return;
   const last=candles[candles.length-1];
   const bKey=bearSigs[bearSigs.length-1]||'N';
   const uKey=bullSigs[bullSigs.length-1]||'N';
-  // bearSigs and bullSigs are now ACT_COLOR keys
   const bAct=ACT_COLOR[bKey]||ACT_COLOR['N'];
   const uAct=ACT_COLOR[uKey]||ACT_COLOR['N'];
   const priceUp=last.close>last.open, priceDown=last.close<last.open;
   const pDir=priceUp?'up':priceDown?'down':'flat';
 
   document.getElementById('conf-sum-title').textContent='Confluence reading — '+last.label+' (Nifty price '+pDir+')';
-  document.getElementById('bear-sum-label').textContent='Bear '+selectedBear+' CE';
-  document.getElementById('bull-sum-label').textContent='Bull '+selectedBull+' PE';
 
   const bBadge=document.getElementById('bear-sum-badge');
   bBadge.textContent=bAct.label;
@@ -1428,710 +1652,489 @@ function updateConfluenceSummary(candles, bearSigs, bullSigs){
 
   document.getElementById('bear-sum-text').textContent=bAct.desc;
   document.getElementById('bull-sum-text').textContent=uAct.desc;
+  document.getElementById('conf-interp').innerHTML='<span style="font-weight:500;color:#1a1a1a;">Interpretation:</span> '+getActivityConfluence(bKey,uKey);
 
-  const interp=getActivityConfluence(bKey,uKey);
-  const interpEl=document.getElementById('conf-interp');
-  interpEl.innerHTML='<span style="font-weight:500;color:#1a1a1a;">Interpretation:</span> '+interp;
-
-  const bBadgeBox=document.getElementById('bear-conf-badge');
-  bBadgeBox.textContent=bAct.label+' — '+bAct.desc;
-  bBadgeBox.className='conf-badge '+bAct.cls.replace('act-','cb-').replace('cb-lb','cb-sg').replace('cb-sb','cb-sb').replace('cb-sc','cb-wb').replace('cb-lu','cb-wg').replace('cb-n','cb-n');
-
-  const uBadgeBox=document.getElementById('bull-conf-badge');
-  uBadgeBox.textContent=uAct.label+' — '+uAct.desc;
-  uBadgeBox.className='conf-badge '+uAct.cls.replace('act-','cb-').replace('cb-lb','cb-sg').replace('cb-sb','cb-sb').replace('cb-sc','cb-wb').replace('cb-lu','cb-wg').replace('cb-n','cb-n');
+  const fix = k => k.replace('act-','cb-').replace('cb-lb','cb-sg').replace('cb-sb','cb-sb').replace('cb-sc','cb-wb').replace('cb-lu','cb-wg').replace('cb-n','cb-n');
+  const bBox=document.getElementById('bear-conf-badge');
+  bBox.textContent=bAct.label+' — '+bAct.desc; bBox.className='conf-badge '+fix(bAct.cls);
+  const uBox=document.getElementById('bull-conf-badge');
+  uBox.textContent=uAct.label+' — '+uAct.desc; uBox.className='conf-badge '+fix(uAct.cls);
 }
 
 function getActivityConfluence(bKey, uKey) {
-  if (bKey==='LB' && uKey==='LB') return 'Both strikes in Long Buildup 🔥 — strongest bullish signal. Fresh longs being added on both sides.';
-  if (bKey==='SB' && uKey==='SB') return 'Both strikes in Short Buildup 🔥 — strongest bearish signal. Fresh shorts being added on both sides.';
-  if (bKey==='LB' && uKey==='SB') return 'Bear strike showing Long Buildup, Bull strike showing Short Buildup — divergence. Wait for resolution.';
-  if (bKey==='SB' && uKey==='LB') return 'Bear strike showing Short Buildup, Bull strike showing Long Buildup — mixed signals. No clear edge.';
-  if ((bKey==='LB'||bKey==='SC') && (uKey==='LB'||uKey==='SC')) return 'Both strikes bullish (Buildup + Covering) — upward momentum likely continues.';
-  if ((bKey==='SB'||bKey==='LU') && (uKey==='SB'||uKey==='LU')) return 'Both strikes bearish (Buildup + Unwinding) — downward momentum likely continues.';
-  if (bKey==='SC') return 'Short Covering on bear strike ⚠️ — shorts exiting, weak bullish. Not fresh longs.';
-  if (bKey==='LU') return 'Long Unwinding on bear strike ⚠️ — longs exiting, weak bearish. Not fresh shorts.';
-  if (uKey==='SC') return 'Short Covering on bull strike ⚠️ — shorts exiting, weak bullish.';
-  if (uKey==='LU') return 'Long Unwinding on bull strike ⚠️ — longs exiting, weak bearish.';
-  return 'Mixed or neutral activity across both strikes — no strong directional bias.';
+  if (bKey==='LB'&&uKey==='LB') return 'Both strikes Long Buildup 🔥 — strongest bullish signal.';
+  if (bKey==='SB'&&uKey==='SB') return 'Both strikes Short Buildup 🔥 — strongest bearish signal.';
+  if ((bKey==='LB'||bKey==='SC')&&(uKey==='LB'||uKey==='SC')) return 'Both strikes bullish — upward momentum likely.';
+  if ((bKey==='SB'||bKey==='LU')&&(uKey==='SB'||uKey==='LU')) return 'Both strikes bearish — downward momentum likely.';
+  if (bKey==='SC') return 'Short Covering on top strike ⚠️ — shorts exiting, weak bullish.';
+  if (bKey==='LU') return 'Long Unwinding on top strike ⚠️ — longs exiting, weak bearish.';
+  if (uKey==='SC') return 'Short Covering on bottom strike ⚠️ — weak bullish.';
+  if (uKey==='LU') return 'Long Unwinding on bottom strike ⚠️ — weak bearish.';
+  return 'Mixed or neutral activity — no strong directional bias.';
 }
 
 // ── OI BAR CHARTS ─────────────────────────────────────────────────
-const GRID='rgba(136,135,128,0.12)',TCLR='#999';
-
+const GRID='rgba(136,135,128,0.12)', TCLR='#999';
 const OI_YAXIS_W = 52;
 
-function oiChartOptions(){
-  return{
-    responsive:false,maintainAspectRatio:false,
+function oiChartOptions() {
+  return {
+    responsive:false, maintainAspectRatio:false,
     layout:{padding:{top:4,bottom:4,left:0}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtD(ctx.raw)}}},
     scales:{
       x:{
         grid:{display:false},
         ticks:{
-          color:TCLR,font:{size:10},
-          autoSkip:false,
-          maxRotation:0,
+          color:TCLR, font:{size:10},
+          autoSkip:false, maxRotation:0,
           callback:function(val,idx){
-            const lbl = this.getLabelForValue(val);
+            const lbl=this.getLabelForValue(val);
             if(!lbl) return '';
-            const parts = lbl.split(':');
-            if(parts.length < 2) return '';
-            const hh = parseInt(parts[0]);
-            const mm = parseInt(parts[1]);
-            const totalMin = hh * 60 + mm;
-            return totalMin % intervalMin === 0 ? lbl : '';
+            const parts=lbl.split(':');
+            if(parts.length<2) return '';
+            const hh=parseInt(parts[0]), mm=parseInt(parts[1]);
+            const totalMin=hh*60+mm;
+            return totalMin%intervalMin===0?lbl:'';
           }
         }
       },
-      y:{display:false}  // hidden — drawn on sticky overlay canvas instead
+      y:{display:false}
     },
     animation:{duration:250}
   };
 }
 
 function drawStickyYAxis(chartInstance, overlayCanvasId) {
-  if(!chartInstance) return;
-  // After Chart.js renders with y:display:false we manually read the computed
-  // scale range and draw ticks on the pinned overlay canvas.
-  const chart   = chartInstance;
-  const h       = chart.height;
-  const plotTop = chart.chartArea?.top    ?? 4;
-  const plotBot = chart.chartArea?.bottom ?? (h - 4);
-  const yMin    = chart.scales.y?.min ?? 0;
-  const yMax    = chart.scales.y?.max ?? 1;
+  if (!chartInstance) return;
+  const chart=chartInstance;
+  const h=chart.height;
+  const plotTop=chart.chartArea?.top??4;
+  const plotBot=chart.chartArea?.bottom??(h-4);
+  const yMin=chart.scales.y?.min??0;
+  const yMax=chart.scales.y?.max??1;
 
-  const c = document.getElementById(overlayCanvasId);
-  if(!c) return;
-  c.width  = OI_YAXIS_W;
-  c.height = h;
-  c.style.width  = OI_YAXIS_W + 'px';
-  c.style.height = h + 'px';
+  const c=document.getElementById(overlayCanvasId);
+  if (!c) return;
+  c.width=OI_YAXIS_W; c.height=h;
+  c.style.width=OI_YAXIS_W+'px'; c.style.height=h+'px';
 
-  const ctx = c.getContext('2d');
-  ctx.clearRect(0, 0, OI_YAXIS_W, h);
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, OI_YAXIS_W, h);
+  const ctx=c.getContext('2d');
+  ctx.clearRect(0,0,OI_YAXIS_W,h);
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,OI_YAXIS_W,h);
 
-  // Compute nice tick values matching what Chart.js would have used
-  const range   = yMax - yMin;
-  const rawStep = range / 6;
-  const mag     = Math.pow(10, Math.floor(Math.log10(Math.abs(rawStep) || 1)));
-  const step    = Math.ceil(rawStep / mag) * mag || mag;
-  const tickStart = Math.ceil(yMin / step) * step;
+  const range=yMax-yMin;
+  const rawStep=range/6;
+  const mag=Math.pow(10,Math.floor(Math.log10(Math.abs(rawStep)||1)));
+  const step=Math.ceil(rawStep/mag)*mag||mag;
+  const tickStart=Math.ceil(yMin/step)*step;
 
-  const toPx = v => plotTop + (1 - (v - yMin) / (yMax - yMin)) * (plotBot - plotTop);
+  const toPx=v=>plotTop+(1-(v-yMin)/(yMax-yMin))*(plotBot-plotTop);
 
-  ctx.font         = '10px system-ui,sans-serif';
-  ctx.textAlign    = 'right';
-  ctx.textBaseline = 'middle';
+  ctx.font='10px system-ui,sans-serif';
+  ctx.textAlign='right'; ctx.textBaseline='middle';
 
-  for(let v = tickStart; v <= yMax + step * 0.01; v += step) {
-    const y = toPx(v);
-    if(y < plotTop - 2 || y > plotBot + 2) continue;
-
-    // Gridline across the axis panel width
-    ctx.strokeStyle = GRID;
-    ctx.lineWidth   = 0.5;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(OI_YAXIS_W - 5, y);
-    ctx.stroke();
-
-    // Label
-    ctx.fillStyle = TCLR;
-    const label = (v >= 0 ? '+' : '') + Math.round(v / 1000) + 'k';
-    ctx.fillText(label, OI_YAXIS_W - 7, y);
+  for (let v=tickStart;v<=yMax+step*0.01;v+=step) {
+    const y=toPx(v);
+    if (y<plotTop-2||y>plotBot+2) continue;
+    ctx.strokeStyle=GRID; ctx.lineWidth=0.5;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(OI_YAXIS_W-5,y); ctx.stroke();
+    ctx.fillStyle=TCLR;
+    ctx.fillText((v>=0?'+':'')+Math.round(v/1000)+'k', OI_YAXIS_W-7, y);
   }
 
-  // Zero line
-  const z = toPx(0);
-  if(z >= plotTop && z <= plotBot) {
-    ctx.strokeStyle = '#999';
-    ctx.lineWidth   = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, z);
-    ctx.lineTo(OI_YAXIS_W - 4, z);
-    ctx.stroke();
+  const z=toPx(0);
+  if (z>=plotTop&&z<=plotBot) {
+    ctx.strokeStyle='#999'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(0,z); ctx.lineTo(OI_YAXIS_W-4,z); ctx.stroke();
   }
 
-  // Right border
-  ctx.strokeStyle = '#ddd';
-  ctx.lineWidth   = 0.5;
-  ctx.beginPath();
-  ctx.moveTo(OI_YAXIS_W - 0.5, 0);
-  ctx.lineTo(OI_YAXIS_W - 0.5, h);
-  ctx.stroke();
+  ctx.strokeStyle='#ddd'; ctx.lineWidth=0.5;
+  ctx.beginPath(); ctx.moveTo(OI_YAXIS_W-0.5,0); ctx.lineTo(OI_YAXIS_W-0.5,h); ctx.stroke();
 }
 
 function makeDS(label,data,colors){return{label,data,backgroundColor:colors,borderRadius:3,barPercentage:0.6};}
 
 function setCanvas(id,w,h){
   const c=document.getElementById(id);
-  c.width=w;c.height=h;c.style.width=w+'px';c.style.height=h+'px';
+  c.width=w; c.height=h; c.style.width=w+'px'; c.style.height=h+'px';
   return c;
 }
 
-function scrollToLatest(){
-  ['index-scroll','bear-conf-scroll','bull-conf-scroll'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.scrollLeft = el.scrollWidth;
+function scrollToLatest() {
+  ['index-scroll','bear-conf-scroll','bull-conf-scroll','s1-scroll','s2-scroll','s3-scroll'].forEach(id=>{
+    const el=document.getElementById(id);
+    if (el) el.scrollLeft=el.scrollWidth;
   });
-  setTimeout(()=>{
-    ['bear-scroll','bull-scroll'].forEach(id=>document.getElementById(id)?.scrollTo({left:99999,behavior:'smooth'}));
-  },300);
 }
 
 // ── CUMULATIVE OI CHANGE CHART ────────────────────────────────────
 function drawCumOIChart(rows) {
-  const svgEl    = document.getElementById('svgCumOI');
-  const scrollEl = document.getElementById('cumoi-scroll');
+  const svgEl=document.getElementById('svgCumOI');
+  const scrollEl=document.getElementById('cumoi-scroll');
   if (!svgEl) return;
-  svgEl.innerHTML = '';
-  if (!rows.length) { svgEl.setAttribute('height', '60'); return; }
+  svgEl.innerHTML='';
+  if (!rows.length) { svgEl.setAttribute('height','60'); return; }
 
-  // Build per-minute totals and running cumulative sums
-  const points = [];
-  let cumCe = 0, cumPe = 0;
-  rows.forEach(r => {
-    let ce = 0, pe = 0;
-    Object.keys(r).forEach(k => {
-      if (k.endsWith('_ce_delta')) ce += parseFloat(r[k]) || 0;
-      if (k.endsWith('_pe_delta')) pe += parseFloat(r[k]) || 0;
+  const points=[]; let cumCe=0, cumPe=0;
+  rows.forEach(r=>{
+    let ce=0, pe=0;
+    Object.keys(r).forEach(k=>{
+      if (k.endsWith('_ce_delta')) ce+=parseFloat(r[k])||0;
+      if (k.endsWith('_pe_delta')) pe+=parseFloat(r[k])||0;
     });
-    cumCe += ce;
-    cumPe += pe;
-    points.push({ label: r.time_label, ce: cumCe, pe: cumPe });
+    cumCe+=ce; cumPe+=pe;
+    points.push({label:r.time_label, ce:cumCe, pe:cumPe});
   });
 
-  // Update summary row
-  const lastCe = points[points.length-1].ce;
-  const lastPe = points[points.length-1].pe;
-  const fmtOI  = v => { const a=Math.abs(v); const s=a>=1e7?(v/1e7).toFixed(2)+' Cr':a>=1e5?(v/1e5).toFixed(1)+' L':Math.round(v).toLocaleString('en-IN'); return (v>0?'+':'')+s; };
-  const ceEl = document.getElementById('cumoi-ce-total');
-  const peEl = document.getElementById('cumoi-pe-total');
-  if (ceEl) { ceEl.textContent = fmtOI(lastCe); ceEl.style.color = lastCe > 0 ? '#D85A30' : '#1D9E75'; }
-  if (peEl) { peEl.textContent = fmtOI(lastPe); peEl.style.color = lastPe > 0 ? '#1D9E75' : '#D85A30'; }
-  const pcrEl = document.getElementById('cumoi-pcr');
-  if (pcrEl) {
-    let totalCeOI = 0, totalPeOI = 0;
-    const last = rows[rows.length-1];
-    Object.keys(last).forEach(k => {
-      if (k.endsWith('_ce_oi')) totalCeOI += parseFloat(last[k]) || 0;
-      if (k.endsWith('_pe_oi')) totalPeOI += parseFloat(last[k]) || 0;
+  const lastCe=points[points.length-1].ce;
+  const lastPe=points[points.length-1].pe;
+  const fmtOI=v=>{const a=Math.abs(v);const s=a>=1e7?(v/1e7).toFixed(2)+' Cr':a>=1e5?(v/1e5).toFixed(1)+' L':Math.round(v).toLocaleString('en-IN');return(v>0?'+':'')+s;};
+  const ceEl=document.getElementById('cumoi-ce-total');
+  const peEl=document.getElementById('cumoi-pe-total');
+  if (ceEl){ceEl.textContent=fmtOI(lastCe);ceEl.style.color=lastCe>0?'#D85A30':'#1D9E75';}
+  if (peEl){peEl.textContent=fmtOI(lastPe);peEl.style.color=lastPe>0?'#1D9E75':'#D85A30';}
+  const pcrEl=document.getElementById('cumoi-pcr');
+  if (pcrEl){
+    let tCeOI=0,tPeOI=0;
+    const last=rows[rows.length-1];
+    Object.keys(last).forEach(k=>{
+      if(k.endsWith('_ce_oi'))tCeOI+=parseFloat(last[k])||0;
+      if(k.endsWith('_pe_oi'))tPeOI+=parseFloat(last[k])||0;
     });
-    pcrEl.textContent = totalCeOI > 0 ? (totalPeOI / totalCeOI).toFixed(2) : '—';
+    pcrEl.textContent=tCeOI>0?(tPeOI/tCeOI).toFixed(2):'—';
   }
 
-  const containerW = scrollEl ? scrollEl.offsetWidth : 700;
-  const H = INDEX_H + 40;
-  const slotPx = Math.max(INDEX_CANDLE_W + 4, 8);
-  const W = Math.max(points.length * slotPx + 60, containerW);
-  svgEl.setAttribute('width', W);
-  svgEl.setAttribute('height', H);
-  svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svgEl.parentElement.style.width = W + 'px';
+  const containerW=scrollEl?scrollEl.offsetWidth:700;
+  const H=INDEX_H+40;
+  const slotPx=Math.max(INDEX_CANDLE_W+4,8);
+  const W=Math.max(points.length*slotPx+60,containerW);
+  svgEl.setAttribute('width',W); svgEl.setAttribute('height',H);
+  svgEl.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svgEl.parentElement.style.width=W+'px';
 
-  const padL = 8, padR = 60, padT = 10, padB = 32;
-  const aW = W - padL - padR, aH = H - padT - padB;
-  const ns = 'http://www.w3.org/2000/svg';
+  const padL=8,padR=60,padT=10,padB=32;
+  const aW=W-padL-padR, aH=H-padT-padB;
+  const ns='http://www.w3.org/2000/svg';
 
-  const allVals = points.flatMap(p => [p.ce, p.pe]);
-  const rawMin = Math.min(...allVals), rawMax = Math.max(...allVals);
-  const pad = Math.max(Math.abs(rawMax - rawMin) * 0.08, 1000);
-  const yMin = rawMin - pad, yMax = rawMax + pad;
-  const yS = v => padT + aH * (1 - (v - yMin) / (yMax - yMin));
-  const xOf = i => padL + (i + 0.5) * (aW / points.length);
+  const allVals=points.flatMap(p=>[p.ce,p.pe]);
+  const rawMin=Math.min(...allVals), rawMax=Math.max(...allVals);
+  const pad=Math.max(Math.abs(rawMax-rawMin)*0.08,1000);
+  const yMin=rawMin-pad, yMax=rawMax+pad;
+  const yS=v=>padT+aH*(1-(v-yMin)/(yMax-yMin));
+  const xOf=i=>padL+(i+0.5)*(aW/points.length);
 
-  const fmtY = v => {
-    const a = Math.abs(v);
-    if (a >= 1e7) return (v/1e7).toFixed(1)+' Cr';
-    if (a >= 1e5) return (v/1e5).toFixed(1)+' L';
-    return Math.round(v).toLocaleString('en-IN');
-  };
+  const fmtY=v=>{const a=Math.abs(v);if(a>=1e7)return(v/1e7).toFixed(1)+' Cr';if(a>=1e5)return(v/1e5).toFixed(1)+' L';return Math.round(v).toLocaleString('en-IN');};
 
-  // Grid lines
-  const tickCount = 5;
-  const ticks = [];
-  for (let i = 0; i <= tickCount; i++) {
-    const v = yMin + i * (yMax - yMin) / tickCount;
-    ticks.push(v);
-    const y = yS(v);
-    const gl = document.createElementNS(ns, 'line');
-    gl.setAttribute('x1', padL); gl.setAttribute('x2', padL + aW);
-    gl.setAttribute('y1', y);   gl.setAttribute('y2', y);
-    gl.setAttribute('stroke', 'rgba(136,135,128,0.15)');
-    gl.setAttribute('stroke-width', '0.5');
+  const tickCount=5;
+  for (let i=0;i<=tickCount;i++){
+    const v=yMin+i*(yMax-yMin)/tickCount;
+    const y=yS(v);
+    const gl=document.createElementNS(ns,'line');
+    gl.setAttribute('x1',padL); gl.setAttribute('x2',padL+aW);
+    gl.setAttribute('y1',y); gl.setAttribute('y2',y);
+    gl.setAttribute('stroke','rgba(136,135,128,0.15)'); gl.setAttribute('stroke-width','0.5');
     svgEl.appendChild(gl);
   }
 
-  // Zero line
-  if (yMin < 0 && yMax > 0) {
-    const y0 = yS(0);
-    const zl = document.createElementNS(ns, 'line');
-    zl.setAttribute('x1', padL); zl.setAttribute('x2', padL + aW);
-    zl.setAttribute('y1', y0);  zl.setAttribute('y2', y0);
-    zl.setAttribute('stroke', 'rgba(136,135,128,0.4)');
-    zl.setAttribute('stroke-width', '1');
-    zl.setAttribute('stroke-dasharray', '4 2');
-    svgEl.appendChild(zl);
+  if (yMin<0&&yMax>0){
+    const y0=yS(0);
+    const zl=document.createElementNS(ns,'line');
+    zl.setAttribute('x1',padL); zl.setAttribute('x2',padL+aW);
+    zl.setAttribute('y1',y0); zl.setAttribute('y2',y0);
+    zl.setAttribute('stroke','rgba(136,135,128,0.4)'); zl.setAttribute('stroke-width','1');
+    zl.setAttribute('stroke-dasharray','4 2'); svgEl.appendChild(zl);
   }
 
-  // Area fill
-  const buildArea = (vals, color) => {
-    const y0c = Math.min(Math.max(yS(0), padT), padT + aH);
-    let d = `M${xOf(0)},${y0c}`;
-    vals.forEach((v, i) => { d += ` L${xOf(i)},${yS(v)}`; });
-    d += ` L${xOf(vals.length-1)},${y0c} Z`;
-    const path = document.createElementNS(ns, 'path');
-    path.setAttribute('d', d);
-    path.setAttribute('fill', color);
-    path.setAttribute('opacity', '0.12');
+  const buildArea=(vals,color)=>{
+    const y0c=Math.min(Math.max(yS(0),padT),padT+aH);
+    let d=`M${xOf(0)},${y0c}`;
+    vals.forEach((v,i)=>{d+=` L${xOf(i)},${yS(v)}`;});
+    d+=` L${xOf(vals.length-1)},${y0c} Z`;
+    const path=document.createElementNS(ns,'path');
+    path.setAttribute('d',d); path.setAttribute('fill',color); path.setAttribute('opacity','0.12');
     svgEl.appendChild(path);
   };
 
-  // Line
-  const buildLine = (vals, color) => {
-    let d = `M${xOf(0)},${yS(vals[0])}`;
-    for (let i = 1; i < vals.length; i++) d += ` L${xOf(i)},${yS(vals[i])}`;
-    const path = document.createElementNS(ns, 'path');
-    path.setAttribute('d', d);
-    path.setAttribute('fill', 'none');
-    path.setAttribute('stroke', color);
-    path.setAttribute('stroke-width', '1.8');
-    path.setAttribute('stroke-linejoin', 'round');
+  const buildLine=(vals,color)=>{
+    let d=`M${xOf(0)},${yS(vals[0])}`;
+    for(let i=1;i<vals.length;i++) d+=` L${xOf(i)},${yS(vals[i])}`;
+    const path=document.createElementNS(ns,'path');
+    path.setAttribute('d',d); path.setAttribute('fill','none');
+    path.setAttribute('stroke',color); path.setAttribute('stroke-width','1.8');
+    path.setAttribute('stroke-linejoin','round');
     svgEl.appendChild(path);
   };
 
-  const ceVals = points.map(p => p.ce);
-  const peVals = points.map(p => p.pe);
-  buildArea(ceVals, '#1D9E75');
-  buildArea(peVals, '#D85A30');
-  buildLine(ceVals, '#1D9E75');
-  buildLine(peVals, '#D85A30');
+  const ceVals=points.map(p=>p.ce), peVals=points.map(p=>p.pe);
+  buildArea(ceVals,'#1D9E75'); buildArea(peVals,'#D85A30');
+  buildLine(ceVals,'#1D9E75'); buildLine(peVals,'#D85A30');
 
-  // Dot + value label at last point
-  [[ceVals, '#1D9E75'], [peVals, '#D85A30']].forEach(([vals, color]) => {
-    const lx = xOf(vals.length - 1), ly = yS(vals[vals.length-1]);
-    const dot = document.createElementNS(ns, 'circle');
-    dot.setAttribute('cx', lx); dot.setAttribute('cy', ly); dot.setAttribute('r', '3');
-    dot.setAttribute('fill', color);
-    svgEl.appendChild(dot);
-    const lbl = document.createElementNS(ns, 'text');
-    lbl.setAttribute('x', lx + 5); lbl.setAttribute('y', ly + 4);
-    lbl.setAttribute('font-size', '9'); lbl.setAttribute('fill', color);
-    lbl.textContent = fmtY(vals[vals.length-1]);
-    svgEl.appendChild(lbl);
+  [[ceVals,'#1D9E75'],[peVals,'#D85A30']].forEach(([vals,color])=>{
+    const lx=xOf(vals.length-1), ly=yS(vals[vals.length-1]);
+    const dot=document.createElementNS(ns,'circle');
+    dot.setAttribute('cx',lx); dot.setAttribute('cy',ly); dot.setAttribute('r','3');
+    dot.setAttribute('fill',color); svgEl.appendChild(dot);
+    const lbl=document.createElementNS(ns,'text');
+    lbl.setAttribute('x',lx+5); lbl.setAttribute('y',ly+4);
+    lbl.setAttribute('font-size','9'); lbl.setAttribute('fill',color);
+    lbl.textContent=fmtY(vals[vals.length-1]); svgEl.appendChild(lbl);
   });
 
-  // ── X-axis time labels (FIXED) ──
-  // Show a label at regular intervals so the full time range is visible.
-  // Target ~one label every 60px of chart width; always show first and last.
-  const targetLabels = Math.max(4, Math.floor(aW / 60));
-  const step = Math.max(1, Math.floor(points.length / targetLabels));
-  const labelIndices = new Set();
-  for (let i = 0; i < points.length; i += step) labelIndices.add(i);
-  labelIndices.add(points.length - 1); // always show last
+  const targetLabels=Math.max(4,Math.floor(aW/60));
+  const step=Math.max(1,Math.floor(points.length/targetLabels));
+  const labelIndices=new Set();
+  for(let i=0;i<points.length;i+=step) labelIndices.add(i);
+  labelIndices.add(points.length-1);
 
-  points.forEach((p, i) => {
-    if (!labelIndices.has(i)) return;
-    const x = xOf(i);
-    // Tick mark
-    const tick = document.createElementNS(ns, 'line');
-    tick.setAttribute('x1', x); tick.setAttribute('x2', x);
-    tick.setAttribute('y1', padT + aH); tick.setAttribute('y2', padT + aH + 4);
-    tick.setAttribute('stroke', 'rgba(136,135,128,0.4)'); tick.setAttribute('stroke-width', '1');
+  points.forEach((p,i)=>{
+    if(!labelIndices.has(i)) return;
+    const x=xOf(i);
+    const tick=document.createElementNS(ns,'line');
+    tick.setAttribute('x1',x); tick.setAttribute('x2',x);
+    tick.setAttribute('y1',padT+aH); tick.setAttribute('y2',padT+aH+4);
+    tick.setAttribute('stroke','rgba(136,135,128,0.4)'); tick.setAttribute('stroke-width','1');
     svgEl.appendChild(tick);
-    // Label — rotated so it never overlaps
-    const txt = document.createElementNS(ns, 'text');
-    txt.setAttribute('x', x);
-    txt.setAttribute('y', padT + aH + 6);
-    txt.setAttribute('text-anchor', 'end');
-    txt.setAttribute('font-size', '9');
-    txt.setAttribute('fill', '#888780');
-    txt.setAttribute('transform', `rotate(-45, ${x}, ${padT + aH + 6})`);
-    txt.textContent = p.label;
-    svgEl.appendChild(txt);
+    const txt=document.createElementNS(ns,'text');
+    txt.setAttribute('x',x); txt.setAttribute('y',padT+aH+6);
+    txt.setAttribute('text-anchor','end'); txt.setAttribute('font-size','9');
+    txt.setAttribute('fill','#888780');
+    txt.setAttribute('transform',`rotate(-45, ${x}, ${padT+aH+6})`);
+    txt.textContent=p.label; svgEl.appendChild(txt);
   });
 
-  // Sticky Y-axis overlay (right side this time, so labels don't overlap chart)
-  const yAxisSvg = document.getElementById('svgCumOIYAxis');
-  if (yAxisSvg) {
-    yAxisSvg.innerHTML = '';
-    // Position overlay at right edge
-    const overlayW = padR;
-    yAxisSvg.setAttribute('width', overlayW);
-    yAxisSvg.setAttribute('height', H);
-    yAxisSvg.style.left = 'auto';
-    yAxisSvg.style.right = '0';
-    yAxisSvg.style.position = 'absolute';
-    yAxisSvg.style.top = '0';
-    for (let i = 0; i <= tickCount; i++) {
-      const v = yMin + i * (yMax - yMin) / tickCount;
-      const y = yS(v);
-      const txt = document.createElementNS(ns, 'text');
-      txt.setAttribute('x', 4); txt.setAttribute('y', y + 4);
-      txt.setAttribute('text-anchor', 'start'); txt.setAttribute('font-size', '9');
-      txt.setAttribute('fill', '#888780'); txt.textContent = fmtY(v);
+  const yAxisSvg=document.getElementById('svgCumOIYAxis');
+  if (yAxisSvg){
+    yAxisSvg.innerHTML='';
+    const overlayW=padR;
+    yAxisSvg.setAttribute('width',overlayW); yAxisSvg.setAttribute('height',H);
+    yAxisSvg.style.left='auto'; yAxisSvg.style.right='0';
+    yAxisSvg.style.position='absolute'; yAxisSvg.style.top='0';
+    for(let i=0;i<=tickCount;i++){
+      const v=yMin+i*(yMax-yMin)/tickCount;
+      const y=yS(v);
+      const txt=document.createElementNS(ns,'text');
+      txt.setAttribute('x',4); txt.setAttribute('y',y+4);
+      txt.setAttribute('text-anchor','start'); txt.setAttribute('font-size','9');
+      txt.setAttribute('fill','#888780'); txt.textContent=fmtY(v);
       yAxisSvg.appendChild(txt);
     }
   }
 }
 
 // ── OI MOVERS PANEL ──────────────────────────────────────────────
-// Shows dominant OI added and dominant OI decreased for every selected interval.
-// Standard moneyness:
-//   CE: strike < ATM = ITM, strike > ATM = OTM
-//   PE: strike > ATM = ITM, strike < ATM = OTM
 function drawOIMovers(rows, atmStr) {
-  const ceListEl = document.getElementById('ce-movers-list');
-  const peListEl = document.getElementById('pe-movers-list');
-  const subEl    = document.getElementById('movers-sub');
-
-  if (!ceListEl || !peListEl) return;
-
-  if (!rows || !rows.length) {
-    ceListEl.innerHTML = '<div style="color:#aaa;font-size:12px;padding:8px 0;">No data yet</div>';
-    peListEl.innerHTML = '<div style="color:#aaa;font-size:12px;padding:8px 0;">No data yet</div>';
-
-    const ceT = document.getElementById('movers-ce-total');
-    const peT = document.getElementById('movers-pe-total');
-    const pcr = document.getElementById('movers-pcr');
-    if (ceT) ceT.textContent = '—';
-    if (peT) peT.textContent = '—';
-    if (pcr) pcr.textContent = '—';
+  const ceListEl=document.getElementById('ce-movers-list');
+  const peListEl=document.getElementById('pe-movers-list');
+  const subEl=document.getElementById('movers-sub');
+  if (!ceListEl||!peListEl) return;
+  if (!rows||!rows.length){
+    ceListEl.innerHTML='<div style="color:#aaa;font-size:12px;padding:8px 0;">No data yet</div>';
+    peListEl.innerHTML='<div style="color:#aaa;font-size:12px;padding:8px 0;">No data yet</div>';
+    ['movers-ce-total','movers-pe-total','movers-pcr'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
     return;
   }
 
-  const cleanRows = [...rows]
-    .filter(r => r && (parseFloat(r.ts) || 0) > 0)
-    .sort((a, b) => (parseFloat(a.ts) || 0) - (parseFloat(b.ts) || 0));
-
-  if (!cleanRows.length) {
-    ceListEl.innerHTML = '<div style="color:#aaa;font-size:12px;padding:8px 0;">No valid rows yet</div>';
-    peListEl.innerHTML = '<div style="color:#aaa;font-size:12px;padding:8px 0;">No valid rows yet</div>';
+  const cleanRows=[...rows].filter(r=>r&&(parseFloat(r.ts)||0)>0).sort((a,b)=>(parseFloat(a.ts)||0)-(parseFloat(b.ts)||0));
+  if (!cleanRows.length){
+    ceListEl.innerHTML='<div style="color:#aaa;font-size:12px;padding:8px 0;">No valid rows yet</div>';
+    peListEl.innerHTML='<div style="color:#aaa;font-size:12px;padding:8px 0;">No valid rows yet</div>';
     return;
   }
 
-  // Build interval buckets. For a 3-min interval, this will create one bucket per 3 minutes.
-  // The displayed time is the end/latest row of the bucket, matching the Excel-style view.
-  const buckets = [];
-  cleanRows.forEach(r => {
-    const ts = parseFloat(r.ts) || 0;
-    const bucket = Math.floor(ts / (intervalMin * 60)) * (intervalMin * 60);
-
-    if (!buckets.length || buckets[buckets.length - 1].bucket !== bucket) {
-      buckets.push({ bucket, label: r.time_label, rows: [r] });
-    } else {
-      buckets[buckets.length - 1].rows.push(r);
-    }
-
-    buckets[buckets.length - 1].label = r.time_label; // show interval end time
+  const buckets=[];
+  cleanRows.forEach(r=>{
+    const ts=parseFloat(r.ts)||0;
+    const bucket=Math.floor(ts/(intervalMin*60))*(intervalMin*60);
+    if(!buckets.length||buckets[buckets.length-1].bucket!==bucket){
+      buckets.push({bucket,label:r.time_label,rows:[r]});
+    } else { buckets[buckets.length-1].rows.push(r); }
+    buckets[buckets.length-1].label=r.time_label;
   });
 
+  function fmtOIShort(v){const n=Number(v)||0;const a=Math.abs(n);if(a>=1e7)return(n/1e7).toFixed(2)+' Cr';if(a>=1e5)return(n/1e5).toFixed(1)+' L';return Math.round(n).toLocaleString('en-IN');}
+  function fmtDeltaShort(v){const n=Number(v)||0;return(n>0?'+':'')+fmtOIShort(n);}
 
-  function fmtOIShort(v) {
-    const n = Number(v) || 0;
-    const a = Math.abs(n);
-
-    if (a >= 1e7) return (n / 1e7).toFixed(2) + ' Cr';
-    if (a >= 1e5) return (n / 1e5).toFixed(1) + ' L';
-
-    return Math.round(n).toLocaleString('en-IN');
-  }
-
-  function fmtDeltaShort(v) {
-    const n = Number(v) || 0;
-    return (n > 0 ? '+' : '') + fmtOIShort(n);
-  }
-
-  function collectSide(rowsInBucket, side) {
-    const sideLower = side.toLowerCase();
-    const strikes = {};
-
-    rowsInBucket.forEach(r => {
-      Object.keys(r).forEach(k => {
-        const deltaM = k.match(new RegExp('^s(\\d+)_' + sideLower + '_delta$'));
-        const oiM    = k.match(new RegExp('^s(\\d+)_' + sideLower + '_oi$'));
-
-        if (deltaM) {
-          const strike = Number(deltaM[1]);
-          if (!strikes[strike]) strikes[strike] = { strike, delta: 0, oi: 0 };
-          strikes[strike].delta += parseFloat(r[k]) || 0;
-        }
-
-        if (oiM) {
-          const strike = Number(oiM[1]);
-          if (!strikes[strike]) strikes[strike] = { strike, delta: 0, oi: 0 };
-          strikes[strike].oi = parseFloat(r[k]) || 0;
-        }
+  function collectSide(rowsInBucket,side){
+    const sideLower=side.toLowerCase();
+    const strikes={};
+    rowsInBucket.forEach(r=>{
+      Object.keys(r).forEach(k=>{
+        const deltaM=k.match(new RegExp('^s(\\d+)_'+sideLower+'_delta$'));
+        const oiM=k.match(new RegExp('^s(\\d+)_'+sideLower+'_oi$'));
+        if(deltaM){const strike=Number(deltaM[1]);if(!strikes[strike])strikes[strike]={strike,delta:0,oi:0};strikes[strike].delta+=parseFloat(r[k])||0;}
+        if(oiM){const strike=Number(oiM[1]);if(!strikes[strike])strikes[strike]={strike,delta:0,oi:0};strikes[strike].oi=parseFloat(r[k])||0;}
       });
     });
-
-    const arr = Object.values(strikes).filter(x => x.delta !== 0);
-
-    const added = arr
-      .filter(x => x.delta > 0)
-      .sort((a, b) => b.delta - a.delta)[0] || null;
-
-    const decreased = arr
-      .filter(x => x.delta < 0)
-      .sort((a, b) => a.delta - b.delta)[0] || null;
-
-    return { added, decreased, strikes };
+    const arr=Object.values(strikes).filter(x=>x.delta!==0);
+    const added=arr.filter(x=>x.delta>0).sort((a,b)=>b.delta-a.delta)[0]||null;
+    const decreased=arr.filter(x=>x.delta<0).sort((a,b)=>a.delta-b.delta)[0]||null;
+    return{added,decreased,strikes};
   }
 
-  function buildBucketResults() {
-    return buckets.map(b => {
-      const ce = collectSide(b.rows, 'CE');
-      const pe = collectSide(b.rows, 'PE');
-      const lastRow = b.rows[b.rows.length - 1];
-      const spot = parseFloat(lastRow?.spot_close) || parseFloat(lastRow?.spot) || 0;
+  const results=buckets.map(b=>{
+    const ce=collectSide(b.rows,'CE');
+    const pe=collectSide(b.rows,'PE');
+    const lastRow=b.rows[b.rows.length-1];
+    const spot=parseFloat(lastRow?.spot_close)||parseFloat(lastRow?.spot)||0;
+    return{bucket:b.bucket,label:b.label,spot,ce,pe};
+  });
 
-      return {
-        bucket: b.bucket,
-        label: b.label,
-        spot,
-        ce,
-        pe
-      };
-    });
+  function rowHtml(timeLabel,moveLabel,item,spot){
+    if(!item)return`<div class="mover-row"><span class="mover-time">${timeLabel}</span><span class="mover-action">${moveLabel}</span><span style="color:#aaa;font-size:12px;">No move</span></div>`;
+    const color=item.delta>0?'#1D9E75':'#D85A30';
+    const spotLabel=spot?`<span class="mover-type-badge badge-otm" style="background:#f8f8f5;color:#888;font-weight:400;">Spot ${fmt(spot)}</span>`:'';
+    return`<div class="mover-row"><span class="mover-time">${timeLabel}</span><span class="mover-action">${moveLabel}</span><span class="mover-strike">${item.strike.toLocaleString('en-IN')}</span>${spotLabel}<span class="mover-delta" style="color:${color};">${fmtDeltaShort(item.delta)}</span><span class="mover-oi">${fmtOIShort(item.oi)} OI</span></div>`;
   }
 
-  const results = buildBucketResults();
-
-  function rowHtml(timeLabel, moveLabel, item, spot) {
-    if (!item) {
-      return `
-        <div class="mover-row">
-          <span class="mover-time">${timeLabel}</span>
-          <span class="mover-action">${moveLabel}</span>
-          <span style="color:#aaa;font-size:12px;">No move</span>
-        </div>
-      `;
-    }
-
-    const color = item.delta > 0 ? '#1D9E75' : '#D85A30';
-    const spotLabel = spot ? `<span class="mover-type-badge badge-otm" style="background:#f8f8f5;color:#888;font-weight:400;">Spot ${fmt(spot)}</span>` : '';
-
-    return `
-      <div class="mover-row">
-        <span class="mover-time">${timeLabel}</span>
-        <span class="mover-action">${moveLabel}</span>
-        <span class="mover-strike">${item.strike.toLocaleString('en-IN')}</span>
-        ${spotLabel}
-        <span class="mover-delta" style="color:${color};">${fmtDeltaShort(item.delta)}</span>
-        <span class="mover-oi">${fmtOIShort(item.oi)} OI</span>
-      </div>
-    `;
-  }
-
-  function renderSide(side) {
-    const html = results.map(r => {
-      const moves = side === 'CE' ? r.ce : r.pe;
-
-      return `
-        ${rowHtml(r.label, 'Add', moves.added, r.spot)}
-        ${rowHtml('', 'Dec', moves.decreased, r.spot)}
-      `;
+  function renderSide(side){
+    const html=results.map(r=>{
+      const moves=side==='CE'?r.ce:r.pe;
+      return`${rowHtml(r.label,'Add',moves.added,r.spot)}${rowHtml('','Dec',moves.decreased,r.spot)}`;
     }).join('');
-
-    return html || '<div style="color:#aaa;font-size:12px;padding:8px 0;">No OI moves yet</div>';
+    return html||'<div style="color:#aaa;font-size:12px;padding:8px 0;">No OI moves yet</div>';
   }
 
-  ceListEl.innerHTML = renderSide('CE');
-  peListEl.innerHTML = renderSide('PE');
+  ceListEl.innerHTML=renderSide('CE');
+  peListEl.innerHTML=renderSide('PE');
 
-  // Latest interval summary totals
-  const latest = results[results.length - 1];
-  let totalCeDelta = 0;
-  let totalPeDelta = 0;
-  let totalCeOI = 0;
-  let totalPeOI = 0;
-
-  if (latest) {
-    Object.values(latest.ce.strikes).forEach(v => {
-      totalCeDelta += v.delta;
-      totalCeOI += v.oi;
-    });
-
-    Object.values(latest.pe.strikes).forEach(v => {
-      totalPeDelta += v.delta;
-      totalPeOI += v.oi;
-    });
+  const latest=results[results.length-1];
+  let tCeDelta=0,tPeDelta=0,tCeOI=0,tPeOI=0;
+  if(latest){
+    Object.values(latest.ce.strikes).forEach(v=>{tCeDelta+=v.delta;tCeOI+=v.oi;});
+    Object.values(latest.pe.strikes).forEach(v=>{tPeDelta+=v.delta;tPeOI+=v.oi;});
   }
 
-  const ceT = document.getElementById('movers-ce-total');
-  const peT = document.getElementById('movers-pe-total');
-  const pcr = document.getElementById('movers-pcr');
-
-  if (ceT) {
-    ceT.textContent = fmtDeltaShort(totalCeDelta);
-    ceT.style.color = totalCeDelta >= 0 ? '#D85A30' : '#1D9E75';
-  }
-
-  if (peT) {
-    peT.textContent = fmtDeltaShort(totalPeDelta);
-    peT.style.color = totalPeDelta >= 0 ? '#1D9E75' : '#D85A30';
-  }
-
-  if (pcr) {
-    pcr.textContent = totalCeOI > 0 ? (totalPeOI / totalCeOI).toFixed(2) : '—';
-  }
-
-  if (subEl) {
-    subEl.textContent =
-      `Dominant OI added/decreased for every ${intervalMin}-min interval · latest ${latest?.label || '—'} · spot price shown at time of write`;
-  }
+  const ceT=document.getElementById('movers-ce-total');
+  const peT=document.getElementById('movers-pe-total');
+  const pcr=document.getElementById('movers-pcr');
+  if(ceT){ceT.textContent=fmtDeltaShort(tCeDelta);ceT.style.color=tCeDelta>=0?'#D85A30':'#1D9E75';}
+  if(peT){peT.textContent=fmtDeltaShort(tPeDelta);peT.style.color=tPeDelta>=0?'#1D9E75':'#D85A30';}
+  if(pcr)pcr.textContent=tCeOI>0?(tPeOI/tCeOI).toFixed(2):'—';
+  if(subEl)subEl.textContent=`Dominant OI added/decreased for every ${intervalMin}-min interval · latest ${latest?.label||'—'}`;
 }
 
+// ── MAIN REBUILD ──────────────────────────────────────────────────
+function rebuildCharts() { requestAnimationFrame(_doRebuild); }
 
-function rebuildCharts(){requestAnimationFrame(_doRebuild);}
+function _doRebuild() {
+  if (selectedStrikes.some(s=>!s)) return;
+  const [s1, s2, s3] = selectedStrikes;
 
-function _doRebuild(){
-  if(!selectedBear||!selectedBull) return;
-  const candles=buildCandles(minuteRows,intervalMin,selectedBear,selectedBull);
+  // Build per-strike candle arrays
+  const c1 = buildCandlesForStrike(minuteRows, intervalMin, s1);
+  const c2 = buildCandlesForStrike(minuteRows, intervalMin, s2);
+  const c3 = buildCandlesForStrike(minuteRows, intervalMin, s3);
+  latestCandles = [c1, c2, c3];
 
-  const sub=intervalMin+'-min · '+minuteRows.length+' rows · '+candles.length+' candles · session '+currentSession;
-  document.getElementById('bear-chart-sub').textContent=sub;
-  document.getElementById('bull-chart-sub').textContent=sub;
-  const logMeta = document.getElementById('log-meta');
-  if (logMeta) logMeta.textContent='('+minuteRows.length+' rows → '+candles.length+' candles)';
-  document.getElementById('index-chart-sub').textContent='Nifty 50 · '+intervalMin+'m candles · colour = dominant OI move (CE/PE building or unwinding across both strikes)';
+  // Build merged candles for index chart
+  const merged = buildMergedCandles(minuteRows, intervalMin, s1, s2, s3);
 
-  // ── Draw cumulative OI chart (all strikes) ──
+  const sub = intervalMin+'-min · '+minuteRows.length+' rows · session '+currentSession;
+  ['s1','s2','s3'].forEach(pfx => {
+    document.getElementById(pfx+'-chart-sub').textContent = sub;
+  });
+
+  document.getElementById('index-chart-sub').textContent = 'Nifty 50 · '+intervalMin+'m candles · colour = dominant OI move (top+bottom strikes)';
+
+  // Cumulative OI
   drawCumOIChart(minuteRows);
 
-  // ── Draw OI movers panel ──
+  // OI movers
   drawOIMovers(minuteRows, atmStrike);
 
-  // ── Draw index chart (Nifty price + OI-based colour) ──
-  const allWithLive = liveCandle ? [...candles, liveCandle] : candles;
-  drawIndexChart(allWithLive);
+  // Index chart (uses merged candles)
+  const mergedWithLive = liveCandle ? [...merged, liveCandle] : merged;
+  drawIndexChart(mergedWithLive);
 
-  // ── Draw strike activity charts (option LTP price + activity type) ──
-  latestCandles = candles;   // store for live candle overlay
-  const bearWithLive = liveCandle ? [...candles, liveCandle] : candles;
-  const bullWithLive = liveCandle ? [...candles, liveCandle] : candles;  // independent copy
-  const bearSigs = drawStrikeActivityChart(
-    'svgBear', bearWithLive,
-    c=>c.bce_ltp_open, c=>c.bce_ltp_high, c=>c.bce_ltp_low, c=>c.bce_ltp_close,
-    c=>c.bce_oi_delta,
-    'bear-activity-badge'
-  );
-  const bullSigs = drawStrikeActivityChart(
-    'svgBull', bullWithLive,
-    c=>c.upe_ltp_open, c=>c.upe_ltp_high, c=>c.upe_ltp_low, c=>c.upe_ltp_close,
-    c=>c.upe_oi_delta,
-    'bull-activity-badge'
-  );
+  // Confluence SVG charts (s1 CE = top strike lens, s3 PE = bottom strike lens)
+  const c1WithLive = liveCandle ? [...c1, liveCandle] : c1;
+  const c3WithLive = liveCandle ? [...c3, liveCandle] : c3;
+
+  const bearSigs = drawStrikeActivityChart('svgBear', c1WithLive,
+    c=>c.bce_ltp_open||0, c=>c.bce_ltp_high||0, c=>c.bce_ltp_low||0, c=>c.bce_ltp_close||0,
+    c=>c.bce_oi_delta||0, 'bear-activity-badge');
+  const bullSigs = drawStrikeActivityChart('svgBull', c3WithLive,
+    c=>c.upe_ltp_open||0, c=>c.upe_ltp_high||0, c=>c.upe_ltp_low||0, c=>c.upe_ltp_close||0,
+    c=>c.upe_oi_delta||0, 'bull-activity-badge');
+
   buildStrip('bear-strip', bearSigs);
   buildStrip('bull-strip', bullSigs);
-  if(candles.length) updateConfluenceSummary(candles, bearSigs, bullSigs);
+  if (c1.length) updateConfluenceSummary(c1, c3, bearSigs, bullSigs);
 
-  if(!candles.length) return;
+  // ── THREE OI BAR CHARTS ──
+  const chartDefs = [
+    { candles:c1, strike:s1, pfx:'s1', chartId:'s1Chart', wrapId:'s1ChartWrap', scrollId:'s1-scroll', yAxisId:'s1YAxis' },
+    { candles:c2, strike:s2, pfx:'s2', chartId:'s2Chart', wrapId:'s2ChartWrap', scrollId:'s2-scroll', yAxisId:'s2YAxis' },
+    { candles:c3, strike:s3, pfx:'s3', chartId:'s3Chart', wrapId:'s3ChartWrap', scrollId:'s3-scroll', yAxisId:'s3YAxis' },
+  ];
 
-  // ── OI bar charts ──
-  const labels=candles.map(c=>c.label);
-  const outerW=Math.floor(document.getElementById('bear-scroll')?.getBoundingClientRect().width||(window.innerWidth-80));
-  const oiW=Math.max(candles.length*MIN_BAR_PX,outerW);
-  const oiH=OI_CHART_H;
+  chartDefs.forEach(({candles, strike, pfx, chartId, wrapId, scrollId, yAxisId}, idx) => {
+    if (!candles.length) return;
 
-  document.getElementById('bearChartWrap').style.width=oiW+'px';
-  document.getElementById('bullChartWrap').style.width=oiW+'px';
-  document.getElementById('bearChartWrap').style.height=oiH+'px';
-  document.getElementById('bullChartWrap').style.height=oiH+'px';
-  setCanvas('bearChart',oiW,oiH);
-  setCanvas('bullChart',oiW,oiH);
+    const labels = candles.map(c=>c.label);
+    const outerW = Math.floor(document.getElementById(scrollId)?.getBoundingClientRect().width||(window.innerWidth-80));
+    const oiW    = Math.max(candles.length*MIN_BAR_PX, outerW);
+    const oiH    = OI_CHART_H;
 
-  const bceCol=candles.map(c=>c.dbce>=0?'#D85A30':'#93c5e8');
-  const bpeCol=candles.map(c=>c.dbpe>=0?'#1D9E75':'#f0a080');
-  const uceCol=candles.map(c=>c.duce>=0?'#D85A30':'#93c5e8');
-  const upeCol=candles.map(c=>c.dupe>=0?'#1D9E75':'#f0a080');
+    document.getElementById(wrapId).style.width  = oiW+'px';
+    document.getElementById(wrapId).style.height = oiH+'px';
+    setCanvas(chartId, oiW, oiH);
 
-  if(bearChart){bearChart.destroy();bearChart=null;}
-  if(bullChart){bullChart.destroy();bullChart=null;}
+    const ceCol = candles.map(c=>c.dce>=0?'#D85A30':'#93c5e8');
+    const peCol = candles.map(c=>c.dpe>=0?'#1D9E75':'#f0a080');
 
-  const bearOpts = oiChartOptions();
-  bearOpts.animation = { duration:250, onComplete: () => drawStickyYAxis(bearChart, 'bearYAxis') };
-  bearChart=new Chart(document.getElementById('bearChart'),{
-    type:'bar',
-    data:{labels,datasets:[makeDS('CE OI Δ',candles.map(c=>c.dbce),bceCol),makeDS('PE OI Δ',candles.map(c=>c.dbpe),bpeCol)]},
-    options:bearOpts
+    if (chartInstances[idx]) { chartInstances[idx].destroy(); chartInstances[idx]=null; }
+
+    const opts = oiChartOptions();
+    opts.animation = { duration:250, onComplete: () => drawStickyYAxis(chartInstances[idx], yAxisId) };
+    chartInstances[idx] = new Chart(document.getElementById(chartId), {
+      type:'bar',
+      data:{labels, datasets:[makeDS('CE OI Δ',candles.map(c=>c.dce),ceCol), makeDS('PE OI Δ',candles.map(c=>c.dpe),peCol)]},
+      options:opts
+    });
+
+    // Net summary
+    const netCe = candles.reduce((s,c)=>s+c.dce,0);
+    const netPe = candles.reduce((s,c)=>s+c.dpe,0);
+    const setNet=(id,v)=>{const el=document.getElementById(id);if(el){el.textContent=fmtD(v);el.className='net-val '+dcls(v);}};
+    setNet(pfx+'-net-ce', netCe);
+    setNet(pfx+'-net-pe', netPe);
+    const scoreEl=document.getElementById(pfx+'-score');
+    if (scoreEl) {
+      const diff=netCe-netPe;
+      scoreEl.textContent=Math.abs(diff)<3000?'Neutral':diff>0?'CE building':'PE building';
+      scoreEl.className='net-val '+(diff>3000?'ddn':diff<-3000?'dup':'dfl');
+    }
   });
-  const bullOpts = oiChartOptions();
-  bullOpts.animation = { duration:250, onComplete: () => drawStickyYAxis(bullChart, 'bullYAxis') };
-  bullChart=new Chart(document.getElementById('bullChart'),{
-    type:'bar',
-    data:{labels,datasets:[makeDS('CE OI Δ',candles.map(c=>c.duce),uceCol),makeDS('PE OI Δ',candles.map(c=>c.dupe),upeCol)]},
-    options:bullOpts
-  });
 
-  const netBce=candles.reduce((s,c)=>s+c.dbce,0);
-  const netBpe=candles.reduce((s,c)=>s+c.dbpe,0);
-  const netUce=candles.reduce((s,c)=>s+c.duce,0);
-  const netUpe=candles.reduce((s,c)=>s+c.dupe,0);
-  const setNet=(id,v)=>{const el=document.getElementById(id);el.textContent=fmtD(v);el.className='net-val '+dcls(v);};
-  setNet('net-bc',netBce);setNet('net-bp',netBpe);setNet('net-uc',netUce);setNet('net-up',netUpe);
-  const setScore=(id,v,pos,neg)=>{
-    const el=document.getElementById(id);
-    el.textContent=Math.abs(v)<3000?'Neutral':v>0?pos:neg;
-    el.className='net-val '+(v>3000?'ddn':v<-3000?'dup':'dfl');
-  };
-  setScore('bear-score',netBce-netBpe,'Bearish — CE building','Bullish pressure');
-  setScore('bull-score',netUpe-netUce,'Bullish — PE building','Bearish pressure');
-
-  updateCandleLog(candles,bearSigs,bullSigs);
   scrollToLatest();
-}
-
-// ── LOG TABLE ─────────────────────────────────────────────────────
-function updateCandleLog(candles,bearSigs,bullSigs){
-  const tbody=document.getElementById('log-body');
-  if(!candles.length) return;
-  tbody.innerHTML=candles.slice().reverse().map((c,i,arr)=>{
-    const si=arr.length-1-i;
-    const bKey=bearSigs[si]||'N';
-    const uKey=bullSigs[si]||'N';
-    const bAct=ACT_COLOR[bKey]||ACT_COLOR['N'];
-    const uAct=ACT_COLOR[uKey]||ACT_COLOR['N'];
-    const isBear=c.dbce>0&&c.dbpe<0, isBull=c.dbpe>0&&c.dbce<0;
-    const sc=isBear?'bb':isBull?'bu':'bn';
-    const priceUp=c.close>c.open, priceDown=c.close<c.open;
-    const pDir=priceUp?'▲ Up':priceDown?'▼ Down':'— Flat';
-    const pCls=priceUp?'bullish':priceDown?'bearish':'neutral';
-    const idxAct = SIG_COLOR[getIndexOISignal(c)]||SIG_COLOR['N'];
-
-    return '<tr>'
-      +'<td>'+c.label+'</td>'
-      +'<td>'+fmt(c.open)+'</td><td>'+fmt(c.high)+'</td><td>'+fmt(c.low)+'</td><td>'+fmt(c.close)+'</td>'
-      +'<td class="'+pCls+'">'+pDir+'</td>'
-      +'<td><span class="activity-badge '+bAct.cls+'" style="font-size:10px;padding:2px 6px;">'+bAct.label+'</span></td>'
-      +'<td><span class="activity-badge '+uAct.cls+'" style="font-size:10px;padding:2px 6px;">'+uAct.label+'</span></td>'
-      +'<td><span class="badge '+idxAct.cls+'" style="font-size:10px;">'+idxAct.label+'</span></td>'
-      +'<td style="font-weight:500">'+fmt(c.bce)+'</td><td>'+dhtml(c.dbce)+'</td>'
-      +'<td style="font-weight:500">'+fmt(c.bpe)+'</td><td>'+dhtml(c.dbpe)+'</td>'
-      +'<td>'+dhtml(c.duce)+'</td><td>'+dhtml(c.dupe)+'</td>'
-      +'<td><span class="badge '+sc+'">'+(isBear?'BEARISH':isBull?'BULLISH':'MIXED')+'</span></td>'
-      +'</tr>';
-  }).join('');
+  updateSpotBadges();
 }
 
 // ── TIMERS ────────────────────────────────────────────────────────
-let cdOI=POLL_OI_SEC,cdHX=POLL_HX_SEC;
+let cdOI=POLL_OI_SEC, cdHX=POLL_HX_SEC;
 setInterval(()=>{
-  cdOI--;cdHX--;
-  if(cdOI<=0){cdOI=POLL_OI_SEC;fetchOI();}
-  if(cdHX<=0){cdHX=POLL_HX_SEC;fetchHistory();}
+  if (pollingSuspended) return;   // historical mode — no auto-refresh
+  cdOI--; cdHX--;
+  if (cdOI<=0) { cdOI=POLL_OI_SEC; fetchOI(); }
+  if (cdHX<=0) { cdHX=POLL_HX_SEC; fetchHistory(); }
   document.getElementById('countdown').textContent=cdOI+'s';
 },1000);
-setInterval(fetchLTP,POLL_LTP_SEC*1000);
-setInterval(fetchLiveCandle,POLL_LIVE_SEC*1000);
+setInterval(()=>{ if (!pollingSuspended) fetchLTP(); }, POLL_LTP_SEC*1000);
+setInterval(()=>{ if (!pollingSuspended) fetchLiveCandle(); }, POLL_LIVE_SEC*1000);
 let resizeTimer;
 window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(rebuildCharts,200);});
 
 // ── BOOT ──────────────────────────────────────────────────────────
+// Set date picker default to today in IST
+document.getElementById('date-picker').value = todayIST();
+document.getElementById('today-btn').classList.add('active');
+const _initBadge = document.getElementById('date-mode-badge');
+_initBadge.className = 'date-mode-badge live';
+_initBadge.textContent = '● Live';
+
+fetchAvailableDates();
 fetchOI().then(()=>fetchHistory());
 fetchLTP();
 fetchLiveCandle();
