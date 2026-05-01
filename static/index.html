@@ -1966,7 +1966,26 @@ function drawOIMovers(rows, atmStr) {
 
   const results = buildBucketResults();
 
-  function rowHtml(timeLabel, moveLabel, item, spot) {
+  function moneynessBadge(strike, spot, side) {
+    if (!spot || !strike) return '';
+    // CE: strike < spot → ITM, strike == spot → ATM, strike > spot → OTM
+    // PE: strike > spot → ITM, strike == spot → ATM, strike < spot → OTM
+    const diff = strike - spot;
+    let label, cls;
+    if (Math.abs(diff) < 25) {          // within half a tick → treat as ATM
+      label = 'ATM'; cls = 'badge-atm';
+    } else if (side === 'CE') {
+      label = diff < 0 ? 'ITM' : 'OTM';
+      cls   = diff < 0 ? 'badge-itm' : 'badge-otm';
+    } else {                             // PE
+      label = diff > 0 ? 'ITM' : 'OTM';
+      cls   = diff > 0 ? 'badge-itm' : 'badge-otm';
+    }
+    const textColor = cls === 'badge-atm' ? '#534AB7' : cls === 'badge-itm' ? '#185FA5' : '#888';
+    return `<span style="font-size:10px;color:${textColor};font-weight:500;">${label}</span>`;
+  }
+
+  function rowHtml(timeLabel, moveLabel, item, spot, side) {
     if (!item) {
       return `
         <div class="mover-row">
@@ -1979,6 +1998,7 @@ function drawOIMovers(rows, atmStr) {
 
     const color = item.delta > 0 ? '#1D9E75' : '#D85A30';
     const spotLabel = spot ? `<span class="mover-type-badge badge-otm" style="background:#f8f8f5;color:#888;font-weight:400;">Spot ${fmt(spot)}</span>` : '';
+    const moneyLabel = moneynessBadge(item.strike, spot, side);
 
     return `
       <div class="mover-row">
@@ -1986,6 +2006,7 @@ function drawOIMovers(rows, atmStr) {
         <span class="mover-action">${moveLabel}</span>
         <span class="mover-strike">${item.strike.toLocaleString('en-IN')}</span>
         ${spotLabel}
+        ${moneyLabel}
         <span class="mover-delta" style="color:${color};">${fmtDeltaShort(item.delta)}</span>
         <span class="mover-oi">${fmtOIShort(item.oi)} OI</span>
       </div>
@@ -1997,8 +2018,8 @@ function drawOIMovers(rows, atmStr) {
       const moves = side === 'CE' ? r.ce : r.pe;
 
       return `
-        ${rowHtml(r.label, 'Add', moves.added, r.spot)}
-        ${rowHtml('', 'Dec', moves.decreased, r.spot)}
+        ${rowHtml(r.label, 'Add', moves.added, r.spot, side)}
+        ${rowHtml('', 'Dec', moves.decreased, r.spot, side)}
       `;
     }).join('');
 
