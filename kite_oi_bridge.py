@@ -158,6 +158,28 @@ def db_reset_today():
         conn.commit()
 
 
+def db_read_by_date(date_str: str) -> list:
+    """Return all 1-min rows for a specific trade_date (YYYY-MM-DD string)."""
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT data FROM oi_history WHERE trade_date = %s ORDER BY ts ASC",
+                (date_str,),
+            )
+            rows = [dict(r["data"]) for r in cur.fetchall()]
+    return rows
+
+
+def db_list_dates() -> list:
+    """Return sorted list of distinct trade_dates that have data (YYYY-MM-DD strings)."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT DISTINCT trade_date FROM oi_history ORDER BY trade_date DESC"
+            )
+            return [str(r[0]) for r in cur.fetchall()]
+
+
 # ── STATE ─────────────────────────────────────────────────────────────────────
 
 state = {
@@ -601,15 +623,45 @@ def get_strikes():
 @app.route("/oi/history")
 def get_history():
     """
-    Returns ALL 1-min rows for today.
-    Reads from PostgreSQL — falls back to in-memory deque if DB unavailable.
+    Returns ALL 1-min rows for a given date (or today if no date param).
+    Query param: ?date=YYYY-MM-DD
+    Reads from PostgreSQL — falls back to in-memory deque for today if DB unavailable.
+    """
+    date_param = request.args.get("date", "").strip()
+    if date_param:
+        # Validate format
+        try:
+            from datetime import date as _date
+            _date.fromisoformat(date_param)   # raises ValueError if invalid
+        except ValueError:
+            return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
+        try:
+            rows = db_read_by_date(date_param)
+            return jsonify(rows)
+        except Exception as e:
+            print(f"DB read error for date {date_param}: {e}")
+            return jsonify([])
+    else:
+        try:
+            rows = db_read_today()
+            return jsonify(rows)
+        except Exception as e:
+            print(f"DB read error, falling back to memory: {e}")
+            return jsonify(list(oi_history))
+
+
+@app.route("/oi/dates")
+def get_dates():
+    """
+    Returns list of distinct trade dates that have data, newest first.
+    Response: { "dates": ["2025-04-28", "2025-04-25", ...] }
     """
     try:
-        rows = db_read_today()
-        return jsonify(rows)
+        dates = db_list_dates()
+        return jsonify({"dates": dates})
     except Exception as e:
-        print(f"DB read error, falling back to memory: {e}")
-        return jsonify(list(oi_history))
+        print(f"DB list dates error: {e}")
+        return jsonify({"dates": []})
 
 
 @app.route("/oi/live-candle")
@@ -744,7 +796,8 @@ if __name__ == "__main__":
     print(f"  GET  /ltp             live LTP all tokens (2s)")
     print(f"  GET  /oi/live-candle  forming candle (5s)")
     print(f"  GET  /strikes         strike list")
-    print(f"  GET  /oi/history      1-min rows + spot OHLC")
+    print(f"  GET  /oi/history      1-min rows + spot OHLC (today, or ?date=YYYY-MM-DD)")
+    print(f"  GET  /oi/dates        list of dates with data")
     print(f"  GET  /health          status + OHLC buffer")
     print(f"  POST /reset-csv       wipe today's rows")
     print("\nPress Ctrl+C to stop.\n")
