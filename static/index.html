@@ -1968,20 +1968,18 @@ function drawOIMovers(rows, atmStr) {
 
   function moneynessBadge(strike, spot, side) {
     if (!spot || !strike) return '';
-    // CE: strike < spot → ITM, strike == spot → ATM, strike > spot → OTM
-    // PE: strike > spot → ITM, strike == spot → ATM, strike < spot → OTM
-    const diff = strike - spot;
-    let label, cls;
-    if (Math.abs(diff) < 25) {          // within half a tick → treat as ATM
-      label = 'ATM'; cls = 'badge-atm';
+    // CE: strike < spot → ITM, strike === spot → ATM, strike > spot → OTM
+    // PE: strike > spot → ITM, strike === spot → ATM, strike < spot → OTM
+    let label, textColor;
+    if (strike === spot) {
+      label = 'ATM'; textColor = '#534AB7';
     } else if (side === 'CE') {
-      label = diff < 0 ? 'ITM' : 'OTM';
-      cls   = diff < 0 ? 'badge-itm' : 'badge-otm';
-    } else {                             // PE
-      label = diff > 0 ? 'ITM' : 'OTM';
-      cls   = diff > 0 ? 'badge-itm' : 'badge-otm';
+      label = strike < spot ? 'ITM' : 'OTM';
+      textColor = strike < spot ? '#185FA5' : '#888';
+    } else {
+      label = strike > spot ? 'ITM' : 'OTM';
+      textColor = strike > spot ? '#185FA5' : '#888';
     }
-    const textColor = cls === 'badge-atm' ? '#534AB7' : cls === 'badge-itm' ? '#185FA5' : '#888';
     return `<span style="font-size:10px;color:${textColor};font-weight:500;">${label}</span>`;
   }
 
