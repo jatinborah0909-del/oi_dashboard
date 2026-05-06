@@ -1680,7 +1680,7 @@ const OI_YAXIS_W = 52;
 function oiChartOptions() {
   return {
     responsive:false, maintainAspectRatio:false,
-    layout:{padding:{top:4,bottom:4,left:0}},
+    layout:{padding:{top:4,bottom:4,left:0,right:24}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtD(ctx.raw)}}},
     scales:{
       x:{
@@ -1695,7 +1695,7 @@ function oiChartOptions() {
             if(parts.length<2) return '';
             const hh=parseInt(parts[0]), mm=parseInt(parts[1]);
             const totalMin=hh*60+mm;
-            return (totalMin%intervalMin===0||idx===this.chart.data.labels.length-1)?lbl:'';
+            return (totalMin%intervalMin===0||idx===0||idx===this.chart.data.labels.length-1)?lbl:'';
           }
         }
       },
