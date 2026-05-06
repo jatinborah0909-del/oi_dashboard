@@ -1,10 +1,7 @@
 """
-Nifty OI Bias Monitor — Kite WebSocket Bridge (Railway / PostgreSQL edition)
-=============================================================================
-Identical behaviour to the local CSV version, but:
-  • Data is stored in PostgreSQL (DATABASE_URL from Railway env)
-  • Flask also serves index.html at GET /
-  • API_KEY / ACCESS_TOKEN come from environment variables (never hard-coded)
+OI Bias Monitor — Kite WebSocket Bridge (Railway / PostgreSQL edition)
+=======================================================================
+Supports Nifty and Sensex. Configured via environment variables.
 
 Railway setup
 ─────────────
@@ -12,13 +9,19 @@ Railway setup
 2.  Set env vars:
         KITE_API_KEY
         KITE_ACCESS_TOKEN
+        INDEX           nifty  (default) | sensex
 3.  Deploy from GitHub — Railway will run:  python kite_oi_bridge.py
+
+Index-specific behaviour
+────────────────────────
+  INDEX=nifty   → table oi_history_nifty,   instrument name NIFTY,  exchange NSE, strike step 50
+  INDEX=sensex  → table oi_history_sensex,  instrument name SENSEX, exchange BSE, strike step 100
 
 Endpoints (unchanged):
     GET  /                 → serves the dashboard HTML
-    GET  /oi               → snapshot for ALL 11 strikes + active bear/bull
-    GET  /ltp              → live LTP for all 22 tokens
-    GET  /oi/history       → 1-min rows for today (all 11 strikes + OHLC)
+    GET  /oi               → snapshot for ALL strikes + active bear/bull
+    GET  /ltp              → live LTP for all tokens
+    GET  /oi/history       → 1-min rows for today (all strikes + OHLC)
     GET  /oi/live-candle   → currently forming 1-min candle
     GET  /strikes          → strike list
     GET  /health           → status + OHLC buffer
@@ -66,9 +69,35 @@ API_KEY      = os.environ["KITE_API_KEY"]
 ACCESS_TOKEN = os.environ["KITE_ACCESS_TOKEN"]
 DATABASE_URL = os.environ["DATABASE_URL"]
 
-NIFTY_TOKEN       = 256265
 FLASK_PORT        = int(os.environ.get("PORT", 5000))   # Railway sets PORT
 OI_HISTORY_MAXLEN = 500
+
+# ── INDEX SELECTION ───────────────────────────────────────────────────────────
+# Set INDEX=nifty (default) or INDEX=sensex in your Railway environment.
+_INDEX_RAW = os.environ.get("INDEX", "nifty").strip().lower()
+if _INDEX_RAW not in ("nifty", "sensex"):
+    raise ValueError(f"INDEX env var must be 'nifty' or 'sensex', got: {_INDEX_RAW!r}")
+
+if _INDEX_RAW == "sensex":
+    INDEX_NAME      = "sensex"
+    INDEX_LABEL     = "Sensex"
+    SPOT_TOKEN      = 265     # BSE SENSEX instrument token
+    SPOT_QUOTE_KEY  = "BSE:SENSEX"
+    INSTRUMENT_NAME = "SENSEX"    # matches kite.instruments "name" field
+    EXCHANGE        = "BFO"       # Bombay F&O exchange
+    STRIKE_STEP     = 100
+    ROLL_THRESHOLD  = 200
+    DB_TABLE        = "oi_history_sensex"
+else:
+    INDEX_NAME      = "nifty"
+    INDEX_LABEL     = "Nifty 50"
+    SPOT_TOKEN      = 256265  # NSE NIFTY 50 instrument token
+    SPOT_QUOTE_KEY  = "NSE:NIFTY 50"
+    INSTRUMENT_NAME = "NIFTY"
+    EXCHANGE        = "NFO"
+    STRIKE_STEP     = 50
+    ROLL_THRESHOLD  = 100
+    DB_TABLE        = "oi_history_nifty"
 
 # OI_NUM_STRIKES: total strikes to track (must be odd so ATM sits in the middle).
 # Default 11 = ATM ±5 strikes. Set e.g. OI_NUM_STRIKES=21 for ATM ±10 strikes.
@@ -76,8 +105,6 @@ NUM_STRIKES    = int(os.environ.get("OI_NUM_STRIKES", 11))
 if NUM_STRIKES % 2 == 0:
     NUM_STRIKES += 1          # force odd so ATM is centred
     print(f"Warning: OI_NUM_STRIKES must be odd — bumped to {NUM_STRIKES}")
-STRIKE_STEP    = 50
-ROLL_THRESHOLD = 100
 
 
 # ── APP ───────────────────────────────────────────────────────────────────────
@@ -98,14 +125,15 @@ def get_db():
 
 def init_db():
     """
-    Create the oi_history table if it doesn't exist.
+    Create the index-specific oi_history table if it doesn't exist.
     Uses a JSONB 'data' column so the schema is always flexible —
     no ALTER TABLE needed when the strike window changes.
+    Table name is DB_TABLE: oi_history_nifty or oi_history_sensex.
     """
     with get_db() as conn:
         with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS oi_history (
+            cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS {DB_TABLE} (
                     id          SERIAL PRIMARY KEY,
                     ts          DOUBLE PRECISION NOT NULL,
                     time_label  TEXT,
@@ -113,20 +141,20 @@ def init_db():
                     trade_date  DATE DEFAULT CURRENT_DATE,
                     data        JSONB NOT NULL
                 );
-                CREATE INDEX IF NOT EXISTS idx_oi_history_date
-                    ON oi_history (trade_date);
+                CREATE INDEX IF NOT EXISTS idx_{DB_TABLE}_date
+                    ON {DB_TABLE} (trade_date);
             """)
         conn.commit()
-    print("DB initialised — table oi_history ready.")
+    print(f"DB initialised — table {DB_TABLE} ready.")
 
 
 def db_write_row(row: dict):
-    """Insert one 1-min completed candle row into PostgreSQL."""
+    """Insert one 1-min completed candle row into the index-specific table."""
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                """
-                INSERT INTO oi_history (ts, time_label, session_id, trade_date, data)
+                f"""
+                INSERT INTO {DB_TABLE} (ts, time_label, session_id, trade_date, data)
                 VALUES (%s, %s, %s, CURRENT_DATE, %s)
                 """,
                 (
@@ -144,17 +172,17 @@ def db_read_today() -> list:
     with get_db() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT data FROM oi_history WHERE trade_date = CURRENT_DATE ORDER BY ts ASC"
+                f"SELECT data FROM {DB_TABLE} WHERE trade_date = CURRENT_DATE ORDER BY ts ASC"
             )
             rows = [dict(r["data"]) for r in cur.fetchall()]
     return rows
 
 
 def db_reset_today():
-    """Delete all rows for today (equivalent to /reset-csv)."""
+    """Delete all rows for today from the index-specific table."""
     with get_db() as conn:
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM oi_history WHERE trade_date = CURRENT_DATE")
+            cur.execute(f"DELETE FROM {DB_TABLE} WHERE trade_date = CURRENT_DATE")
         conn.commit()
 
 
@@ -163,7 +191,7 @@ def db_read_by_date(date_str: str) -> list:
     with get_db() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT data FROM oi_history WHERE trade_date = %s ORDER BY ts ASC",
+                f"SELECT data FROM {DB_TABLE} WHERE trade_date = %s ORDER BY ts ASC",
                 (date_str,),
             )
             rows = [dict(r["data"]) for r in cur.fetchall()]
@@ -175,7 +203,7 @@ def db_list_dates() -> list:
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT DISTINCT trade_date FROM oi_history ORDER BY trade_date DESC"
+                f"SELECT DISTINCT trade_date FROM {DB_TABLE} ORDER BY trade_date DESC"
             )
             return [str(r[0]) for r in cur.fetchall()]
 
@@ -213,8 +241,8 @@ oi_history = collections.deque(maxlen=OI_HISTORY_MAXLEN)   # in-memory fallback
 
 # ── INSTRUMENT HELPERS ────────────────────────────────────────────────────────
 
-def round_to_nearest_50(price):
-    return round(price / 50) * 50
+def round_to_nearest_strike(price):
+    return round(price / STRIKE_STEP) * STRIKE_STEP
 
 
 def compute_strikes_window(atm):
@@ -223,21 +251,21 @@ def compute_strikes_window(atm):
 
 
 def compute_bear_bull(spot):
-    base = round_to_nearest_50(spot)
+    base = round_to_nearest_strike(spot)
     return base - 100, base + 100
 
 
 def get_instruments_for_strikes(strikes):
-    instruments = kite.instruments("NFO")
-    nifty_opts = [
+    instruments = kite.instruments(EXCHANGE)
+    index_opts = [
         i for i in instruments
-        if i["name"] == "NIFTY" and i["instrument_type"] in ("CE", "PE")
+        if i["name"] == INSTRUMENT_NAME and i["instrument_type"] in ("CE", "PE")
     ]
-    expiries = sorted(set(i["expiry"] for i in nifty_opts))
+    expiries = sorted(set(i["expiry"] for i in index_opts))
     front = expiries[0]
     strike_set = set(strikes)
     result = []
-    for i in nifty_opts:
+    for i in index_opts:
         if i["expiry"] != front or i["strike"] not in strike_set:
             continue
         k = str(int(i["strike"]))
@@ -247,13 +275,13 @@ def get_instruments_for_strikes(strikes):
     found = {i["strike"] for i in result}
     missing = strike_set - found
     if missing:
-        print(f"  Warning: strikes not found in NFO: {sorted(missing)}")
+        print(f"  Warning: strikes not found in {EXCHANGE}: {sorted(missing)}")
     return result
 
 
 def get_live_spot():
-    quote = kite.quote("NSE:NIFTY 50")
-    return quote["NSE:NIFTY 50"]["last_price"]
+    quote = kite.quote(SPOT_QUOTE_KEY)
+    return quote[SPOT_QUOTE_KEY]["last_price"]
 
 
 # ── SNAPSHOT ──────────────────────────────────────────────────────────────────
@@ -403,7 +431,7 @@ def build_ticker():
             for tick in ticks:
                 token = tick["instrument_token"]
 
-                if token == NIFTY_TOKEN:
+                if token == SPOT_TOKEN:
                     new_spot = tick.get("last_price", state["spot"])
                     state["spot"] = new_spot
                     _update_spot_ohlc(new_spot)
@@ -432,10 +460,10 @@ def build_ticker():
 
     def on_connect(ws, response):
         with state_lock:
-            all_tokens = [NIFTY_TOKEN] + list(state["tokens"].keys())
+            all_tokens = [SPOT_TOKEN] + list(state["tokens"].keys())
         ws.subscribe(all_tokens)
         ws.set_mode(ws.MODE_FULL, all_tokens)
-        print(f"[{now_ist().strftime('%H:%M:%S')}] Subscribed: Nifty + {len(state['tokens'])} option tokens")
+        print(f"[{now_ist().strftime('%H:%M:%S')}] Subscribed: {INDEX_LABEL} spot + {len(state['tokens'])} option tokens")
 
     def on_error(ws, code, reason):
         print(f"Ticker error {code}: {reason}")
@@ -513,7 +541,7 @@ def _check_roll(new_spot):
 # ── STARTUP ───────────────────────────────────────────────────────────────────
 
 def initialise(seed_spot):
-    atm     = round_to_nearest_50(seed_spot)
+    atm     = round_to_nearest_strike(seed_spot)
     strikes = compute_strikes_window(atm)
     bear, bull = compute_bear_bull(seed_spot)
     bear = max(min(strikes), min(bear, max(strikes)))
@@ -748,13 +776,14 @@ def reset_csv():
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Nifty OI Bias Monitor — Bridge (Railway / PostgreSQL edition)")
+    print(f"{INDEX_LABEL} OI Bias Monitor — Bridge (Railway / PostgreSQL edition)")
+    print(f"Index: {INDEX_LABEL}  |  Table: {DB_TABLE}  |  Exchange: {EXCHANGE}")
     print("=" * 60)
 
     print("\nInitialising database...")
     init_db()
 
-    print("\nFetching live Nifty spot...")
+    print(f"\nFetching live {INDEX_LABEL} spot...")
     seed_spot = get_live_spot()
     print(f"Live spot: {seed_spot:,.2f}")
 
