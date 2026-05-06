@@ -167,9 +167,6 @@ select{font-size:13px;padding:5px 10px;border:0.5px solid #ccc;border-radius:6px
 @keyframes blink{0%{opacity:1;transform:translateY(-50%) scale(1)}50%{opacity:.4;transform:translateY(-50%) scale(1.4)}100%{opacity:1;transform:translateY(-50%) scale(1)}}
 
 .chart-scroll-outer{overflow-x:auto;overflow-y:hidden;width:100%;border-radius:4px;margin-bottom:10px;}
-.scroll-nav{display:flex;gap:4px;align-items:center;margin-bottom:4px;}
-.scroll-nav-btn{font-size:11px;padding:2px 8px;border:0.5px solid #ccc;border-radius:4px;background:#f8f8f5;color:#555;cursor:pointer;white-space:nowrap;}
-.scroll-nav-btn:hover{background:#e8e8e4;border-color:#aaa;}
 .chart-scroll-inner{min-height:220px;height:auto;min-width:100%;position:relative;overflow:hidden;}
 
 .net-row{display:flex;gap:8px;}
@@ -512,7 +509,6 @@ tr:last-child td{border-bottom:none;}
     </div>
     <div style="position:relative;display:flex;">
       <canvas id="s1YAxis" style="flex-shrink:0;position:sticky;left:0;z-index:10;background:#fff;border-right:0.5px solid #eee;"></canvas>
-      <div class="scroll-nav"><button class="scroll-nav-btn" onclick="document.getElementById('s1-scroll').scrollLeft=0">⇤ Start</button><button class="scroll-nav-btn" onclick="document.getElementById('s1-scroll').scrollLeft=document.getElementById('s1-scroll').scrollWidth">End ⇥</button><span style="font-size:10px;color:#aaa;margin-left:4px;">← scroll for full history</span></div>
       <div class="chart-scroll-outer" id="s1-scroll" style="flex:1;min-width:0;">
         <div class="chart-scroll-inner" id="s1ChartWrap"><canvas id="s1Chart"></canvas></div>
       </div>
@@ -553,7 +549,6 @@ tr:last-child td{border-bottom:none;}
     </div>
     <div style="position:relative;display:flex;">
       <canvas id="s2YAxis" style="flex-shrink:0;position:sticky;left:0;z-index:10;background:#fff;border-right:0.5px solid #eee;"></canvas>
-      <div class="scroll-nav"><button class="scroll-nav-btn" onclick="document.getElementById('s2-scroll').scrollLeft=0">⇤ Start</button><button class="scroll-nav-btn" onclick="document.getElementById('s2-scroll').scrollLeft=document.getElementById('s2-scroll').scrollWidth">End ⇥</button><span style="font-size:10px;color:#aaa;margin-left:4px;">← scroll for full history</span></div>
       <div class="chart-scroll-outer" id="s2-scroll" style="flex:1;min-width:0;">
         <div class="chart-scroll-inner" id="s2ChartWrap"><canvas id="s2Chart"></canvas></div>
       </div>
@@ -594,7 +589,6 @@ tr:last-child td{border-bottom:none;}
     </div>
     <div style="position:relative;display:flex;">
       <canvas id="s3YAxis" style="flex-shrink:0;position:sticky;left:0;z-index:10;background:#fff;border-right:0.5px solid #eee;"></canvas>
-      <div class="scroll-nav"><button class="scroll-nav-btn" onclick="document.getElementById('s3-scroll').scrollLeft=0">⇤ Start</button><button class="scroll-nav-btn" onclick="document.getElementById('s3-scroll').scrollLeft=document.getElementById('s3-scroll').scrollWidth">End ⇥</button><span style="font-size:10px;color:#aaa;margin-left:4px;">← scroll for full history</span></div>
       <div class="chart-scroll-outer" id="s3-scroll" style="flex:1;min-width:0;">
         <div class="chart-scroll-inner" id="s3ChartWrap"><canvas id="s3Chart"></canvas></div>
       </div>
@@ -1686,27 +1680,24 @@ const OI_YAXIS_W = 52;
 function oiChartOptions() {
   return {
     responsive:false, maintainAspectRatio:false,
-    layout:{padding:{top:4,bottom:20,left:0,right:24}},
+    layout:{padding:{top:4,bottom:4,left:0,right:24}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtD(ctx.raw)}}},
     scales:{
       x:{
         grid:{display:false},
         ticks:{
           color:TCLR, font:{size:10},
-          autoSkip:false, maxRotation:45, minRotation:0,
+          autoSkip:false, maxRotation:90, minRotation:90,
           callback:function(val,idx){
             const labels=this.chart.data.labels;
             const n=labels.length;
             if(!n) return '';
             const lbl=this.getLabelForValue(val);
             if(!lbl) return '';
-            // always show first and last
             if(idx===0||idx===n-1) return lbl;
-            // rotated labels are ~14px wide at 45deg, unrotated ~32px
+            // at 90deg each label takes ~10px horizontally
             const plotW=this.chart.chartArea?.width||600;
-            const labelPx=14;
-            const maxLabels=Math.max(2,Math.floor(plotW/labelPx));
-            const step=Math.max(1,Math.round(n/maxLabels));
+            const step=Math.max(1,Math.round(n/Math.floor(plotW/10)));
             return idx%step===0?lbl:'';
           }
         }
