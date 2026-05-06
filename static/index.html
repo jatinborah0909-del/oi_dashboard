@@ -1686,14 +1686,14 @@ const OI_YAXIS_W = 52;
 function oiChartOptions() {
   return {
     responsive:false, maintainAspectRatio:false,
-    layout:{padding:{top:4,bottom:4,left:0,right:24}},
+    layout:{padding:{top:4,bottom:20,left:0,right:24}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtD(ctx.raw)}}},
     scales:{
       x:{
         grid:{display:false},
         ticks:{
           color:TCLR, font:{size:10},
-          autoSkip:false, maxRotation:0,
+          autoSkip:false, maxRotation:45, minRotation:0,
           callback:function(val,idx){
             const labels=this.chart.data.labels;
             const n=labels.length;
@@ -1702,9 +1702,9 @@ function oiChartOptions() {
             if(!lbl) return '';
             // always show first and last
             if(idx===0||idx===n-1) return lbl;
-            // fit labels based on available plot width
+            // rotated labels are ~14px wide at 45deg, unrotated ~32px
             const plotW=this.chart.chartArea?.width||600;
-            const labelPx=36;
+            const labelPx=14;
             const maxLabels=Math.max(2,Math.floor(plotW/labelPx));
             const step=Math.max(1,Math.round(n/maxLabels));
             return idx%step===0?lbl:'';
