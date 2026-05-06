@@ -1733,7 +1733,7 @@ Chart.register({
       const hh = parseInt(parts[0]), mm = parseInt(parts[1]);
       const totalMin = hh * 60 + mm - (9 * 60 + 15);
       if (totalMin % intervalMin !== 0) return;
-      const x = xScale.getPixelForTick(i);
+      const x = xScale.getPixelForValue(i);
       if (x === undefined || x === null) return;
       ctx.save();
       ctx.translate(x, bottom + 4);
