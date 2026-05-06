@@ -1692,21 +1692,24 @@ const OI_YAXIS_W = 52;
 function oiChartOptions() {
   return {
     responsive:false, maintainAspectRatio:false,
-    layout:{padding:{top:4,bottom:0,left:0}},
+    clip: false,
+    layout:{padding:{top:4, bottom:0, left:0, right:30}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtD(ctx.raw)}}},
     scales:{
       x:{
         grid:{display:false},
+        border:{display:false},
         ticks:{
           color:TCLR, font:{size:10},
           autoSkip:false, maxRotation:90, minRotation:90,
+          padding:2,
           callback:function(val,idx){
             const lbl=this.getLabelForValue(val);
             if(!lbl) return '';
             const parts=lbl.split(':');
             if(parts.length<2) return '';
             const hh=parseInt(parts[0]), mm=parseInt(parts[1]);
-            const totalMin=hh*60+mm - (9*60+15); // minutes since market open
+            const totalMin=hh*60+mm - (9*60+15);
             return totalMin%intervalMin===0 ? lbl : '';
           }
         }
