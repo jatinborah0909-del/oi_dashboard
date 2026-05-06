@@ -1693,32 +1693,57 @@ function oiChartOptions() {
   return {
     responsive:false, maintainAspectRatio:false,
     clip: false,
-    layout:{padding:{top:4, bottom:0, left:0, right:30}},
-    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtD(ctx.raw)}}},
+    layout:{padding:{top:4, bottom:42, left:0, right:30}},
+    plugins:{
+      legend:{display:false},
+      tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtD(ctx.raw)}},
+      customXLabels:{} // activated by the plugin below
+    },
     scales:{
       x:{
         grid:{display:false},
         border:{display:false},
-        ticks:{
-          color:TCLR, font:{size:10},
-          autoSkip:false, maxRotation:90, minRotation:90,
-          padding:2,
-          callback:function(val,idx){
-            const lbl=this.getLabelForValue(val);
-            if(!lbl) return '';
-            const parts=lbl.split(':');
-            if(parts.length<2) return '';
-            const hh=parseInt(parts[0]), mm=parseInt(parts[1]);
-            const totalMin=hh*60+mm - (9*60+15);
-            return totalMin%intervalMin===0 ? lbl : '';
-          }
-        }
+        ticks:{display:false}  // hide Chart.js ticks entirely — we draw our own
       },
       y:{display:false}
     },
     animation:{duration:250}
   };
 }
+
+// Custom plugin: draws x-axis timestamp labels manually, rotated 90°
+// This fully bypasses Chart.js's broken tick renderer for rotated labels in scroll containers.
+Chart.register({
+  id:'customXLabels',
+  afterDraw(chart) {
+    const xScale = chart.scales.x;
+    if (!xScale) return;
+    const ctx = chart.ctx;
+    const labels = chart.data.labels || [];
+    const bottom = chart.chartArea.bottom;
+    ctx.save();
+    ctx.font = '10px system-ui,sans-serif';
+    ctx.fillStyle = TCLR;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    labels.forEach((lbl, i) => {
+      if (!lbl) return;
+      const parts = lbl.split(':');
+      if (parts.length < 2) return;
+      const hh = parseInt(parts[0]), mm = parseInt(parts[1]);
+      const totalMin = hh * 60 + mm - (9 * 60 + 15);
+      if (totalMin % intervalMin !== 0) return;
+      const x = xScale.getPixelForTick(i);
+      if (x === undefined || x === null) return;
+      ctx.save();
+      ctx.translate(x, bottom + 4);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText(lbl, 0, 0);
+      ctx.restore();
+    });
+    ctx.restore();
+  }
+});
 
 function drawStickyYAxis(chartInstance, overlayCanvasId) {
   if (!chartInstance) return;
