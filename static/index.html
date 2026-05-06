@@ -1694,8 +1694,6 @@ function oiChartOptions() {
             if(!n) return '';
             const lbl=this.getLabelForValue(val);
             if(!lbl) return '';
-            // always show first and last
-            if(idx===0||idx===n-1) return lbl;
             // pick the smallest clock-aligned interval that fits
             // at 90deg each label needs ~12px wide slot
             const plotW=this.chart.chartArea?.width||600;
@@ -1705,14 +1703,16 @@ function oiChartOptions() {
             const candidates=[3,6,9,12,15,18,21,24,30,45,60,90,120];
             let tickMin=candidates[candidates.length-1];
             for(const c of candidates){
-              // must be a multiple of intervalMin so candles actually land on it
               if(c%intervalMin!==0) continue;
               if(Math.floor(sessionMinutes/c)+2<=maxLabels){tickMin=c;break;}
             }
             const parts=lbl.split(':');
             if(parts.length<2) return '';
             const hh=parseInt(parts[0]),mm=parseInt(parts[1]);
-            return (hh*60+mm)%tickMin===0?lbl:'';
+            const totalMin=hh*60+mm;
+            // anchor to session start (9:15=555) so grid aligns from there
+            const sessionStart=555;
+            return (totalMin-sessionStart)%tickMin===0?lbl:'';
           }
         }
       },
