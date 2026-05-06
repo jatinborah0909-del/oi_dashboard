@@ -167,7 +167,7 @@ select{font-size:13px;padding:5px 10px;border:0.5px solid #ccc;border-radius:6px
 @keyframes blink{0%{opacity:1;transform:translateY(-50%) scale(1)}50%{opacity:.4;transform:translateY(-50%) scale(1.4)}100%{opacity:1;transform:translateY(-50%) scale(1)}}
 
 .chart-scroll-outer{overflow-x:auto;overflow-y:hidden;width:100%;border-radius:4px;margin-bottom:10px;}
-.chart-scroll-inner{min-height:220px;height:auto;min-width:100%;position:relative;overflow:hidden;}
+.chart-scroll-inner{min-height:260px;height:auto;min-width:100%;position:relative;overflow:hidden;}
 
 .net-row{display:flex;gap:8px;}
 .net-box{flex:1;background:#f8f8f5;border-radius:8px;padding:8px 10px;}
@@ -617,7 +617,7 @@ const POLL_HX_SEC  = 60;
 const POLL_LTP_SEC = 2;
 const POLL_LIVE_SEC = 5;
 let MIN_BAR_PX   = 32;
-let OI_CHART_H   = 220;
+let OI_CHART_H   = 260;
 let INDEX_CANDLE_W = 12;
 let INDEX_H        = 200;
 
@@ -1692,18 +1692,22 @@ const OI_YAXIS_W = 52;
 function oiChartOptions() {
   return {
     responsive:false, maintainAspectRatio:false,
-    layout:{padding:{top:4,bottom:4,left:0}},
+    layout:{padding:{top:4,bottom:0,left:0}},
     plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtD(ctx.raw)}}},
     scales:{
       x:{
         grid:{display:false},
         ticks:{
           color:TCLR, font:{size:10},
-          autoSkip:true, maxRotation:0, maxTicksLimit:12,
+          autoSkip:false, maxRotation:90, minRotation:90,
           callback:function(val,idx){
             const lbl=this.getLabelForValue(val);
             if(!lbl) return '';
-            return lbl;
+            const parts=lbl.split(':');
+            if(parts.length<2) return '';
+            const hh=parseInt(parts[0]), mm=parseInt(parts[1]);
+            const totalMin=hh*60+mm - (9*60+15); // minutes since market open
+            return totalMin%intervalMin===0 ? lbl : '';
           }
         }
       },
