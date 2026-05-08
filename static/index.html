@@ -2152,8 +2152,8 @@ function renderOptionChain() {
   const depth    = parseInt(depthSel?.value) || 8;
   const atm      = atmStrike;
 
-  // Determine which strikes to show
-  let strikes = [...allStrikes].sort((a,b)=>a-b);
+  // Determine which strikes to show (high → low)
+  let strikes = [...allStrikes].sort((a,b)=>b-a);
   if (depth > 0 && atm) {
     const atmIdx = strikes.indexOf(atm);
     if (atmIdx >= 0) {
@@ -2185,9 +2185,9 @@ function renderOptionChain() {
     const pePrev = ocLtpCache[peKey]?.prev || 0;
 
     const isATM   = st === atm;
-    // ITM: for calls, strike < spot; for puts, strike > spot
-    const isITMcall = spot && st < spot;
-    const isITMput  = spot && st > spot;
+    // In descending order: ITM calls = strike > spot; ITM puts = strike < spot
+    const isITMcall = spot && st > spot;
+    const isITMput  = spot && st < spot;
 
     // LTP change %
     const ceChgPct = cePrev > 0 ? ((ceLtp - cePrev) / cePrev * 100) : 0;
