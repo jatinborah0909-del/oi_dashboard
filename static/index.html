@@ -9,6 +9,16 @@
 body{font-family:system-ui,-apple-system,sans-serif;background:#f5f5f2;color:#1a1a1a;padding:1.25rem;font-size:14px;}
 h1{font-size:17px;font-weight:500;margin-bottom:1rem;}
 
+/* ── PAGE TABS ── */
+.page-tabs{display:flex;gap:6px;align-items:center;margin:0 0 12px 0;background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:6px;position:sticky;top:0;z-index:50;}
+.tab-btn{font-size:12px;padding:7px 14px;border:0.5px solid transparent;border-radius:8px;background:transparent;color:#666;cursor:pointer;font-weight:500;transition:all .15s;}
+.tab-btn:hover{background:#f0f0ec;color:#185FA5;}
+.tab-btn.active{background:#185FA5;color:#fff;border-color:#185FA5;}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+.tab-hint{margin-left:auto;font-size:11px;color:#888;padding-right:8px;}
+
+
 .status-bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:12px;color:#666;background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:9px 14px;margin-bottom:12px;}
 .conn-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;background:#ccc;transition:background .3s;}
 .sval{font-weight:500;color:#1a1a1a;}
@@ -234,7 +244,7 @@ tr:last-child td{border-bottom:none;}
 .oc-depth-select{font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;}
 
 .oc-scroll{overflow-x:auto;overflow-y:auto;max-height:600px;border-radius:6px;}
-.oc-table{width:100%;border-collapse:collapse;font-size:12px;min-width:620px;}
+.oc-table{width:100%;border-collapse:collapse;font-size:12px;min-width:820px;}
 .oc-table thead{position:sticky;top:0;z-index:5;}
 
 /* Column groups */
@@ -322,6 +332,14 @@ tr:last-child td{border-bottom:none;}
     <span class="pill" data-min="15" onclick="setIv(this)">15m</span>
   </div>
 </div>
+
+<div class="page-tabs">
+  <button class="tab-btn active" id="tab-dashboard-btn" onclick="switchTab('dashboard')">Dashboard</button>
+  <button class="tab-btn" id="tab-option-chain-btn" onclick="switchTab('option-chain')">Option Chain & OI Movers</button>
+  <span class="tab-hint">Move heavy tables away from the main trading view</span>
+</div>
+
+<div class="tab-panel active" id="tab-dashboard-panel">
 
 <!-- Strike selector (legacy global panel kept for bear/bull OI card summary) -->
 <div class="strike-panel">
@@ -422,35 +440,6 @@ tr:last-child td{border-bottom:none;}
     <span>Total CE Δ: <span id="cumoi-ce-total" style="font-weight:500;">—</span></span>
     <span>Total PE Δ: <span id="cumoi-pe-total" style="font-weight:500;">—</span></span>
     <span>PCR (OI): <span id="cumoi-pcr" style="font-weight:500;">—</span></span>
-  </div>
-</div>
-
-<!-- ── OI MOVERS PANEL ── -->
-<div class="index-chart-card" id="oi-movers-card">
-  <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
-    <div>
-      <div class="index-chart-title">Top OI Movers — All Strikes</div>
-      <div class="index-chart-sub" id="movers-sub">Strikes with biggest OI increase in selected interval · ranked by absolute change</div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;font-size:11px;color:#888;">
-      <span>Total CE Δ: <span id="movers-ce-total" style="font-weight:500;color:#1a1a1a;">—</span></span>
-      <span>Total PE Δ: <span id="movers-pe-total" style="font-weight:500;color:#1a1a1a;">—</span></span>
-      <span>PCR: <span id="movers-pcr" style="font-weight:500;color:#1a1a1a;">—</span></span>
-    </div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-    <div>
-      <div style="font-size:11px;font-weight:500;color:#712B13;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;padding-bottom:5px;border-bottom:1.5px solid #D85A30;">
-        📞 CE — Calls (Resistance / Short side)
-      </div>
-      <div id="ce-movers-list" style="max-height:400px;overflow-y:auto;"></div>
-    </div>
-    <div>
-      <div style="font-size:11px;font-weight:500;color:#085041;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;padding-bottom:5px;border-bottom:1.5px solid #1D9E75;">
-        📤 PE — Puts (Support / Long side)
-      </div>
-      <div id="pe-movers-list" style="max-height:400px;overflow-y:auto;"></div>
-    </div>
   </div>
 </div>
 
@@ -671,6 +660,10 @@ tr:last-child td{border-bottom:none;}
   <div id="roll-log-body" style="font-size:12px;color:#888;">No rolls today.</div>
 </div>
 
+</div><!-- end tab-dashboard-panel -->
+
+<div class="tab-panel" id="tab-option-chain-panel">
+
 <!-- ── OPTION CHAIN ───────────────────────────────────────────────── -->
 <div class="oc-card">
   <div class="oc-header">
@@ -694,26 +687,73 @@ tr:last-child td{border-bottom:none;}
     <table class="oc-table" id="oc-table">
       <thead>
         <tr>
-          <th class="oc-th-call" colspan="2">CALL</th>
+          <th class="oc-th-call" colspan="3">CALL</th>
           <th class="oc-th-strike" rowspan="2" style="border-bottom:1.5px solid #ddd;">Strike</th>
-          <th class="oc-th-put" colspan="2">PUT</th>
+          <th class="oc-th-put" colspan="3">PUT</th>
         </tr>
         <tr>
           <th class="oc-subth-call">OI</th>
+          <th class="oc-subth-call">Chg OI</th>
           <th class="oc-subth-call">LTP</th>
           <th class="oc-subth-put">LTP</th>
+          <th class="oc-subth-put">Chg OI</th>
           <th class="oc-subth-put">OI</th>
         </tr>
       </thead>
       <tbody id="oc-body">
-        <tr><td colspan="5" style="text-align:center;padding:24px;color:#aaa;font-size:13px;">Waiting for OI data…</td></tr>
+        <tr><td colspan="7" style="text-align:center;padding:24px;color:#aaa;font-size:13px;">Waiting for OI data…</td></tr>
       </tbody>
     </table>
   </div>
 </div>
 
+<!-- ── OI MOVERS PANEL ── -->
+<div class="index-chart-card" id="oi-movers-card">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+    <div>
+      <div class="index-chart-title">Top OI Movers — All Strikes</div>
+      <div class="index-chart-sub" id="movers-sub">Strikes with biggest OI increase in selected interval · ranked by absolute change</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;font-size:11px;color:#888;">
+      <span>Total CE Δ: <span id="movers-ce-total" style="font-weight:500;color:#1a1a1a;">—</span></span>
+      <span>Total PE Δ: <span id="movers-pe-total" style="font-weight:500;color:#1a1a1a;">—</span></span>
+      <span>PCR: <span id="movers-pcr" style="font-weight:500;color:#1a1a1a;">—</span></span>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div>
+      <div style="font-size:11px;font-weight:500;color:#712B13;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;padding-bottom:5px;border-bottom:1.5px solid #D85A30;">
+        📞 CE — Calls (Resistance / Short side)
+      </div>
+      <div id="ce-movers-list" style="max-height:400px;overflow-y:auto;"></div>
+    </div>
+    <div>
+      <div style="font-size:11px;font-weight:500;color:#085041;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;padding-bottom:5px;border-bottom:1.5px solid #1D9E75;">
+        📤 PE — Puts (Support / Long side)
+      </div>
+      <div id="pe-movers-list" style="max-height:400px;overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end tab-option-chain-panel -->
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
+function switchTab(tabName) {
+  ['dashboard', 'option-chain'].forEach(name => {
+    const panel = document.getElementById('tab-' + name + '-panel');
+    const btn = document.getElementById('tab-' + name + '-btn');
+    const active = name === tabName;
+    if (panel) panel.classList.toggle('active', active);
+    if (btn) btn.classList.toggle('active', active);
+  });
+  if (tabName === 'option-chain') {
+    renderOptionChain();
+    setTimeout(scrollOCtoATM, 80);
+  }
+}
+
 // ── CONFIG ────────────────────────────────────────────────────────
 const BRIDGE       = '';
 const POLL_OI_SEC  = 30;
@@ -2132,6 +2172,7 @@ function drawOIMovers(rows, atmStr) {
 // Stores latest LTP snapshot keyed by "s{strike}_{ce|pe}"
 const ocLtpCache  = {};   // { "s24000_ce": {ltp, prev}, ... }
 const ocOICache   = {};   // { "s24000_ce": oi, ... }
+const ocOIDeltaCache = {}; // { "s24000_ce": latest OI change, ... }
 
 function fmtOI(v) {
   if (!v && v !== 0) return '—';
@@ -2143,6 +2184,30 @@ function fmtOI(v) {
 function fmtLtp(v) {
   if (!v && v !== 0) return '—';
   return parseFloat(v).toFixed(2);
+}
+
+
+function getOCDelta(st, type) {
+  const key = 's' + st + '_' + type;
+  if (ocOIDeltaCache[key] != null) return ocOIDeltaCache[key];
+
+  // Fallback for historical/replay mode: derive latest OI change from last two 1-min rows.
+  if (minuteRows && minuteRows.length >= 2) {
+    const cur = minuteRows[minuteRows.length - 1];
+    const prev = minuteRows[minuteRows.length - 2];
+    const field = key + '_oi';
+    if (cur && prev && cur[field] != null && prev[field] != null) {
+      return pf(cur[field]) - pf(prev[field]);
+    }
+  }
+  return 0;
+}
+
+function fmtDeltaOI(v) {
+  if (!v && v !== 0) return '—';
+  if (Math.abs(v) < 1) return '—';
+  const sign = v > 0 ? '+' : '-';
+  return sign + fmtOI(Math.abs(v));
 }
 
 function renderOptionChain() {
@@ -2181,6 +2246,8 @@ function renderOptionChain() {
     const peLtp  = ocLtpCache[peKey]?.ltp  || 0;
     const ceOI   = ocOICache[ceKey]  || 0;
     const peOI   = ocOICache[peKey]  || 0;
+    const ceOIDelta = getOCDelta(st, 'ce');
+    const peOIDelta = getOCDelta(st, 'pe');
     const cePrev = ocLtpCache[ceKey]?.prev || 0;
     const pePrev = ocLtpCache[peKey]?.prev || 0;
 
@@ -2203,6 +2270,8 @@ function renderOptionChain() {
 
     const ceChgHtml = cePrev > 0 ? `<span class="oc-chg ${ceChgPct>=0?'up':'dn'}">${ceChgPct>=0?'+':''}${ceChgPct.toFixed(1)}%</span>` : '';
     const peChgHtml = pePrev > 0 ? `<span class="oc-chg ${peChgPct>=0?'up':'dn'}">${peChgPct>=0?'+':''}${peChgPct.toFixed(1)}%</span>` : '';
+    const ceDeltaCls = ceOIDelta > 0 ? 'dup' : (ceOIDelta < 0 ? 'ddn' : 'dfl');
+    const peDeltaCls = peOIDelta > 0 ? 'dup' : (peOIDelta < 0 ? 'ddn' : 'dfl');
 
     return `<tr class="${rowCls}" data-strike="${st}">
       <td class="${tdCallCls}">
@@ -2213,6 +2282,7 @@ function renderOptionChain() {
           <span class="oc-oi-num" style="text-align:right;">${fmtOI(ceOI)}</span>
         </div>
       </td>
+      <td class="${tdCallCls}"><span class="${ceDeltaCls}">${fmtDeltaOI(ceOIDelta)}</span></td>
       <td class="${tdCallCls}">
         <span class="oc-ltp" id="oc-ce-${st}">${fmtLtp(ceLtp)}</span>${ceChgHtml}
       </td>
@@ -2220,6 +2290,7 @@ function renderOptionChain() {
       <td class="${tdPutCls}">
         <span class="oc-ltp" id="oc-pe-${st}">${fmtLtp(peLtp)}</span>${peChgHtml}
       </td>
+      <td class="${tdPutCls}"><span class="${peDeltaCls}">${fmtDeltaOI(peOIDelta)}</span></td>
       <td class="${tdPutCls}">
         <div class="oc-oi-wrap">
           <span class="oc-oi-num">${fmtOI(peOI)}</span>
@@ -2231,7 +2302,7 @@ function renderOptionChain() {
     </tr>`;
   }).join('');
 
-  document.getElementById('oc-body').innerHTML = rows || '<tr><td colspan="5" style="text-align:center;padding:20px;color:#aaa;">No data</td></tr>';
+  document.getElementById('oc-body').innerHTML = rows || '<tr><td colspan="7" style="text-align:center;padding:20px;color:#aaa;">No data</td></tr>';
 
   // Update meta
   const atmTxt = atm ? atm : '—';
@@ -2245,7 +2316,11 @@ function updateOptionChainOI(oiData) {
   const opts = oiData.options || {};
   Object.entries(opts).forEach(([key, v]) => {
     // key like "s24000_ce" or "s24000_pe"
-    if (v && v.oi != null) ocOICache[key] = pf(v.oi);
+    if (v && v.oi != null) {
+      const nextOI = pf(v.oi);
+      if (ocOICache[key] != null) ocOIDeltaCache[key] = nextOI - ocOICache[key];
+      ocOICache[key] = nextOI;
+    }
   });
 
   // Also try flat fields: s24000_ce_oi
@@ -2253,7 +2328,9 @@ function updateOptionChainOI(oiData) {
     const m = k.match(/^s(\d+)_(ce|pe)_oi$/);
     if (m) {
       const mapKey = 's'+m[1]+'_'+m[2];
-      ocOICache[mapKey] = pf(oiData[k]);
+      const nextOI = pf(oiData[k]);
+      if (ocOICache[mapKey] != null) ocOIDeltaCache[mapKey] = nextOI - ocOICache[mapKey];
+      ocOICache[mapKey] = nextOI;
     }
   });
 }
