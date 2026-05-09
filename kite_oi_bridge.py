@@ -32,6 +32,7 @@ import collections
 import json
 import os
 import threading
+import queue
 import time
 from datetime import datetime, timezone, timedelta
 
@@ -58,7 +59,7 @@ def is_market_open(dt=None):
 
 import psycopg2
 import psycopg2.extras
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, Response
 from flask_cors import CORS
 from kiteconnect import KiteTicker, KiteConnect
 
@@ -237,6 +238,86 @@ minute_buffer = {
 
 state_lock = threading.Lock()
 oi_history = collections.deque(maxlen=OI_HISTORY_MAXLEN)   # in-memory fallback
+
+# ── BROWSER LIVE STREAM (Server-Sent Events) ─────────────────────────────────
+# The Kite WebSocket already gives tick-by-tick updates to this backend.
+# These queues let Flask push the latest snapshot to all connected browsers
+# immediately, instead of waiting for /ltp or /oi/live-candle polling.
+stream_subscribers = []
+stream_lock = threading.Lock()
+
+def _make_live_payload_unlocked(elapsed_override=None):
+    """Build one browser-friendly payload. Caller must hold state_lock."""
+    now_ts = time.time()
+    payload = {
+        "type": "tick",
+        "as_of": now_ist().strftime("%H:%M:%S"),
+        "spot": state["spot"],
+        "session_id": state["session_id"],
+        "atm_strike": state["atm_strike"],
+        "bear_strike": state["bear_strike"],
+        "bull_strike": state["bull_strike"],
+        "options": {},
+        "live_candle": {"available": False},
+    }
+
+    for token, meta in state["tokens"].items():
+        snap = state["oi"].get(token, {})
+        payload["options"][meta["role_key"]] = {
+            "strike": meta["strike"],
+            "type": meta["instrument_type"],
+            "symbol": meta["tradingsymbol"],
+            "ltp": snap.get("ltp", 0),
+            "oi": snap.get("oi", 0),
+        }
+
+    if minute_buffer["start_ts"] is not None and minute_buffer["start_snap"] is not None:
+        start = minute_buffer["start_snap"]
+        elapsed = elapsed_override if elapsed_override is not None else round(now_ts - minute_buffer["start_ts"])
+        live = {
+            "available": True,
+            "elapsed_sec": elapsed,
+            "time_label": ts_to_ist(minute_buffer["start_ts"]).strftime("%H:%M") + "*",
+            "spot_open": round(minute_buffer["spot_open"]) if minute_buffer["spot_open"] else 0,
+            "spot_high": round(minute_buffer["spot_high"]) if minute_buffer["spot_high"] else 0,
+            "spot_low": round(minute_buffer["spot_low"]) if minute_buffer["spot_low"] else 0,
+            "spot_close": round(minute_buffer["spot_close"]) if minute_buffer["spot_close"] else 0,
+            "bear_strike": state["bear_strike"],
+            "bull_strike": state["bull_strike"],
+            "deltas": {},
+            "ltp_ohlc": {},
+        }
+        for token, meta in state["tokens"].items():
+            rk = meta["role_key"]
+            current_oi = state["oi"].get(token, {}).get("oi", 0)
+            start_oi = start.get(rk + "_oi", current_oi)
+            live["deltas"][rk] = {"oi": current_oi, "delta": current_oi - start_oi}
+            ohlc = minute_buffer["ltp_ohlc"].get(token, {})
+            if ohlc:
+                live["ltp_ohlc"][rk] = ohlc
+        payload["live_candle"] = live
+    return payload
+
+def _broadcast_live_payload(payload):
+    line = f"data: {json.dumps(payload, separators=(',', ':'))}\n\n"
+    stale = []
+    with stream_lock:
+        for q in list(stream_subscribers):
+            try:
+                if q.full():
+                    try:
+                        q.get_nowait()
+                    except Exception:
+                        pass
+                q.put_nowait(line)
+            except Exception:
+                stale.append(q)
+        for q in stale:
+            if q in stream_subscribers:
+                stream_subscribers.remove(q)
+
+def _broadcast_live_from_state_unlocked():
+    _broadcast_live_payload(_make_live_payload_unlocked())
 
 
 # ── INSTRUMENT HELPERS ────────────────────────────────────────────────────────
@@ -457,6 +538,7 @@ def build_ticker():
                 _update_ltp_ohlc(token, current_ltp)
 
             _append_history()
+            _broadcast_live_from_state_unlocked()
 
     def on_connect(ws, response):
         with state_lock:
@@ -728,6 +810,35 @@ def live_candle():
     return jsonify(result)
 
 
+
+@app.route("/stream")
+def stream_ticks():
+    """Push tick-by-tick snapshots to the browser using Server-Sent Events."""
+    q = queue.Queue(maxsize=10)
+    with stream_lock:
+        stream_subscribers.append(q)
+
+    def gen():
+        try:
+            # Send an initial snapshot immediately so the chart does not wait for the next tick.
+            with state_lock:
+                initial = _make_live_payload_unlocked(elapsed_override=0)
+            yield f"data: {json.dumps(initial, separators=(',', ':'))}\n\n"
+            while True:
+                try:
+                    yield q.get(timeout=15)
+                except queue.Empty:
+                    yield ": keepalive\n\n"
+        finally:
+            with stream_lock:
+                if q in stream_subscribers:
+                    stream_subscribers.remove(q)
+
+    return Response(gen(), mimetype="text/event-stream", headers={
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+    })
+
 @app.route("/health")
 def health():
     with state_lock:
@@ -822,8 +933,9 @@ if __name__ == "__main__":
     print(f"\nFlask listening on port {FLASK_PORT}")
     print(f"  GET  /                serves dashboard HTML")
     print(f"  GET  /oi              all strikes snapshot")
-    print(f"  GET  /ltp             live LTP all tokens (2s)")
-    print(f"  GET  /oi/live-candle  forming candle (5s)")
+    print(f"  GET  /ltp             latest LTP snapshot")
+    print(f"  GET  /oi/live-candle  latest forming candle snapshot")
+    print(f"  GET  /stream          browser SSE stream for tick-by-tick chart updates")
     print(f"  GET  /strikes         strike list")
     print(f"  GET  /oi/history      1-min rows + spot OHLC (today, or ?date=YYYY-MM-DD)")
     print(f"  GET  /oi/dates        list of dates with data")
