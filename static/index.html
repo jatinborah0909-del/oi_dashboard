@@ -464,6 +464,11 @@ tr:last-child td{border-bottom:none;}
   <div class="conf-card bear-card">
     <div class="conf-title bear" id="bear-conf-title">Top strike lens</div>
     <div class="conf-sub" id="bear-conf-sub">CE option LTP price · colour = activity type</div>
+    <div class="chart-header-right" style="justify-content:flex-end;margin-bottom:8px;">
+      <label style="color:#888;white-space:nowrap;">Strike:</label>
+      <select id="bear-conf-select" onchange="onStrikeSelectChange(0, this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
+      <button class="btn" style="font-size:11px;padding:3px 8px;" onclick="resetToDefault()">Reset ATM</button>
+    </div>
     <div class="conf-legend">
       <span class="cl-item"><span class="cl-sq" style="background:#0F6E56;"></span>Long Buildup 🔥 (↑price ↑OI)</span>
       <span class="cl-item"><span class="cl-sq" style="background:#8B1A1A;"></span>Short Buildup 🔥 (↓price ↑OI)</span>
@@ -487,6 +492,11 @@ tr:last-child td{border-bottom:none;}
   <div class="conf-card bull-card">
     <div class="conf-title bull" id="bull-conf-title">Bottom strike lens</div>
     <div class="conf-sub" id="bull-conf-sub">PE option LTP price · colour = activity type</div>
+    <div class="chart-header-right" style="justify-content:flex-end;margin-bottom:8px;">
+      <label style="color:#888;white-space:nowrap;">Strike:</label>
+      <select id="bull-conf-select" onchange="onStrikeSelectChange(2, this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
+      <button class="btn" style="font-size:11px;padding:3px 8px;" onclick="resetToDefault()">Reset ATM</button>
+    </div>
     <div class="conf-legend">
       <span class="cl-item"><span class="cl-sq" style="background:#0F6E56;"></span>Long Buildup 🔥 (↑price ↑OI)</span>
       <span class="cl-item"><span class="cl-sq" style="background:#8B1A1A;"></span>Short Buildup 🔥 (↓price ↑OI)</span>
@@ -758,12 +768,15 @@ function switchTab(tabName) {
 const BRIDGE       = '';
 const POLL_OI_SEC  = 30;
 const POLL_HX_SEC  = 60;
-const POLL_LTP_SEC = 2;
-const POLL_LIVE_SEC = 5;
+const POLL_LTP_SEC = 1;   // browser pulls latest websocket tick snapshot every second
+const POLL_LIVE_SEC = 1;  // refresh the forming index/option candles every second
 let MIN_BAR_PX   = 32;
 let OI_CHART_H   = 220;
 let INDEX_CANDLE_W = 12;
 let INDEX_H        = 200;
+let INDEX_CANDLE_GAP = 1;
+let ACTIVITY_CANDLE_W = 13;
+let ACTIVITY_CANDLE_GAP = 1;
 
 // ── DATE / REPLAY STATE ───────────────────────────────────────────
 let selectedDate   = null;   // null = live/today mode; 'YYYY-MM-DD' = historical
@@ -1026,7 +1039,7 @@ function setIv(el) {
 
 // ── STRIKE SELECTOR ───────────────────────────────────────────────
 function populateStrikeSelectors(strikes) {
-  ['s1-select','s2-select','s3-select'].forEach((id, idx) => {
+  [{id:'s1-select',idx:0},{id:'s2-select',idx:1},{id:'s3-select',idx:2},{id:'bear-conf-select',idx:0},{id:'bull-conf-select',idx:2}].forEach(({id, idx}) => {
     const sel = document.getElementById(id);
     if (!sel) return;
     sel.innerHTML = '';
@@ -1529,7 +1542,7 @@ function drawIndexChart(candles) {
   const scrollEl   = document.getElementById('index-scroll');
   const containerW = scrollEl ? scrollEl.offsetWidth : 600;
   const H = INDEX_H;
-  const slotPx = Math.max(INDEX_CANDLE_W + 4, 8);
+  const slotPx = Math.max(INDEX_CANDLE_W + INDEX_CANDLE_GAP, INDEX_CANDLE_W + 1);
   const W = Math.max(candles.length * slotPx + 60, containerW);
   svgEl.setAttribute('width', W);
   svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
@@ -1559,7 +1572,7 @@ function drawIndexChart(candles) {
     svgEl.appendChild(txt);
   }
 
-  const slot=slotPx, cW=Math.min(INDEX_CANDLE_W, slot-2);
+  const slot=slotPx, cW=Math.min(INDEX_CANDLE_W, slot-1);
   const actSigs=[];
   candles.forEach((c, i) => {
     if (!c.open||!c.close) { actSigs.push('N'); return; }
@@ -1657,7 +1670,7 @@ function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpL
   if (!candles.length) { svgEl.setAttribute('height','60'); return []; }
   const containerW=svgEl.parentElement.offsetWidth||400;
   const H=200; // fixed height for confluence charts
-  const slotPx=Math.max(12+4,12);
+  const slotPx=Math.max(ACTIVITY_CANDLE_W + ACTIVITY_CANDLE_GAP, ACTIVITY_CANDLE_W + 1);
   const W=Math.max(candles.length*slotPx+60,containerW);
   svgEl.setAttribute('width',W);
   svgEl.setAttribute('viewBox',`0 0 ${W} ${H}`);
@@ -1688,7 +1701,7 @@ function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpL
     svgEl.appendChild(txt);
   }
 
-  const slot=slotPx, cW=Math.min(12,slot-2);
+  const slot=slotPx, cW=Math.min(ACTIVITY_CANDLE_W,slot-1);
   const actSigs=[];
 
   candles.forEach((c,i) => {
@@ -1907,7 +1920,7 @@ function drawStickyYAxis(chartInstance, overlayCanvasId) {
   ctx.beginPath(); ctx.moveTo(OI_YAXIS_W-0.5,0); ctx.lineTo(OI_YAXIS_W-0.5,h); ctx.stroke();
 }
 
-function makeDS(label,data,colors){return{label,data,backgroundColor:colors,borderRadius:3,barPercentage:0.6};}
+function makeDS(label,data,colors){return{label,data,backgroundColor:colors,borderRadius:3,barPercentage:0.95,categoryPercentage:0.9};}
 
 function setCanvas(id,w,h){
   const c=document.getElementById(id);
