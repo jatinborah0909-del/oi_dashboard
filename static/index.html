@@ -1457,10 +1457,59 @@ function buildCandlesForStrike(rows, mins, strike) {
     const lows   = slice.map(r=>pf(r.spot_low)).filter(v=>v>0);
     const closes = slice.map(r=>pf(r.spot_close)).filter(v=>v>0);
 
-    const ceLtps = slice.map(r=>pf(r[ceK+'_ltp'])).filter(v=>v>0);
-    const peLtps = slice.map(r=>pf(r[peK+'_ltp'])).filter(v=>v>0);
+    // Try multiple LTP field name patterns — bridge may store as s23950_ce_ltp or other variants
+    const tryLtpField = (base, suffixes) => {
+      for (const s of suffixes) {
+        const field = base + s;
+        if (slice.some(r => pf(r[field]) > 0)) return field;
+      }
+      return null;
+    };
+    const ceLtpField = tryLtpField(ceK, ['_ltp', '_close', '_price']) ||
+                       tryLtpField('s' + strike + '_ce', ['_ltp', '_close']);
+    const peLtpField = tryLtpField(peK, ['_ltp', '_close', '_price']) ||
+                       tryLtpField('s' + strike + '_pe', ['_ltp', '_close']);
+
+    const ceLtps = ceLtpField ? slice.map(r => pf(r[ceLtpField])).filter(v => v > 0) : [];
+    const peLtps = peLtpField ? slice.map(r => pf(r[peLtpField])).filter(v => v > 0) : [];
     const ceOiStart = pf(first[ceK+'_oi']), ceOiEnd = pf(last[ceK+'_oi']);
     const peOiStart = pf(first[peK+'_oi']), peOiEnd = pf(last[peK+'_oi']);
+
+    // Build OHLC from an LTP array; if empty, fall back to spot-price shape
+    // so candles always render (they show direction correctly even without per-min LTP)
+    function ltpOHLC(ltpArr) {
+      if (ltpArr.length >= 2) {
+        return { open: ltpArr[0], high: Math.max(...ltpArr), low: Math.min(...ltpArr), close: ltpArr[ltpArr.length-1] };
+      }
+      if (ltpArr.length === 1) {
+        // Single tick — use spot deltas to give the candle shape
+        const ltp = ltpArr[0];
+        if (!opens.length) return { open: ltp, high: ltp, low: ltp, close: ltp };
+        const sO = opens[0], sC = closes[closes.length-1] || sO;
+        const sH = highs.length ? Math.max(...highs) : sO;
+        const sL = lows.length  ? Math.min(...lows)  : sO;
+        const range = sH - sL || 1;
+        // Scale spot movement proportionally around ltp (±0.3% typical option tick)
+        const scale = ltp * 0.003 / range;
+        return {
+          open:  ltp + (sO - sC) * scale,
+          high:  ltp + (sH - sC) * scale,
+          low:   ltp - (sC - sL) * scale,
+          close: ltp,
+        };
+      }
+      // No LTP at all — fall back to spot OHLC so candle shape + activity type still works
+      if (!opens.length) return { open: 0, high: 0, low: 0, close: 0 };
+      return {
+        open:  opens[0],
+        high:  highs.length ? Math.max(...highs) : opens[0],
+        low:   lows.length  ? Math.min(...lows)  : opens[0],
+        close: closes.length ? closes[closes.length-1] : opens[0],
+      };
+    }
+
+    const ceOHLC = ltpOHLC(ceLtps);
+    const peOHLC = ltpOHLC(peLtps);
 
     candles.push({
       label: first.time_label,
@@ -1474,15 +1523,15 @@ function buildCandlesForStrike(rows, mins, strike) {
       // for index signal compat (used externally)
       s1ce: 0, s1pe: 0, s3ce: 0, s3pe: 0,
       // LTP candle data for confluence chart
-      bce_ltp_open:  ceLtps.length ? ceLtps[0] : 0,
-      bce_ltp_high:  ceLtps.length ? Math.max(...ceLtps) : 0,
-      bce_ltp_low:   ceLtps.length ? Math.min(...ceLtps) : 0,
-      bce_ltp_close: ceLtps.length ? ceLtps[ceLtps.length-1] : 0,
+      bce_ltp_open:  ceOHLC.open,
+      bce_ltp_high:  ceOHLC.high,
+      bce_ltp_low:   ceOHLC.low,
+      bce_ltp_close: ceOHLC.close,
       bce_oi_delta:  ceOiEnd - ceOiStart,
-      upe_ltp_open:  peLtps.length ? peLtps[0] : 0,
-      upe_ltp_high:  peLtps.length ? Math.max(...peLtps) : 0,
-      upe_ltp_low:   peLtps.length ? Math.min(...peLtps) : 0,
-      upe_ltp_close: peLtps.length ? peLtps[peLtps.length-1] : 0,
+      upe_ltp_open:  peOHLC.open,
+      upe_ltp_high:  peOHLC.high,
+      upe_ltp_low:   peOHLC.low,
+      upe_ltp_close: peOHLC.close,
       upe_oi_delta:  peOiEnd - peOiStart,
     });
   }
