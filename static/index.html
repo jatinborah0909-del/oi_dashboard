@@ -1287,20 +1287,24 @@ async function fetchLiveCandle() {
 }
 
 function _redrawSVGOnly() {
-  // Only redraws SVG index chart and confluence charts from cached data
+  // Redraws SVG charts using the same getters as _doRebuild to stay in sync
   const s1Candles = latestCandles[0];
   const s3Candles = latestCandles[2];
   const allWithLive0 = liveCandle ? [...s1Candles, liveCandle] : s1Candles;
   const allWithLive2 = liveCandle ? [...s3Candles, liveCandle] : s3Candles;
   drawIndexChart(liveCandle ? [...latestCandles[1], liveCandle] : latestCandles[1]);
+  // Use identical getters to _doRebuild — fall back through both prefixed and un-prefixed field names
   const bearSigs = drawStrikeActivityChart('svgBear', allWithLive0,
-    c=>c.s1_bce_ltp_open||0, c=>c.s1_bce_ltp_high||0, c=>c.s1_bce_ltp_low||0, c=>c.s1_bce_ltp_close||0,
-    c=>c.s1_bce_oi_delta||0, 'bear-activity-badge');
+    c=>c.s1_bce_ltp_open||c.bce_ltp_open||0, c=>c.s1_bce_ltp_high||c.bce_ltp_high||0,
+    c=>c.s1_bce_ltp_low||c.bce_ltp_low||0,   c=>c.s1_bce_ltp_close||c.bce_ltp_close||0,
+    c=>c.s1_bce_oi_delta||c.bce_oi_delta||0, 'bear-activity-badge');
   const bullSigs = drawStrikeActivityChart('svgBull', allWithLive2,
-    c=>c.s3_upe_ltp_open||0, c=>c.s3_upe_ltp_high||0, c=>c.s3_upe_ltp_low||0, c=>c.s3_upe_ltp_close||0,
-    c=>c.s3_upe_oi_delta||0, 'bull-activity-badge');
+    c=>c.s3_upe_ltp_open||c.upe_ltp_open||0, c=>c.s3_upe_ltp_high||c.upe_ltp_high||0,
+    c=>c.s3_upe_ltp_low||c.upe_ltp_low||0,   c=>c.s3_upe_ltp_close||c.upe_ltp_close||0,
+    c=>c.s3_upe_oi_delta||c.upe_oi_delta||0, 'bull-activity-badge');
   buildStrip('bear-strip', bearSigs);
   buildStrip('bull-strip', bullSigs);
+  if (s1Candles.length) updateConfluenceSummary(s1Candles, s3Candles, bearSigs, bullSigs);
 }
 
 async function resetCSV() {
@@ -1751,19 +1755,23 @@ function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpL
   // ── Pick ONE consistent price source for the whole chart.
   // LTP values (option prices ~50–500) and spot prices (~23000) must NEVER be mixed
   // or the Y-axis blows out. Check if LTP data is present across most candles first.
+  // Decide price source: if any candle has LTP data → use LTP getters (option prices).
+  // If none do (history rows lack _ltp columns) → use spot OHLC exclusively.
+  // CRITICAL: never mix LTP (~100) and spot (~23800) in the same allP array.
   const ltpCloseVals = candles.map(c => getLtpClose(c)).filter(v => v > 0);
-  const useLtp = ltpCloseVals.length >= Math.ceil(candles.length * 0.5); // LTP present in ≥50% of candles
+  const useLtp = ltpCloseVals.length > 0;
 
   let getPO, getPH, getPL, getPC;
   if (useLtp) {
-    // Use LTP OHLC — real option price candles
-    getPO = c => getLtpOpen(c)  || getLtpClose(c) || 0;
-    getPH = c => getLtpHigh(c)  || getLtpClose(c) || 0;
-    getPL = c => getLtpLow(c)   || getLtpClose(c) || 0;
-    getPC = c => getLtpClose(c) || 0;
+    // LTP mode — real option prices. For candles without LTP, collapse to the same value
+    // so they don't skew the scale (they'll render as doji/neutral)
+    const medianLtp = ltpCloseVals.sort((a,b)=>a-b)[Math.floor(ltpCloseVals.length/2)];
+    getPO = c => getLtpOpen(c)  || getLtpClose(c) || medianLtp;
+    getPH = c => getLtpHigh(c)  || getLtpClose(c) || medianLtp;
+    getPL = c => getLtpLow(c)   || getLtpClose(c) || medianLtp;
+    getPC = c => getLtpClose(c) || medianLtp;
   } else {
-    // LTP not in history — use spot OHLC for candle shape, OI delta for colour
-    // (spot prices give correct up/down direction for activity classification)
+    // No LTP anywhere — use spot OHLC for candle shape, OI delta for colour
     getPO = c => c.open  || 0;
     getPH = c => c.high  || 0;
     getPL = c => c.low   || 0;
