@@ -1263,6 +1263,21 @@ async function fetchLiveCandle() {
       liveCandle[pfx+'_upe_ltp_high']  = prevLtp[peK]||0;
       liveCandle[pfx+'_upe_ltp_low']   = prevLtp[peK]||0;
       liveCandle[pfx+'_upe_oi_delta']  = liveCandle[pfx+'_dpe'];
+      // Un-prefixed aliases so historical-candle accessors work on liveCandle too
+      if (idx === 0) {
+        liveCandle.bce_ltp_open  = prevLtp[ceK]||0;
+        liveCandle.bce_ltp_close = prevLtp[ceK]||0;
+        liveCandle.bce_ltp_high  = prevLtp[ceK]||0;
+        liveCandle.bce_ltp_low   = prevLtp[ceK]||0;
+        liveCandle.bce_oi_delta  = liveCandle[pfx+'_dce'];
+      }
+      if (idx === 2) {
+        liveCandle.upe_ltp_open  = prevLtp[peK]||0;
+        liveCandle.upe_ltp_close = prevLtp[peK]||0;
+        liveCandle.upe_ltp_high  = prevLtp[peK]||0;
+        liveCandle.upe_ltp_low   = prevLtp[peK]||0;
+        liveCandle.upe_oi_delta  = liveCandle[pfx+'_dpe'];
+      }
     });
 
     document.getElementById('live-candle-status').style.display='inline';
@@ -2431,11 +2446,13 @@ function _doRebuild() {
   const c3WithLive = liveCandle ? [...c3, liveCandle] : c3;
 
   const bearSigs = drawStrikeActivityChart('svgBear', c1WithLive,
-    c=>c.bce_ltp_open||0, c=>c.bce_ltp_high||0, c=>c.bce_ltp_low||0, c=>c.bce_ltp_close||0,
-    c=>c.bce_oi_delta||0, 'bear-activity-badge');
+    c=>c.s1_bce_ltp_open||c.bce_ltp_open||0, c=>c.s1_bce_ltp_high||c.bce_ltp_high||0,
+    c=>c.s1_bce_ltp_low||c.bce_ltp_low||0,   c=>c.s1_bce_ltp_close||c.bce_ltp_close||0,
+    c=>c.s1_bce_oi_delta||c.bce_oi_delta||0, 'bear-activity-badge');
   const bullSigs = drawStrikeActivityChart('svgBull', c3WithLive,
-    c=>c.upe_ltp_open||0, c=>c.upe_ltp_high||0, c=>c.upe_ltp_low||0, c=>c.upe_ltp_close||0,
-    c=>c.upe_oi_delta||0, 'bull-activity-badge');
+    c=>c.s3_upe_ltp_open||c.upe_ltp_open||0, c=>c.s3_upe_ltp_high||c.upe_ltp_high||0,
+    c=>c.s3_upe_ltp_low||c.upe_ltp_low||0,   c=>c.s3_upe_ltp_close||c.upe_ltp_close||0,
+    c=>c.s3_upe_oi_delta||c.upe_oi_delta||0, 'bull-activity-badge');
 
   buildStrip('bear-strip', bearSigs);
   buildStrip('bull-strip', bullSigs);
