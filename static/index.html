@@ -294,6 +294,38 @@ tr:last-child td{border-bottom:none;}
 /* Spot line */
 .oc-spot-row td{background:#FAEEDA;border-top:1.5px solid #EF9F27;border-bottom:1.5px solid #EF9F27;}
 .oc-spot-row .oc-td-strike{color:#854F0B;font-size:11px;}
+
+/* ── INDEX TICKER (Option Chain page) ── */
+.oc-index-ticker{display:flex;align-items:center;gap:0;background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:10px 16px;margin-bottom:12px;flex-wrap:wrap;gap:12px;}
+.oc-ticker-block{display:flex;align-items:baseline;gap:6px;}
+.oc-ticker-label{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;}
+.oc-ticker-val{font-size:22px;font-weight:600;color:#1a1a1a;font-variant-numeric:tabular-nums;transition:color .25s;}
+.oc-ticker-val.flash-up{color:#1D9E75;} .oc-ticker-val.flash-down{color:#D85A30;}
+.oc-ticker-chg{font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;}
+.oc-ticker-chg.up{color:#1D9E75;} .oc-ticker-chg.dn{color:#D85A30;}
+.oc-ticker-divider{width:0.5px;height:36px;background:#eee;}
+.oc-ticker-meta{font-size:11px;color:#888;}
+.oc-ticker-meta span{color:#1a1a1a;font-weight:500;}
+.oc-ticker-dot{width:7px;height:7px;border-radius:50%;background:#ccc;margin-right:4px;display:inline-block;vertical-align:middle;transition:background .3s;}
+.oc-ticker-dot.live{background:#1D9E75;animation:blink 1.5s infinite;}
+
+/* ── MAX PAIN ── */
+.oc-maxpain-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.oc-mp-block{display:flex;flex-direction:column;gap:2px;}
+.oc-mp-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.04em;}
+.oc-mp-val{font-size:18px;font-weight:600;color:#534AB7;font-variant-numeric:tabular-nums;}
+.oc-mp-sub{font-size:11px;color:#888;}
+.oc-mp-divider{width:0.5px;height:40px;background:#eee;}
+.oc-mp-bar-wrap{flex:1;min-width:220px;}
+.oc-mp-bar-label{display:flex;justify-content:space-between;font-size:10px;color:#888;margin-bottom:3px;}
+.oc-mp-track{height:8px;background:#f0f0ec;border-radius:4px;position:relative;overflow:visible;}
+.oc-mp-marker{width:3px;height:14px;background:#534AB7;border-radius:2px;position:absolute;top:-3px;transform:translateX(-50%);transition:left .5s;}
+.oc-mp-spot-marker{width:2px;height:14px;background:#EF9F27;border-radius:2px;position:absolute;top:-3px;transform:translateX(-50%);transition:left .5s;}
+.oc-mp-tooltip{font-size:10px;color:#666;margin-top:4px;}
+
+/* ── TIME VALUE column ── */
+.oc-tv{color:#666;font-size:11px;font-variant-numeric:tabular-nums;}
+.oc-tv-high{color:#D85A30;}
 </style>
 </head>
 <body>
@@ -675,6 +707,50 @@ tr:last-child td{border-bottom:none;}
 <div class="tab-panel" id="tab-option-chain-panel">
 
 <!-- ── OPTION CHAIN ───────────────────────────────────────────────── -->
+<!-- ── INDEX TICKER ── -->
+<div class="oc-index-ticker" id="oc-ticker">
+  <div class="oc-ticker-block">
+    <span class="oc-ticker-dot" id="oc-ticker-dot"></span>
+    <span class="oc-ticker-label" id="oc-ticker-index-label">NIFTY</span>
+    <span class="oc-ticker-val" id="oc-ticker-spot">—</span>
+    <span class="oc-ticker-chg" id="oc-ticker-chg"></span>
+  </div>
+  <div class="oc-ticker-divider"></div>
+  <div class="oc-ticker-meta">ATM: <span id="oc-ticker-atm">—</span></div>
+  <div class="oc-ticker-meta">Expiry: <span id="oc-ticker-expiry">—</span></div>
+  <div class="oc-ticker-meta">DTE: <span id="oc-ticker-dte">—</span> days</div>
+  <div class="oc-ticker-meta" id="oc-ticker-time" style="margin-left:auto;"></div>
+</div>
+
+<!-- ── MAX PAIN ── -->
+<div class="oc-maxpain-card" id="oc-maxpain-card">
+  <div class="oc-mp-block">
+    <div class="oc-mp-label">Max Pain</div>
+    <div class="oc-mp-val" id="mp-strike">—</div>
+    <div class="oc-mp-sub" id="mp-sub">Calculating…</div>
+  </div>
+  <div class="oc-mp-divider"></div>
+  <div class="oc-mp-block">
+    <div class="oc-mp-label">Total OI Pain</div>
+    <div class="oc-mp-val" style="color:#1a1a1a;font-size:14px;" id="mp-total-pain">—</div>
+    <div class="oc-mp-sub">₹ value at expiry (CE+PE)</div>
+  </div>
+  <div class="oc-mp-divider"></div>
+  <div class="oc-mp-block">
+    <div class="oc-mp-label">Spot vs Max Pain</div>
+    <div class="oc-mp-val" style="font-size:14px;" id="mp-spot-diff">—</div>
+    <div class="oc-mp-sub" id="mp-spot-diff-sub"></div>
+  </div>
+  <div class="oc-mp-bar-wrap">
+    <div class="oc-mp-bar-label"><span id="mp-bar-lo"></span><span>Max Pain</span><span id="mp-bar-hi"></span></div>
+    <div class="oc-mp-track" id="mp-track">
+      <div class="oc-mp-marker" id="mp-marker" style="left:50%;"></div>
+      <div class="oc-mp-spot-marker" id="mp-spot-marker" style="left:50%;"></div>
+    </div>
+    <div class="oc-mp-tooltip"><span style="display:inline-block;width:8px;height:2px;background:#534AB7;border-radius:1px;vertical-align:middle;margin-right:3px;"></span>Max Pain&nbsp;&nbsp;<span style="display:inline-block;width:8px;height:2px;background:#EF9F27;border-radius:1px;vertical-align:middle;margin-right:3px;"></span>Spot</div>
+  </div>
+</div>
+
 <div class="oc-card">
   <div class="oc-header">
     <div>
@@ -697,21 +773,23 @@ tr:last-child td{border-bottom:none;}
     <table class="oc-table" id="oc-table">
       <thead>
         <tr>
-          <th class="oc-th-call" colspan="3">CALL</th>
+          <th class="oc-th-call" colspan="4">CALL</th>
           <th class="oc-th-strike" rowspan="2" style="border-bottom:1.5px solid #ddd;">Strike</th>
-          <th class="oc-th-put" colspan="3">PUT</th>
+          <th class="oc-th-put" colspan="4">PUT</th>
         </tr>
         <tr>
           <th class="oc-subth-call">OI</th>
           <th class="oc-subth-call">Chg OI</th>
           <th class="oc-subth-call">LTP</th>
+          <th class="oc-subth-call" title="Time Value = LTP - Intrinsic Value">TV</th>
+          <th class="oc-subth-put" title="Time Value = LTP - Intrinsic Value">TV</th>
           <th class="oc-subth-put">LTP</th>
           <th class="oc-subth-put">Chg OI</th>
           <th class="oc-subth-put">OI</th>
         </tr>
       </thead>
       <tbody id="oc-body">
-        <tr><td colspan="7" style="text-align:center;padding:24px;color:#aaa;font-size:13px;">Waiting for OI data…</td></tr>
+        <tr><td colspan="9" style="text-align:center;padding:24px;color:#aaa;font-size:13px;">Waiting for OI data…</td></tr>
       </tbody>
     </table>
   </div>
@@ -761,6 +839,9 @@ function switchTab(tabName) {
   if (tabName === 'option-chain') {
     renderOptionChain();
     setTimeout(scrollOCtoATM, 80);
+    // Refresh ticker + max pain when switching to this tab
+    updateOCTicker(currentSpot, ocExpiryDate);
+    calcMaxPain(currentSpot);
   }
 }
 
@@ -872,6 +953,13 @@ async function loadHistoricalData(date) {
     }
 
     rebuildCharts();
+
+    // Seed ticker open price from first history row
+    if (minuteRows.length) {
+      const firstRow = minuteRows[0];
+      const openSpot = parseFloat(firstRow.spot_open || firstRow.spot_close || 0);
+      if (openSpot > 0) ocTickerSpotOpen = openSpot;
+    }
   } catch(e) {
     document.getElementById('date-rows-info').textContent = 'Error loading ' + date;
   }
@@ -1144,6 +1232,9 @@ function updateLTP(data) {
 
   // ── Option Chain: tick-by-tick LTP update
   updateOptionChainLTP(data);
+
+  // ── Index Ticker (Option Chain tab)
+  updateOCTicker(data.spot, data.expiry_date);
 }
 
 // ── FETCH /oi ─────────────────────────────────────────────────────
@@ -1404,6 +1495,12 @@ function processSnapshot(data) {
   // ── Option Chain: update OI from snapshot and re-render
   updateOptionChainOI(data);
   renderOptionChain();
+
+  // ── Max Pain (recalculate on every /oi snapshot)
+  calcMaxPain(data.spot || currentSpot);
+
+  // ── Ticker: update expiry from /oi response
+  updateOCTicker(data.spot || currentSpot, data.expiry_date);
 }
 
 function computeBias(bc, bp, uc, up, s1, s3) {
@@ -2414,6 +2511,15 @@ function renderOptionChain() {
     const ceDeltaCls = ceOIDelta > 0 ? 'dup' : (ceOIDelta < 0 ? 'ddn' : 'dfl');
     const peDeltaCls = peOIDelta > 0 ? 'dup' : (peOIDelta < 0 ? 'ddn' : 'dfl');
 
+    // Time Value = LTP - Intrinsic Value
+    // CE intrinsic = max(0, spot - strike); PE intrinsic = max(0, strike - spot)
+    const ceIV  = spot ? Math.max(0, spot - st) : 0;
+    const peIV  = spot ? Math.max(0, st - spot)  : 0;
+    const ceTV  = ceLtp > 0 ? Math.max(0, ceLtp - ceIV) : 0;
+    const peTV  = peLtp > 0 ? Math.max(0, peLtp - peIV) : 0;
+    const ceTVHtml = ceLtp > 0 ? `<span class="oc-tv${ceIV > 0 ? ' oc-tv-high' : ''}">${fmtLtp(ceTV)}</span>` : '<span class="oc-tv">—</span>';
+    const peTVHtml = peLtp > 0 ? `<span class="oc-tv${peIV > 0 ? ' oc-tv-high' : ''}">${fmtLtp(peTV)}</span>` : '<span class="oc-tv">—</span>';
+
     return `<tr class="${rowCls}" data-strike="${st}">
       <td class="${tdCallCls}">
         <div class="oc-oi-wrap" style="justify-content:flex-end;">
@@ -2427,7 +2533,9 @@ function renderOptionChain() {
       <td class="${tdCallCls}">
         <span class="oc-ltp" id="oc-ce-${st}">${fmtLtp(ceLtp)}</span>${ceChgHtml}
       </td>
+      <td class="${tdCallCls}" style="text-align:right;">${ceTVHtml}</td>
       <td class="${tdStrCls}">${st}</td>
+      <td class="${tdPutCls}">${peTVHtml}</td>
       <td class="${tdPutCls}">
         <span class="oc-ltp" id="oc-pe-${st}">${fmtLtp(peLtp)}</span>${peChgHtml}
       </td>
@@ -2443,7 +2551,7 @@ function renderOptionChain() {
     </tr>`;
   }).join('');
 
-  document.getElementById('oc-body').innerHTML = rows || '<tr><td colspan="7" style="text-align:center;padding:20px;color:#aaa;">No data</td></tr>';
+  document.getElementById('oc-body').innerHTML = rows || '<tr><td colspan="9" style="text-align:center;padding:20px;color:#aaa;">No data</td></tr>';
 
   // Update meta
   const atmTxt = atm ? atm : '—';
@@ -2545,6 +2653,136 @@ function updateOptionChainLTP(ltpData) {
     const pulse = document.getElementById('oc-pulse');
     if (pulse) { pulse.classList.add('live'); setTimeout(()=>pulse.classList.remove('live'),1500); }
   }
+}
+
+// ── INDEX TICKER (Option Chain tab) ──────────────────────────────
+let ocTickerSpotOpen = null;  // today's open for % change calc
+let ocExpiryDate = null;      // 'YYYY-MM-DD' from bridge
+
+function updateOCTicker(spot, expiryDate) {
+  // Spot value
+  const el = document.getElementById('oc-ticker-spot');
+  if (el && spot) {
+    const prev = parseFloat(el.dataset.prev || spot);
+    el.textContent = fmt(spot);
+    el.dataset.prev = spot;
+    if (spot !== prev) {
+      const cls = spot > prev ? 'flash-up' : 'flash-down';
+      el.classList.add(cls);
+      setTimeout(() => el.classList.remove(cls), 400);
+    }
+    // Live dot
+    const dot = document.getElementById('oc-ticker-dot');
+    if (dot) { dot.classList.add('live'); clearTimeout(dot._t); dot._t = setTimeout(()=>dot.classList.remove('live'), 2000); }
+  }
+
+  // % change from open
+  if (spot && ocTickerSpotOpen == null) ocTickerSpotOpen = spot;
+  if (spot && ocTickerSpotOpen) {
+    const chgEl = document.getElementById('oc-ticker-chg');
+    if (chgEl) {
+      const diff = spot - ocTickerSpotOpen;
+      const pct  = diff / ocTickerSpotOpen * 100;
+      chgEl.textContent = (diff >= 0 ? '+' : '') + diff.toFixed(0) + ' (' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)';
+      chgEl.className = 'oc-ticker-chg ' + (diff >= 0 ? 'up' : 'dn');
+    }
+  }
+
+  // ATM
+  const atmEl = document.getElementById('oc-ticker-atm');
+  if (atmEl && atmStrike) atmEl.textContent = atmStrike.toLocaleString('en-IN');
+
+  // Expiry + DTE
+  if (expiryDate) ocExpiryDate = expiryDate;
+  if (ocExpiryDate) {
+    const expEl = document.getElementById('oc-ticker-expiry');
+    const dteEl = document.getElementById('oc-ticker-dte');
+    if (expEl) expEl.textContent = ocExpiryDate;
+    if (dteEl) {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const exp   = new Date(ocExpiryDate); exp.setHours(0,0,0,0);
+      const dte   = Math.round((exp - today) / 86400000);
+      dteEl.textContent = dte >= 0 ? dte : '—';
+    }
+  }
+
+  // Time
+  const timeEl = document.getElementById('oc-ticker-time');
+  if (timeEl) timeEl.textContent = new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+// ── MAX PAIN ──────────────────────────────────────────────────────
+// Max Pain = strike where total OI loss for option buyers is maximised
+// i.e. the strike that causes the most financial pain to buyers at expiry
+function calcMaxPain(spot) {
+  const strikeList = Object.keys(ocOICache)
+    .map(k => { const m = k.match(/^s(\d+)_ce$/); return m ? parseInt(m[1]) : null; })
+    .filter(Boolean).sort((a,b) => a-b);
+
+  if (strikeList.length < 2) return;
+
+  // For each candidate expiry price P, compute total OI pain:
+  //   CE holders lose if P < strike → (strike - P) * CE_OI  (for strike > P)
+  //   PE holders lose if P > strike → (P - strike) * PE_OI  (for strike < P)
+  let minPain = Infinity, maxPainStrike = null;
+  const painByStrike = {};
+
+  strikeList.forEach(P => {
+    let totalPain = 0;
+    strikeList.forEach(st => {
+      const ceOI = ocOICache['s'+st+'_ce'] || 0;
+      const peOI = ocOICache['s'+st+'_pe'] || 0;
+      if (st > P) totalPain += (st - P) * ceOI;   // CE writers profit (buyers lose)
+      if (st < P) totalPain += (P - st) * peOI;   // PE writers profit
+    });
+    painByStrike[P] = totalPain;
+    if (totalPain < minPain) { minPain = totalPain; maxPainStrike = P; }
+  });
+
+  if (!maxPainStrike) return;
+
+  // Update UI
+  const mpStrikeEl = document.getElementById('mp-strike');
+  if (mpStrikeEl) mpStrikeEl.textContent = maxPainStrike.toLocaleString('en-IN');
+
+  const mpPainEl = document.getElementById('mp-total-pain');
+  if (mpPainEl) {
+    const v = minPain;
+    const s = v >= 1e12 ? (v/1e12).toFixed(2)+' T' : v >= 1e9 ? (v/1e9).toFixed(2)+' B' : v >= 1e7 ? (v/1e7).toFixed(2)+' Cr' : v >= 1e5 ? (v/1e5).toFixed(1)+' L' : Math.round(v).toLocaleString('en-IN');
+    mpPainEl.textContent = s;
+  }
+
+  const mpSubEl = document.getElementById('mp-sub');
+  if (mpSubEl) mpSubEl.textContent = `${strikeList.length} strikes · last updated ${new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}`;
+
+  if (spot) {
+    const diff = spot - maxPainStrike;
+    const el = document.getElementById('mp-spot-diff');
+    const sub = document.getElementById('mp-spot-diff-sub');
+    if (el) {
+      el.textContent = (diff >= 0 ? '+' : '') + diff.toFixed(0);
+      el.style.color = diff >= 0 ? '#D85A30' : '#1D9E75';
+    }
+    if (sub) sub.textContent = diff >= 0 ? 'Spot above max pain (bearish pull)' : 'Spot below max pain (bullish pull)';
+  }
+
+  // Update bar markers
+  const lo = strikeList[0], hi = strikeList[strikeList.length - 1];
+  const range = hi - lo || 1;
+  const mpPct = ((maxPainStrike - lo) / range * 100).toFixed(1);
+  const marker = document.getElementById('mp-marker');
+  if (marker) marker.style.left = mpPct + '%';
+
+  if (spot) {
+    const sPct = Math.min(100, Math.max(0, (spot - lo) / range * 100)).toFixed(1);
+    const sMarker = document.getElementById('mp-spot-marker');
+    if (sMarker) sMarker.style.left = sPct + '%';
+  }
+
+  const loEl = document.getElementById('mp-bar-lo');
+  const hiEl = document.getElementById('mp-bar-hi');
+  if (loEl) loEl.textContent = lo.toLocaleString('en-IN');
+  if (hiEl) hiEl.textContent = hi.toLocaleString('en-IN');
 }
 
 function scrollOCtoATM() {
