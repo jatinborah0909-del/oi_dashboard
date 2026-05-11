@@ -224,6 +224,7 @@ state = {
     "oi_baseline":    {},
     "oi_prev_snap":   {},
     "roll_log":       [],
+    "expiry_date":    None,   # front-month expiry as YYYY-MM-DD string
 }
 
 minute_buffer = {
@@ -257,6 +258,7 @@ def _make_live_payload_unlocked(elapsed_override=None):
         "atm_strike": state["atm_strike"],
         "bear_strike": state["bear_strike"],
         "bull_strike": state["bull_strike"],
+        "expiry_date": state["expiry_date"],
         "options": {},
         "live_candle": {"available": False},
     }
@@ -646,6 +648,13 @@ def initialise(seed_spot):
 
     token_map = {i["instrument_token"]: i for i in instruments}
 
+    # Derive expiry_date from any instrument (all share the same front expiry)
+    front_expiry = None
+    if instruments:
+        raw_exp = instruments[0].get("expiry")
+        if raw_exp:
+            front_expiry = str(raw_exp)[:10]   # normalise to YYYY-MM-DD
+
     with state_lock:
         state["atm_strike"]    = atm
         state["strikes"]       = strikes
@@ -653,6 +662,8 @@ def initialise(seed_spot):
         state["bull_strike"]   = bull
         state["last_anchored"] = seed_spot
         state["tokens"]        = token_map
+        if front_expiry:
+            state["expiry_date"] = front_expiry
 
     build_ticker()
 
@@ -677,6 +688,7 @@ def get_oi():
             "strikes":     state["strikes"],
             "roll_log":    list(state["roll_log"]),
             "as_of":       now_ist().strftime("%H:%M:%S"),
+            "expiry_date": state["expiry_date"],
             "options":     {},
         }
         for token, meta in state["tokens"].items():
@@ -727,6 +739,7 @@ def get_strikes():
             "bull_strike": state["bull_strike"],
             "strikes":     state["strikes"],
             "session_id":  state["session_id"],
+            "expiry_date": state["expiry_date"],
         })
 
 
