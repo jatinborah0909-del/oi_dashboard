@@ -1728,12 +1728,15 @@ function drawIndexChart(candles) {
 }
 
 // ── STRIKE ACTIVITY CHART (confluence) ───────────────────────────
+// Uses spot OHLC for candle shape (same as index chart — always available from history rows)
+// Uses OI delta for activity-type colour classification
+// getLtpClose is kept for the last-price dashed line label; getOiDelta drives colour
 function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpLow, getLtpClose, getOiDelta, actBadgeId) {
   const svgEl=document.getElementById(svgId);
   svgEl.innerHTML='';
   if (!candles.length) { svgEl.setAttribute('height','60'); return []; }
   const containerW=svgEl.parentElement.offsetWidth||400;
-  const H=200; // fixed height for confluence charts
+  const H=200;
   const slotPx=Math.max(ACTIVITY_CANDLE_W + ACTIVITY_CANDLE_GAP, ACTIVITY_CANDLE_W + 1);
   const W=Math.max(candles.length*slotPx+60,containerW);
   svgEl.setAttribute('width',W);
@@ -1745,11 +1748,23 @@ function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpL
   const aW=W-padL-padR, aH=H-padT-padB;
   const ns='http://www.w3.org/2000/svg';
 
-  const allP=candles.flatMap(c=>[getLtpOpen(c),getLtpHigh(c),getLtpLow(c),getLtpClose(c)]).filter(v=>v>0);
-  if (!allP.length) return [];
-  const yMin=Math.min(...allP)*0.98, yMax=Math.max(...allP)*1.02;
+  // ── Price values: prefer real LTP, fall back to spot OHLC (same as index chart)
+  // This guarantees allP is never empty as long as spot data exists
+  const getPO = c => getLtpOpen(c)  || c.open  || 0;
+  const getPH = c => getLtpHigh(c)  || c.high  || 0;
+  const getPL = c => getLtpLow(c)   || c.low   || 0;
+  const getPC = c => getLtpClose(c) || c.close || 0;
+
+  const allP=candles.flatMap(c=>[getPO(c),getPH(c),getPL(c),getPC(c)]).filter(v=>v>0);
+  if (!allP.length) { svgEl.setAttribute('height','60'); return []; }
+
+  const rawMin=Math.min(...allP), rawMax=Math.max(...allP);
+  // Add a minimum visible range so flat candles still get a 2px body
+  const rangePad=Math.max((rawMax-rawMin)*0.08, rawMax*0.005, 1);
+  const yMin=rawMin-rangePad, yMax=rawMax+rangePad;
   const yS=v=>padT+aH*(1-(v-yMin)/(yMax-yMin));
 
+  // Grid lines
   for (let i=0;i<=3;i++) {
     const y=padT+i*aH/3;
     const price=(yMax-i*(yMax-yMin)/3).toFixed(1);
@@ -1769,24 +1784,29 @@ function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpL
   const actSigs=[];
 
   candles.forEach((c,i) => {
-    const ltpO=getLtpOpen(c),ltpH=getLtpHigh(c),ltpL=getLtpLow(c),ltpC=getLtpClose(c);
+    const pO=getPO(c), pH=getPH(c), pL=getPL(c), pC=getPC(c);
     const oiD=getOiDelta(c);
-    if (!ltpO||!ltpC) { actSigs.push('N'); return; }
-    const actKey=getActivityType(ltpO,ltpC,oiD);
+
+    // Classify by price direction (open vs close) + OI delta — identical to index chart logic
+    if (!pO && !pC) { actSigs.push('N'); return; }
+    const actKey=getActivityType(pO||pC, pC||pO, oiD);
     const act=ACT_COLOR[actKey];
     actSigs.push(actKey);
-    const cx=padL+i*slot+slot/2;
-    const bodyT=yS(Math.max(ltpO,ltpC));
-    const bodyB=yS(Math.min(ltpO,ltpC));
-    const bodyH=Math.max(bodyB-bodyT,2);
 
+    const cx=padL+i*slot+slot/2;
+    const bodyT=yS(Math.max(pO||pC, pC||pO));
+    const bodyB=yS(Math.min(pO||pC, pC||pO));
+    const bodyH=Math.max(bodyB-bodyT, 2);
+
+    // Wick
     const wick=document.createElementNS(ns,'line');
     wick.setAttribute('x1',cx); wick.setAttribute('x2',cx);
-    wick.setAttribute('y1',yS(ltpH||ltpC)); wick.setAttribute('y2',yS(ltpL||ltpC));
+    wick.setAttribute('y1',yS(pH||pC)); wick.setAttribute('y2',yS(pL||pC));
     wick.setAttribute('stroke',act.wick); wick.setAttribute('stroke-width','1.5');
     if (c.isLive) wick.setAttribute('opacity','0.6');
     svgEl.appendChild(wick);
 
+    // Body
     const body=document.createElementNS(ns,'rect');
     body.setAttribute('x',cx-cW/2); body.setAttribute('y',bodyT);
     body.setAttribute('width',cW); body.setAttribute('height',bodyH);
@@ -1794,10 +1814,12 @@ function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpL
     if (c.isLive) body.setAttribute('opacity','0.45');
     svgEl.appendChild(body);
 
+    // Tooltip
     const titleEl=document.createElementNS(ns,'title');
-    titleEl.textContent=`${c.label}  ${act.label} | OI Δ ${oiD>0?'+':''}${Math.round(oiD/100)*100} | LTP ${ltpC.toFixed(1)}`;
+    titleEl.textContent=`${c.label}  ${act.label} | OI Δ ${oiD>0?'+':''}${Math.round(oiD/100)*100} | ${pC.toFixed(1)}`;
     body.appendChild(titleEl);
 
+    // Live candle decorations
     if (c.isLive) {
       const outline=document.createElementNS(ns,'rect');
       outline.setAttribute('x',cx-cW/2); outline.setAttribute('y',bodyT);
@@ -1807,7 +1829,7 @@ function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpL
       outline.setAttribute('stroke-dasharray','2,2'); outline.setAttribute('rx','2');
       svgEl.appendChild(outline);
       const dot=document.createElementNS(ns,'circle');
-      dot.setAttribute('cx',cx); dot.setAttribute('cy',yS(ltpH||ltpC)-5);
+      dot.setAttribute('cx',cx); dot.setAttribute('cy',yS(pH||pC)-5);
       dot.setAttribute('r','3'); dot.setAttribute('fill',act.body); dot.setAttribute('opacity','0.9');
       svgEl.appendChild(dot);
       const liveTxt=document.createElementNS(ns,'text');
@@ -1818,6 +1840,7 @@ function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpL
       svgEl.appendChild(liveTxt);
     }
 
+    // Time label (every other candle, or all if ≤8)
     if (i%2===0||candles.length<=8) {
       const lbl=document.createElementNS(ns,'text');
       lbl.setAttribute('x',cx); lbl.setAttribute('y',H-6);
@@ -1827,15 +1850,17 @@ function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpL
     }
   });
 
+  // Y-axis overlay
   const yAxisId=svgId==='svgBear'?'svgBearYAxis':'svgBullYAxis';
   const strikeTicks=Array.from({length:4},(_,i)=>parseFloat((yMax-i*(yMax-yMin)/3).toFixed(1)));
   drawYAxisOverlay(yAxisId,H,padL,padT,padB,yMin,yMax,strikeTicks);
   document.getElementById(yAxisId).style.height=H+'px';
 
+  // Last-price dashed line — prefer real LTP, fall back to spot close
   const lastC=candles[candles.length-1];
-  const lastLtp=getLtpClose(lastC);
-  if (lastLtp) {
-    const curY=yS(lastLtp);
+  const lastP=getPC(lastC);
+  if (lastP) {
+    const curY=yS(lastP);
     const dl=document.createElementNS(ns,'line');
     dl.setAttribute('x1',padL); dl.setAttribute('x2',padL+aW);
     dl.setAttribute('y1',curY); dl.setAttribute('y2',curY);
@@ -1845,10 +1870,11 @@ function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpL
     const pt=document.createElementNS(ns,'text');
     pt.setAttribute('x',padL+aW-2); pt.setAttribute('y',curY-3);
     pt.setAttribute('text-anchor','end'); pt.setAttribute('font-size','9');
-    pt.setAttribute('fill','#185FA5'); pt.textContent=lastLtp.toFixed(1);
+    pt.setAttribute('fill','#185FA5'); pt.textContent=lastP.toFixed(1);
     svgEl.appendChild(pt);
   }
 
+  // Activity badge
   if (actBadgeId&&actSigs.length) {
     const latestAct=ACT_COLOR[actSigs[actSigs.length-1]];
     const badge=document.getElementById(actBadgeId);
