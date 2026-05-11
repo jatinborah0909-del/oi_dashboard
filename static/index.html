@@ -1211,8 +1211,29 @@ async function fetchHistory() {
     const raw = await res.json();
     minuteRows = filterMarketRows(raw);
     document.getElementById('rows-info').textContent = minuteRows.length+' 1-min rows (market hours)';
+    // Pre-seed OI deltas from history so CHG OI shows immediately in option chain
+    _seedAllOIDeltasFromHistory();
     rebuildCharts();
   } catch(e) {}
+}
+
+// Seed ALL known strike OI deltas from history rows (called after history loads)
+function _seedAllOIDeltasFromHistory() {
+  if (!minuteRows || minuteRows.length < 2) return;
+  const sample = minuteRows[minuteRows.length - 1];
+  Object.keys(sample).forEach(k => {
+    const m = k.match(/^s(\d+)_(ce|pe)_oi$/);
+    if (m) {
+      const key = 's' + m[1] + '_' + m[2];
+      _seedOIDeltaFromHistory(key);
+    }
+    // Also handle _delta field pattern
+    const m2 = k.match(/^s(\d+)_(ce|pe)_delta$/);
+    if (m2) {
+      const key = 's' + m2[1] + '_' + m2[2];
+      _seedOIDeltaFromHistory(key);
+    }
+  });
 }
 
 async function fetchAll() { await fetchOI(); await fetchHistory(); }
@@ -2317,13 +2338,24 @@ function getOCDelta(st, type) {
   const key = 's' + st + '_' + type;
   if (ocOIDeltaCache[key] != null) return ocOIDeltaCache[key];
 
-  // Fallback for historical/replay mode: derive latest OI change from last two 1-min rows.
+  // Derive OI change from history rows: session-start OI vs latest OI
+  // Try both field naming patterns: s23950_ce_oi (flat) and s23950_ce_delta (cumulative)
   if (minuteRows && minuteRows.length >= 2) {
-    const cur = minuteRows[minuteRows.length - 1];
-    const prev = minuteRows[minuteRows.length - 2];
-    const field = key + '_oi';
-    if (cur && prev && cur[field] != null && prev[field] != null) {
-      return pf(cur[field]) - pf(prev[field]);
+    const cur   = minuteRows[minuteRows.length - 1];
+    const first = minuteRows[0];
+    const oiField    = key + '_oi';
+    const deltaField = key + '_delta';
+
+    // Prefer cumulative delta field if present in latest row
+    if (cur[deltaField] != null) {
+      // Sum all delta rows for the session to get total change
+      const total = minuteRows.reduce((s, r) => s + pf(r[deltaField]), 0);
+      if (total !== 0) return total;
+    }
+
+    // Fall back to OI difference: latest minus session-start
+    if (cur[oiField] != null && first[oiField] != null) {
+      return pf(cur[oiField]) - pf(first[oiField]);
     }
   }
   return 0;
@@ -2444,7 +2476,12 @@ function updateOptionChainOI(oiData) {
     // key like "s24000_ce" or "s24000_pe"
     if (v && v.oi != null) {
       const nextOI = pf(v.oi);
-      if (ocOICache[key] != null) ocOIDeltaCache[key] = nextOI - ocOICache[key];
+      if (ocOICache[key] != null) {
+        ocOIDeltaCache[key] = nextOI - ocOICache[key];
+      } else {
+        // First poll — seed delta from history rows so CHG OI shows immediately
+        _seedOIDeltaFromHistory(key);
+      }
       ocOICache[key] = nextOI;
     }
   });
@@ -2455,10 +2492,38 @@ function updateOptionChainOI(oiData) {
     if (m) {
       const mapKey = 's'+m[1]+'_'+m[2];
       const nextOI = pf(oiData[k]);
-      if (ocOICache[mapKey] != null) ocOIDeltaCache[mapKey] = nextOI - ocOICache[mapKey];
+      if (ocOICache[mapKey] != null) {
+        ocOIDeltaCache[mapKey] = nextOI - ocOICache[mapKey];
+      } else {
+        _seedOIDeltaFromHistory(mapKey);
+      }
       ocOICache[mapKey] = nextOI;
     }
   });
+}
+
+// Pre-seed the OI delta cache from history rows so CHG OI shows on first render
+// Uses session-total change: sum of _delta fields, or latest_oi minus first_oi
+function _seedOIDeltaFromHistory(key) {
+  if (!minuteRows || minuteRows.length < 2) return;
+  if (ocOIDeltaCache[key] != null) return; // already set
+
+  const cur   = minuteRows[minuteRows.length - 1];
+  const first = minuteRows[0];
+  const deltaField = key + '_delta';
+  const oiField    = key + '_oi';
+
+  // Try summing per-minute delta column
+  if (cur[deltaField] != null) {
+    const total = minuteRows.reduce((s, r) => s + pf(r[deltaField]), 0);
+    if (total !== 0) { ocOIDeltaCache[key] = total; return; }
+  }
+
+  // Fall back to OI difference across session
+  if (cur[oiField] != null && first[oiField] != null) {
+    const diff = pf(cur[oiField]) - pf(first[oiField]);
+    if (diff !== 0) ocOIDeltaCache[key] = diff;
+  }
 }
 
 function updateOptionChainLTP(ltpData) {
