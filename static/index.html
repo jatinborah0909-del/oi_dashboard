@@ -1748,19 +1748,34 @@ function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpL
   const aW=W-padL-padR, aH=H-padT-padB;
   const ns='http://www.w3.org/2000/svg';
 
-  // ── Price values: prefer real LTP, fall back to spot OHLC (same as index chart)
-  // This guarantees allP is never empty as long as spot data exists
-  const getPO = c => getLtpOpen(c)  || c.open  || 0;
-  const getPH = c => getLtpHigh(c)  || c.high  || 0;
-  const getPL = c => getLtpLow(c)   || c.low   || 0;
-  const getPC = c => getLtpClose(c) || c.close || 0;
+  // ── Pick ONE consistent price source for the whole chart.
+  // LTP values (option prices ~50–500) and spot prices (~23000) must NEVER be mixed
+  // or the Y-axis blows out. Check if LTP data is present across most candles first.
+  const ltpCloseVals = candles.map(c => getLtpClose(c)).filter(v => v > 0);
+  const useLtp = ltpCloseVals.length >= Math.ceil(candles.length * 0.5); // LTP present in ≥50% of candles
 
-  const allP=candles.flatMap(c=>[getPO(c),getPH(c),getPL(c),getPC(c)]).filter(v=>v>0);
+  let getPO, getPH, getPL, getPC;
+  if (useLtp) {
+    // Use LTP OHLC — real option price candles
+    getPO = c => getLtpOpen(c)  || getLtpClose(c) || 0;
+    getPH = c => getLtpHigh(c)  || getLtpClose(c) || 0;
+    getPL = c => getLtpLow(c)   || getLtpClose(c) || 0;
+    getPC = c => getLtpClose(c) || 0;
+  } else {
+    // LTP not in history — use spot OHLC for candle shape, OI delta for colour
+    // (spot prices give correct up/down direction for activity classification)
+    getPO = c => c.open  || 0;
+    getPH = c => c.high  || 0;
+    getPL = c => c.low   || 0;
+    getPC = c => c.close || 0;
+  }
+
+  const allP = candles.flatMap(c => [getPO(c),getPH(c),getPL(c),getPC(c)]).filter(v => v > 0);
   if (!allP.length) { svgEl.setAttribute('height','60'); return []; }
 
   const rawMin=Math.min(...allP), rawMax=Math.max(...allP);
-  // Add a minimum visible range so flat candles still get a 2px body
-  const rangePad=Math.max((rawMax-rawMin)*0.08, rawMax*0.005, 1);
+  // Ensure a minimum visible price range so flat sessions still render candle bodies
+  const rangePad=Math.max((rawMax-rawMin)*0.08, rawMax*0.003, 0.5);
   const yMin=rawMin-rangePad, yMax=rawMax+rangePad;
   const yS=v=>padT+aH*(1-(v-yMin)/(yMax-yMin));
 
@@ -1856,9 +1871,9 @@ function drawStrikeActivityChart(svgId, candles, getLtpOpen, getLtpHigh, getLtpL
   drawYAxisOverlay(yAxisId,H,padL,padT,padB,yMin,yMax,strikeTicks);
   document.getElementById(yAxisId).style.height=H+'px';
 
-  // Last-price dashed line — prefer real LTP, fall back to spot close
+  // Last-price dashed line — always prefer real LTP for the label even if candles use spot
   const lastC=candles[candles.length-1];
-  const lastP=getPC(lastC);
+  const lastP=getLtpClose(lastC) || getPC(lastC);
   if (lastP) {
     const curY=yS(lastP);
     const dl=document.createElementNS(ns,'line');
