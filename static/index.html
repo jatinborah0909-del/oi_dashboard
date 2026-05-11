@@ -259,9 +259,9 @@ tr:last-child td{border-bottom:none;}
 
 /* Body cells */
 .oc-td{padding:5px 10px;border-bottom:0.5px solid #f2f2ee;font-variant-numeric:tabular-nums;white-space:nowrap;}
-.oc-td-call{text-align:right;}
-.oc-td-strike{text-align:center;font-weight:600;font-size:12px;color:#1a1a1a;}
-.oc-td-put{text-align:left;}
+.oc-td-call{text-align:right;padding-right:10px;}
+.oc-td-strike{text-align:center;font-weight:600;font-size:12px;color:#1a1a1a;padding:5px 14px;}
+.oc-td-put{text-align:left;padding-left:10px;}
 
 /* ATM row highlight */
 .oc-atm-row td{background:#EEEDFE !important;border-top:1.5px solid #534AB7;border-bottom:1.5px solid #534AB7;}
@@ -778,14 +778,14 @@ tr:last-child td{border-bottom:none;}
           <th class="oc-th-put" colspan="4">PUT</th>
         </tr>
         <tr>
-          <th class="oc-subth-call">OI</th>
-          <th class="oc-subth-call">Chg OI</th>
-          <th class="oc-subth-call">LTP</th>
-          <th class="oc-subth-call" title="Time Value = LTP - Intrinsic Value">TV</th>
-          <th class="oc-subth-put" title="Time Value = LTP - Intrinsic Value">TV</th>
-          <th class="oc-subth-put">LTP</th>
-          <th class="oc-subth-put">Chg OI</th>
-          <th class="oc-subth-put">OI</th>
+          <th class="oc-subth-call" style="text-align:right;">OI</th>
+          <th class="oc-subth-call" style="text-align:right;">Chg OI</th>
+          <th class="oc-subth-call" style="text-align:right;" title="Time Value = LTP − Intrinsic Value">TV</th>
+          <th class="oc-subth-call" style="text-align:right;padding-right:14px;">LTP</th>
+          <th class="oc-subth-put" style="text-align:left;padding-left:14px;">LTP</th>
+          <th class="oc-subth-put" style="text-align:left;" title="Time Value = LTP − Intrinsic Value">TV</th>
+          <th class="oc-subth-put" style="text-align:left;">Chg OI</th>
+          <th class="oc-subth-put" style="text-align:left;">OI</th>
         </tr>
       </thead>
       <tbody id="oc-body">
@@ -2521,26 +2521,26 @@ function renderOptionChain() {
     const peTVHtml = peLtp > 0 ? `<span class="oc-tv${peIV > 0 ? ' oc-tv-high' : ''}">${fmtLtp(peTV)}</span>` : '<span class="oc-tv">—</span>';
 
     return `<tr class="${rowCls}" data-strike="${st}">
-      <td class="${tdCallCls}">
+      <td class="${tdCallCls}" style="text-align:right;">
         <div class="oc-oi-wrap" style="justify-content:flex-end;">
           <div class="oc-oi-bar-outer" style="direction:rtl;">
             <div class="oc-oi-bar-inner oc-bar-call" style="width:${ceBarW}%;"></div>
           </div>
-          <span class="oc-oi-num" style="text-align:right;">${fmtOI(ceOI)}</span>
+          <span class="oc-oi-num">${fmtOI(ceOI)}</span>
         </div>
       </td>
-      <td class="${tdCallCls}"><span class="${ceDeltaCls}">${fmtDeltaOI(ceOIDelta)}</span></td>
-      <td class="${tdCallCls}">
+      <td class="${tdCallCls}" style="text-align:right;"><span class="${ceDeltaCls}">${fmtDeltaOI(ceOIDelta)}</span></td>
+      <td class="${tdCallCls}" style="text-align:right;">${ceTVHtml}</td>
+      <td class="${tdCallCls}" style="text-align:right;padding-right:14px;">
         <span class="oc-ltp" id="oc-ce-${st}">${fmtLtp(ceLtp)}</span>${ceChgHtml}
       </td>
-      <td class="${tdCallCls}" style="text-align:right;">${ceTVHtml}</td>
       <td class="${tdStrCls}">${st}</td>
-      <td class="${tdPutCls}">${peTVHtml}</td>
-      <td class="${tdPutCls}">
+      <td class="${tdPutCls}" style="text-align:left;padding-left:14px;">
         <span class="oc-ltp" id="oc-pe-${st}">${fmtLtp(peLtp)}</span>${peChgHtml}
       </td>
-      <td class="${tdPutCls}"><span class="${peDeltaCls}">${fmtDeltaOI(peOIDelta)}</span></td>
-      <td class="${tdPutCls}">
+      <td class="${tdPutCls}" style="text-align:left;">${peTVHtml}</td>
+      <td class="${tdPutCls}" style="text-align:left;"><span class="${peDeltaCls}">${fmtDeltaOI(peOIDelta)}</span></td>
+      <td class="${tdPutCls}" style="text-align:left;">
         <div class="oc-oi-wrap">
           <span class="oc-oi-num">${fmtOI(peOI)}</span>
           <div class="oc-oi-bar-outer">
