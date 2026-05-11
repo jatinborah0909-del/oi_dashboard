@@ -2317,9 +2317,10 @@ function drawOIMovers(rows, atmStr) {
 
 // ── OPTION CHAIN ──────────────────────────────────────────────────
 // Stores latest LTP snapshot keyed by "s{strike}_{ce|pe}"
-const ocLtpCache  = {};   // { "s24000_ce": {ltp, prev}, ... }
-const ocOICache   = {};   // { "s24000_ce": oi, ... }
-const ocOIDeltaCache = {}; // { "s24000_ce": latest OI change, ... }
+const ocLtpCache     = {};  // { "s24000_ce": {ltp, prev}, ... }
+const ocOICache      = {};  // { "s24000_ce": current OI, ... }
+const ocOIDeltaCache = {};  // { "s24000_ce": CHG OI since session start, ... }
+const ocOIBaseCache  = {};  // { "s24000_ce": session-START OI — set once, never overwritten }
 
 function fmtOI(v) {
   if (!v && v !== 0) return '—';
@@ -2336,29 +2337,11 @@ function fmtLtp(v) {
 
 function getOCDelta(st, type) {
   const key = 's' + st + '_' + type;
+  // Return cached delta (always baseline-anchored via _recomputeDelta)
   if (ocOIDeltaCache[key] != null) return ocOIDeltaCache[key];
-
-  // Derive OI change from history rows: session-start OI vs latest OI
-  // Try both field naming patterns: s23950_ce_oi (flat) and s23950_ce_delta (cumulative)
-  if (minuteRows && minuteRows.length >= 2) {
-    const cur   = minuteRows[minuteRows.length - 1];
-    const first = minuteRows[0];
-    const oiField    = key + '_oi';
-    const deltaField = key + '_delta';
-
-    // Prefer cumulative delta field if present in latest row
-    if (cur[deltaField] != null) {
-      // Sum all delta rows for the session to get total change
-      const total = minuteRows.reduce((s, r) => s + pf(r[deltaField]), 0);
-      if (total !== 0) return total;
-    }
-
-    // Fall back to OI difference: latest minus session-start
-    if (cur[oiField] != null && first[oiField] != null) {
-      return pf(cur[oiField]) - pf(first[oiField]);
-    }
-  }
-  return 0;
+  // If not yet seeded, try to compute on demand
+  _seedOIDeltaFromHistory(key);
+  return ocOIDeltaCache[key] || 0;
 }
 
 function fmtDeltaOI(v) {
@@ -2469,20 +2452,14 @@ function renderOptionChain() {
 }
 
 function updateOptionChainOI(oiData) {
-  // Pull OI from the /oi snapshot: field names are s{strike}_ce_oi / s{strike}_pe_oi
-  // or from oiData.options[key].oi
+  // Pull OI from /oi snapshot and update ocOICache.
+  // CHG OI is ALWAYS computed as: current OI minus session-start baseline (ocOIBaseCache).
+  // The baseline is set once from history rows and never changes during a session.
   const opts = oiData.options || {};
   Object.entries(opts).forEach(([key, v]) => {
-    // key like "s24000_ce" or "s24000_pe"
     if (v && v.oi != null) {
-      const nextOI = pf(v.oi);
-      if (ocOICache[key] != null) {
-        ocOIDeltaCache[key] = nextOI - ocOICache[key];
-      } else {
-        // First poll — seed delta from history rows so CHG OI shows immediately
-        _seedOIDeltaFromHistory(key);
-      }
-      ocOICache[key] = nextOI;
+      ocOICache[key] = pf(v.oi);
+      _recomputeDelta(key);
     }
   });
 
@@ -2491,38 +2468,44 @@ function updateOptionChainOI(oiData) {
     const m = k.match(/^s(\d+)_(ce|pe)_oi$/);
     if (m) {
       const mapKey = 's'+m[1]+'_'+m[2];
-      const nextOI = pf(oiData[k]);
-      if (ocOICache[mapKey] != null) {
-        ocOIDeltaCache[mapKey] = nextOI - ocOICache[mapKey];
-      } else {
-        _seedOIDeltaFromHistory(mapKey);
-      }
-      ocOICache[mapKey] = nextOI;
+      ocOICache[mapKey] = pf(oiData[k]);
+      _recomputeDelta(mapKey);
     }
   });
 }
 
-// Pre-seed the OI delta cache from history rows so CHG OI shows on first render
-// Uses session-total change: sum of _delta fields, or latest_oi minus first_oi
+// Seed the session-start OI baseline (called once after history loads).
+// ocOIBaseCache is NEVER overwritten after being set — it anchors all CHG OI calcs.
 function _seedOIDeltaFromHistory(key) {
-  if (!minuteRows || minuteRows.length < 2) return;
-  if (ocOIDeltaCache[key] != null) return; // already set
+  if (!minuteRows || minuteRows.length < 1) return;
 
-  const cur   = minuteRows[minuteRows.length - 1];
-  const first = minuteRows[0];
-  const deltaField = key + '_delta';
+  const first      = minuteRows[0];
+  const cur        = minuteRows[minuteRows.length - 1];
   const oiField    = key + '_oi';
+  const deltaField = key + '_delta';
 
-  // Try summing per-minute delta column
-  if (cur[deltaField] != null) {
-    const total = minuteRows.reduce((s, r) => s + pf(r[deltaField]), 0);
-    if (total !== 0) { ocOIDeltaCache[key] = total; return; }
+  // Set baseline once — the OI at session open (first history row)
+  if (ocOIBaseCache[key] == null) {
+    const baseOI = pf(first[oiField]);
+    if (baseOI > 0) ocOIBaseCache[key] = baseOI;
   }
 
-  // Fall back to OI difference across session
-  if (cur[oiField] != null && first[oiField] != null) {
-    const diff = pf(cur[oiField]) - pf(first[oiField]);
-    if (diff !== 0) ocOIDeltaCache[key] = diff;
+  // Compute current CHG OI = latest OI minus session-start baseline
+  _recomputeDelta(key);
+}
+
+// Recompute CHG OI for a key using the locked-in baseline
+function _recomputeDelta(key) {
+  const base = ocOIBaseCache[key];
+  if (base == null) return;
+
+  // Prefer live OI from ocOICache (most current); fall back to last history row
+  let currentOI = ocOICache[key];
+  if (currentOI == null && minuteRows && minuteRows.length) {
+    currentOI = pf(minuteRows[minuteRows.length - 1][key + '_oi']);
+  }
+  if (currentOI != null) {
+    ocOIDeltaCache[key] = currentOI - base;
   }
 }
 
