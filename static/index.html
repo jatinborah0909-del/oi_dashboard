@@ -1202,6 +1202,41 @@ function updateLTP(data) {
     currentSpot = data.spot;
     document.getElementById('spot-val').textContent = fmt(data.spot);
     updateSpotBadges();
+
+    // ── Recalculate ATM from live spot ──────────────────────────────
+    // Round spot to nearest STRIKE_STEP — don't wait for /oi poll to update ATM
+    if (allStrikes.length && STRIKE_STEP) {
+      const newAtm = Math.round(data.spot / STRIKE_STEP) * STRIKE_STEP;
+      // Clamp to available strikes
+      const closest = allStrikes.reduce((a, b) => Math.abs(b - data.spot) < Math.abs(a - data.spot) ? b : a);
+      const calcAtm = allStrikes.includes(newAtm) ? newAtm : closest;
+
+      if (calcAtm !== atmStrike) {
+        const atmChanged = true;
+        const prevDefaults = [...defaultStrikes];
+        atmStrike = calcAtm;
+        document.getElementById('atm-val').textContent = atmStrike;
+
+        const atmIdx = allStrikes.indexOf(atmStrike);
+        if (atmIdx >= 0) {
+          const s2 = atmStrike;
+          const s1 = atmIdx + 1 < allStrikes.length ? allStrikes[atmIdx+1] : allStrikes[Math.min(atmIdx, allStrikes.length-1)];
+          const s3 = atmIdx - 1 >= 0 ? allStrikes[atmIdx-1] : allStrikes[Math.max(0, atmIdx)];
+          defaultStrikes = [s1, s2, s3];
+
+          const wasOnDefault = selectedStrikes.every((s, i) => s === prevDefaults[i]);
+          if (wasOnDefault) {
+            selectedStrikes = [...defaultStrikes];
+            populateStrikeSelectors(allStrikes);
+          } else {
+            populateStrikeSelectors(allStrikes);
+          }
+        }
+
+        // Update option chain ATM row highlight
+        renderOptionChain();
+      }
+    }
   }
 
   const opts = data.options || {};
@@ -1276,13 +1311,29 @@ async function fetchOI() {
 
     // Refresh ATM default on each /oi poll (strikes might roll)
     if (data.atm_strike && allStrikes.length) {
-      atmStrike = data.atm_strike;
+      const newAtm = data.atm_strike;
+      const atmChanged = newAtm !== atmStrike;
+      atmStrike = newAtm;
       const atmIdx = allStrikes.indexOf(atmStrike);
       if (atmIdx >= 0) {
         const s2 = atmStrike;
         const s1 = atmIdx + 1 < allStrikes.length ? allStrikes[atmIdx + 1] : allStrikes[Math.min(atmIdx, allStrikes.length-1)];
         const s3 = atmIdx - 1 >= 0 ? allStrikes[atmIdx - 1] : allStrikes[Math.max(0, atmIdx)];
+        const prevDefaults = [...defaultStrikes];
         defaultStrikes = [s1, s2, s3];
+
+        // Auto-follow ATM: if selected strikes still match the old defaults (user hasn't customised),
+        // update them to track the new ATM.
+        if (atmChanged) {
+          const wasOnDefault = selectedStrikes.every((s, i) => s === prevDefaults[i]);
+          if (wasOnDefault) {
+            selectedStrikes = [...defaultStrikes];
+            populateStrikeSelectors(allStrikes);
+          } else {
+            // Just refresh chips so ATM highlight moves even if user has custom strikes
+            populateStrikeSelectors(allStrikes);
+          }
+        }
       }
     }
 
