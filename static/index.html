@@ -754,6 +754,8 @@ tr:last-child td{border-bottom:none;}
             <span style="font-size:11px;color:#888;">Expiry: <span id="oc-ticker-expiry">—</span></span>
             <span style="font-size:11px;color:#888;">DTE: <span id="oc-ticker-dte">—</span> days</span>
             <span style="font-size:11px;color:#aaa;margin-left:2px;" id="oc-ticker-time"></span>
+            <span style="width:0.5px;height:14px;background:#ddd;display:inline-block;margin:0 4px;"></span>
+            <span style="font-size:11px;color:#888;">Top Pain: <span id="oc-ticker-top-pain" style="color:#534AB7;font-weight:600;">—</span></span>
           </span>
         </div>
         <div class="oc-meta" id="oc-meta">Waiting for data…</div>
@@ -2724,9 +2726,9 @@ function updateOCTicker(spot, expiryDate) {
     }
   }
 
-  // Time
+  // Time (IST)
   const timeEl = document.getElementById('oc-ticker-time');
-  if (timeEl) timeEl.textContent = new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  if (timeEl) timeEl.textContent = new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'Asia/Kolkata'}) + ' IST';
 }
 
 // ── MAX PAIN ──────────────────────────────────────────────────────
@@ -2758,6 +2760,27 @@ function calcMaxPain(spot) {
   });
 
   if (!maxPainStrike) return;
+
+  // ── TOP 3 MAX PAIN STRIKES (near ATM) ──────────────────────────
+  // "Max pain for sellers" = strikes where combined CE+PE OI is highest.
+  // Writers (sellers) of options at these strikes hold the largest open interest,
+  // so expiry near these strikes causes the most loss for option buyers.
+  // We rank all strikes by (CE OI + PE OI) descending, then show top 3.
+  const oiByStrike = strikeList.map(st => ({
+    st,
+    totalOI: (ocOICache['s'+st+'_ce'] || 0) + (ocOICache['s'+st+'_pe'] || 0)
+  }));
+  // Sort by total OI descending, take top 3
+  const top3 = oiByStrike.slice().sort((a,b) => b.totalOI - a.totalOI).slice(0,3);
+  // Sort the top 3 by strike value descending for display
+  top3.sort((a,b) => b.st - a.st);
+  const topPainEl = document.getElementById('oc-ticker-top-pain');
+  if (topPainEl) {
+    topPainEl.innerHTML = top3.map((x, i) => {
+      const colors = ['#534AB7','#1D9E75','#D85A30'];
+      return `<span style="color:${colors[i]};font-weight:600;">${x.st.toLocaleString('en-IN')}</span>`;
+    }).join('<span style="color:#ccc;margin:0 3px;">·</span>');
+  }
 
   // Update UI
   const mpStrikeEl = document.getElementById('mp-strike');
