@@ -2517,8 +2517,8 @@ function renderOptionChain() {
     const peIV  = spot ? Math.max(0, st - spot)  : 0;
     const ceTV  = ceLtp > 0 ? Math.max(0, ceLtp - ceIV) : 0;
     const peTV  = peLtp > 0 ? Math.max(0, peLtp - peIV) : 0;
-    const ceTVHtml = ceLtp > 0 ? `<span class="oc-tv${ceIV > 0 ? ' oc-tv-high' : ''}">${fmtLtp(ceTV)}</span>` : '<span class="oc-tv">—</span>';
-    const peTVHtml = peLtp > 0 ? `<span class="oc-tv${peIV > 0 ? ' oc-tv-high' : ''}">${fmtLtp(peTV)}</span>` : '<span class="oc-tv">—</span>';
+    const ceTVHtml = ceLtp > 0 ? `<span id="oc-tv-ce-${st}" class="oc-tv${ceIV > 0 ? ' oc-tv-high' : ''}">${fmtLtp(ceTV)}</span>` : `<span id="oc-tv-ce-${st}" class="oc-tv">—</span>`;
+    const peTVHtml = peLtp > 0 ? `<span id="oc-tv-pe-${st}" class="oc-tv${peIV > 0 ? ' oc-tv-high' : ''}">${fmtLtp(peTV)}</span>` : `<span id="oc-tv-pe-${st}" class="oc-tv">—</span>`;
 
     return `<tr class="${rowCls}" data-strike="${st}">
       <td class="${tdCallCls}" style="text-align:right;">
@@ -2633,14 +2633,30 @@ function updateOptionChainLTP(ltpData) {
       // Live tick update — flash without full re-render
       const parts = key.match(/^s(\d+)_(ce|pe)$/);
       if (parts) {
-        const st   = parts[1];
+        const st   = parseInt(parts[1]);
         const type = parts[2];
-        const el   = document.getElementById('oc-'+type+'-'+st);
-        if (el) {
-          el.textContent = fmtLtp(cur);
+
+        // Update LTP cell
+        const ltpEl = document.getElementById('oc-'+type+'-'+st);
+        if (ltpEl) {
+          ltpEl.textContent = fmtLtp(cur);
           const cls = cur > prev ? 'flash-up' : 'flash-down';
-          el.classList.add(cls);
-          setTimeout(() => el.classList.remove(cls), 600);
+          ltpEl.classList.add(cls);
+          setTimeout(() => ltpEl.classList.remove(cls), 600);
+        }
+
+        // ── Also update TV cell tick-by-tick ──────────────────────
+        // TV = LTP − Intrinsic Value
+        // CE intrinsic = max(0, spot − strike); PE intrinsic = max(0, strike − spot)
+        const tvEl = document.getElementById('oc-tv-'+type+'-'+st);
+        if (tvEl && currentSpot) {
+          const iv  = type === 'ce'
+            ? Math.max(0, currentSpot - st)
+            : Math.max(0, st - currentSpot);
+          const tv  = cur > 0 ? Math.max(0, cur - iv) : 0;
+          const isHighIV = iv > 0;
+          tvEl.textContent  = cur > 0 ? fmtLtp(tv) : '—';
+          tvEl.className    = 'oc-tv' + (isHighIV ? ' oc-tv-high' : '');
         }
       }
     } else {
