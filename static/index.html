@@ -707,19 +707,16 @@ tr:last-child td{border-bottom:none;}
 <div class="tab-panel" id="tab-option-chain-panel">
 
 <!-- ── OPTION CHAIN ───────────────────────────────────────────────── -->
-<!-- ── INDEX TICKER ── -->
-<div class="oc-index-ticker" id="oc-ticker">
-  <div class="oc-ticker-block">
-    <span class="oc-ticker-dot" id="oc-ticker-dot"></span>
-    <span class="oc-ticker-label" id="oc-ticker-index-label">NIFTY</span>
-    <span class="oc-ticker-val" id="oc-ticker-spot">—</span>
-    <span class="oc-ticker-chg" id="oc-ticker-chg"></span>
-  </div>
-  <div class="oc-ticker-divider"></div>
-  <div class="oc-ticker-meta">ATM: <span id="oc-ticker-atm">—</span></div>
-  <div class="oc-ticker-meta">Expiry: <span id="oc-ticker-expiry">—</span></div>
-  <div class="oc-ticker-meta">DTE: <span id="oc-ticker-dte">—</span> days</div>
-  <div class="oc-ticker-meta" id="oc-ticker-time" style="margin-left:auto;"></div>
+<!-- Hidden ticker (keeps JS targets alive; display replaced by inline mini-ticker below) -->
+<div id="oc-ticker" style="display:none;">
+  <span class="oc-ticker-dot" id="oc-ticker-dot"></span>
+  <span id="oc-ticker-index-label">NIFTY</span>
+  <span id="oc-ticker-spot">—</span>
+  <span id="oc-ticker-chg"></span>
+  <span id="oc-ticker-atm">—</span>
+  <span id="oc-ticker-expiry">—</span>
+  <span id="oc-ticker-dte">—</span>
+  <span id="oc-ticker-time"></span>
 </div>
 
 <!-- ── MAX PAIN ── -->
@@ -753,9 +750,25 @@ tr:last-child td{border-bottom:none;}
 
 <div class="oc-card">
   <div class="oc-header">
-    <div>
-      <div class="oc-title"><span class="oc-pulse" id="oc-pulse"></span>Option Chain</div>
-      <div class="oc-meta" id="oc-meta">Waiting for data…</div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <div>
+        <div class="oc-title" style="display:flex;align-items:center;gap:8px;">
+          <span class="oc-pulse" id="oc-pulse"></span>Option Chain
+          <!-- ── inline Nifty mini-ticker ── -->
+          <span style="display:inline-flex;align-items:center;gap:6px;margin-left:6px;padding:3px 10px;background:#f8f8f5;border:0.5px solid #e0e0da;border-radius:20px;font-size:12px;font-weight:400;color:#1a1a1a;">
+            <span class="oc-ticker-dot" id="oc-ticker-dot" style="width:6px;height:6px;flex-shrink:0;"></span>
+            <span style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em;" id="oc-ticker-index-label">NIFTY</span>
+            <span style="font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;transition:color .25s;" id="oc-ticker-spot">—</span>
+            <span class="oc-ticker-chg" style="font-size:11px;font-weight:500;font-variant-numeric:tabular-nums;" id="oc-ticker-chg"></span>
+            <span style="width:0.5px;height:14px;background:#ddd;display:inline-block;margin:0 2px;"></span>
+            <span style="font-size:11px;color:#888;">ATM: <strong style="color:#534AB7;" id="oc-ticker-atm">—</strong></span>
+            <span style="font-size:11px;color:#888;">Expiry: <span id="oc-ticker-expiry">—</span></span>
+            <span style="font-size:11px;color:#888;">DTE: <span id="oc-ticker-dte">—</span> days</span>
+            <span style="font-size:11px;color:#aaa;margin-left:2px;" id="oc-ticker-time"></span>
+          </span>
+        </div>
+        <div class="oc-meta" id="oc-meta">Waiting for data…</div>
+      </div>
     </div>
     <div class="oc-controls">
       <span class="oc-depth-label">Strikes around ATM:</span>
