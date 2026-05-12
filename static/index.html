@@ -2776,10 +2776,20 @@ function calcMaxPain(spot) {
   top3.sort((a,b) => b.st - a.st);
   const topPainEl = document.getElementById('oc-ticker-top-pain');
   if (topPainEl) {
-    topPainEl.innerHTML = top3.map((x, i) => {
-      const colors = ['#534AB7','#1D9E75','#D85A30'];
-      return `<span style="color:${colors[i]};font-weight:600;">${x.st.toLocaleString('en-IN')}</span>`;
-    }).join('<span style="color:#ccc;margin:0 3px;">·</span>');
+    const fmtOIShort = v => {
+      if (v >= 1e7) return (v/1e7).toFixed(1)+' Cr';
+      if (v >= 1e5) return (v/1e5).toFixed(1)+' L';
+      if (v >= 1e3) return (v/1e3).toFixed(1)+' K';
+      return Math.round(v).toLocaleString('en-IN');
+    };
+    const bgColors  = ['#EEEDFE','#E1F5EE','#FAECE7'];
+    const txtColors = ['#534AB7','#085041','#712B13'];
+    topPainEl.innerHTML = top3.map((x, i) =>
+      `<span style="display:inline-flex;align-items:center;gap:4px;background:${bgColors[i]};color:${txtColors[i]};border-radius:6px;padding:2px 7px;font-size:11px;font-weight:500;white-space:nowrap;">` +
+      `<span style="font-weight:700;">${x.st.toLocaleString('en-IN')}</span>` +
+      `<span style="opacity:0.55;font-size:10px;font-weight:400;">${fmtOIShort(x.totalOI)}</span>` +
+      `</span>`
+    ).join('<span style="color:#ddd;margin:0 2px;">|</span>');
   }
 
   // Update UI
