@@ -838,35 +838,35 @@ tr:last-child td{border-bottom:none;}
 <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:12px;">
 
   <!-- ── TOP-LEFT: Call OI ADDED ── -->
-  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #D85A30;">
-    <div style="font-size:11px;font-weight:600;color:#712B13;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #D85A30;display:flex;align-items:center;gap:6px;">
+  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #D85A30;display:flex;flex-direction:column;">
+    <div style="font-size:11px;font-weight:600;color:#712B13;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #D85A30;display:flex;align-items:center;gap:6px;flex-shrink:0;">
       <span>📞</span> CE Calls — OI Added <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Resistance building)</span>
     </div>
-    <div id="ce-added-list"></div>
+    <div id="ce-added-list" style="overflow-y:auto;max-height:420px;"></div>
   </div>
 
   <!-- ── TOP-RIGHT: Call OI REMOVED ── -->
-  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #93c5e8;">
-    <div style="font-size:11px;font-weight:600;color:#185FA5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #93c5e8;display:flex;align-items:center;gap:6px;">
+  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #93c5e8;display:flex;flex-direction:column;">
+    <div style="font-size:11px;font-weight:600;color:#185FA5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #93c5e8;display:flex;align-items:center;gap:6px;flex-shrink:0;">
       <span>📞</span> CE Calls — OI Removed <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Shorts unwinding)</span>
     </div>
-    <div id="ce-removed-list"></div>
+    <div id="ce-removed-list" style="overflow-y:auto;max-height:420px;"></div>
   </div>
 
   <!-- ── BOTTOM-LEFT: Put OI ADDED ── -->
-  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #1D9E75;">
-    <div style="font-size:11px;font-weight:600;color:#085041;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #1D9E75;display:flex;align-items:center;gap:6px;">
+  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #1D9E75;display:flex;flex-direction:column;">
+    <div style="font-size:11px;font-weight:600;color:#085041;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #1D9E75;display:flex;align-items:center;gap:6px;flex-shrink:0;">
       <span>📤</span> PE Puts — OI Added <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Support building)</span>
     </div>
-    <div id="pe-added-list"></div>
+    <div id="pe-added-list" style="overflow-y:auto;max-height:420px;"></div>
   </div>
 
   <!-- ── BOTTOM-RIGHT: Put OI REMOVED ── -->
-  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #f0a080;">
-    <div style="font-size:11px;font-weight:600;color:#993C1D;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #f0a080;display:flex;align-items:center;gap:6px;">
+  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #f0a080;display:flex;flex-direction:column;">
+    <div style="font-size:11px;font-weight:600;color:#993C1D;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #f0a080;display:flex;align-items:center;gap:6px;flex-shrink:0;">
       <span>📤</span> PE Puts — OI Removed <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Longs unwinding)</span>
     </div>
-    <div id="pe-removed-list"></div>
+    <div id="pe-removed-list" style="overflow-y:auto;max-height:420px;"></div>
   </div>
 
 </div><!-- end 4-section grid -->
