@@ -226,10 +226,19 @@ tr:last-child td{border-bottom:none;}
 .chart-card.strike-s2{border-top:2px solid #534AB7;}
 .chart-card.strike-s3{border-top:2px solid #1D9E75;}
 
+/* ── OI MOVERS 4-section styles ── */
+.mover-ts-block{margin-bottom:14px;padding-bottom:10px;border-bottom:0.5px solid #f0f0ec;}
+.mover-ts-block:last-child{border-bottom:none;margin-bottom:0;}
+.mover-ts-header{font-size:11px;font-weight:600;color:#444;margin-bottom:6px;display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums;}
+.mover-spot-pill{font-size:10px;font-weight:400;padding:1px 7px;border-radius:10px;background:#f8f8f5;color:#888;border:0.5px solid #ddd;}
+.mover-4-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;}
+.mover-4-rank{font-size:10px;color:#bbb;min-width:14px;text-align:right;font-weight:500;}
+.mover-4-strike{font-weight:600;color:#1a1a1a;min-width:54px;font-variant-numeric:tabular-nums;}
+.mover-4-delta{font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;min-width:64px;text-align:center;font-variant-numeric:tabular-nums;}
+.mover-4-oi{font-size:10px;color:#aaa;font-variant-numeric:tabular-nums;margin-left:auto;}
+
 @media(max-width:700px){
-  .grid2,.dual-grid{grid-template-columns:1fr;}
-  .chart-scroll-inner{height:180px;}
-  .ltp-divider{margin:0 10px;}
+  #tab-oi-movers-panel .grid-4{grid-template-columns:1fr!important;}
 }
 
 /* ── OPTION CHAIN ── */
@@ -367,7 +376,8 @@ tr:last-child td{border-bottom:none;}
 
 <div class="page-tabs">
   <button class="tab-btn active" id="tab-dashboard-btn" onclick="switchTab('dashboard')">Dashboard</button>
-  <button class="tab-btn" id="tab-option-chain-btn" onclick="switchTab('option-chain')">Option Chain & OI Movers</button>
+  <button class="tab-btn" id="tab-option-chain-btn" onclick="switchTab('option-chain')">Option Chain & OI Moves</button>
+  <button class="tab-btn" id="tab-oi-movers-btn" onclick="switchTab('oi-movers')">📊 OI Movers</button>
   <span class="tab-hint">Move heavy tables away from the main trading view</span>
 </div>
 
@@ -799,12 +809,22 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div>
 
-<!-- ── OI MOVERS PANEL ── -->
-<div class="index-chart-card" id="oi-movers-card">
-  <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+
+</div><!-- end tab-option-chain-panel -->
+
+<!-- ══════════════════════════════════════════════════════════════════
+     OI MOVERS TAB — 4-section layout
+     Top-left:  Call OI Added   |  Top-right:  Call OI Removed
+     Bot-left:  Put OI Added    |  Bot-right:  Put OI Removed
+════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-oi-movers-panel">
+
+<!-- Header bar -->
+<div class="index-chart-card" id="oi-movers-card" style="margin-bottom:12px;">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;">
     <div>
       <div class="index-chart-title">Top OI Movers — All Strikes</div>
-      <div class="index-chart-sub" id="movers-sub">Strikes with biggest OI increase in selected interval · ranked by absolute change</div>
+      <div class="index-chart-sub" id="movers-sub">Dominant OI added/decreased for every selected interval · latest —</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;font-size:11px;color:#888;">
       <span>Total CE Δ: <span id="movers-ce-total" style="font-weight:500;color:#1a1a1a;">—</span></span>
@@ -812,28 +832,50 @@ tr:last-child td{border-bottom:none;}
       <span>PCR: <span id="movers-pcr" style="font-weight:500;color:#1a1a1a;">—</span></span>
     </div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-    <div>
-      <div style="font-size:11px;font-weight:500;color:#712B13;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;padding-bottom:5px;border-bottom:1.5px solid #D85A30;">
-        📞 CE — Calls (Resistance / Short side)
-      </div>
-      <div id="ce-movers-list" style="max-height:400px;overflow-y:auto;"></div>
-    </div>
-    <div>
-      <div style="font-size:11px;font-weight:500;color:#085041;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;padding-bottom:5px;border-bottom:1.5px solid #1D9E75;">
-        📤 PE — Puts (Support / Long side)
-      </div>
-      <div id="pe-movers-list" style="max-height:400px;overflow-y:auto;"></div>
-    </div>
-  </div>
 </div>
 
-</div><!-- end tab-option-chain-panel -->
+<!-- 4-section grid: 2 columns × 2 rows -->
+<div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:12px;">
+
+  <!-- ── TOP-LEFT: Call OI ADDED ── -->
+  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #D85A30;">
+    <div style="font-size:11px;font-weight:600;color:#712B13;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #D85A30;display:flex;align-items:center;gap:6px;">
+      <span>📞</span> CE Calls — OI Added <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Resistance building)</span>
+    </div>
+    <div id="ce-added-list"></div>
+  </div>
+
+  <!-- ── TOP-RIGHT: Call OI REMOVED ── -->
+  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #93c5e8;">
+    <div style="font-size:11px;font-weight:600;color:#185FA5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #93c5e8;display:flex;align-items:center;gap:6px;">
+      <span>📞</span> CE Calls — OI Removed <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Shorts unwinding)</span>
+    </div>
+    <div id="ce-removed-list"></div>
+  </div>
+
+  <!-- ── BOTTOM-LEFT: Put OI ADDED ── -->
+  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #1D9E75;">
+    <div style="font-size:11px;font-weight:600;color:#085041;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #1D9E75;display:flex;align-items:center;gap:6px;">
+      <span>📤</span> PE Puts — OI Added <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Support building)</span>
+    </div>
+    <div id="pe-added-list"></div>
+  </div>
+
+  <!-- ── BOTTOM-RIGHT: Put OI REMOVED ── -->
+  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #f0a080;">
+    <div style="font-size:11px;font-weight:600;color:#993C1D;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #f0a080;display:flex;align-items:center;gap:6px;">
+      <span>📤</span> PE Puts — OI Removed <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Longs unwinding)</span>
+    </div>
+    <div id="pe-removed-list"></div>
+  </div>
+
+</div><!-- end 4-section grid -->
+</div><!-- end tab-oi-movers-panel -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 function switchTab(tabName) {
-  ['dashboard', 'option-chain'].forEach(name => {
+  ['dashboard', 'option-chain', 'oi-movers'].forEach(name => {
     const panel = document.getElementById('tab-' + name + '-panel');
     const btn = document.getElementById('tab-' + name + '-btn');
     const active = name === tabName;
@@ -846,6 +888,9 @@ function switchTab(tabName) {
     // Refresh ticker + max pain when switching to this tab
     updateOCTicker(currentSpot, ocExpiryDate);
     calcMaxPain(currentSpot);
+  }
+  if (tabName === 'oi-movers') {
+    drawOIMovers(minuteRows, atmStrike);
   }
 }
 
@@ -2377,24 +2422,23 @@ function drawCumOIChart(rows) {
 
 // ── OI MOVERS PANEL ──────────────────────────────────────────────
 function drawOIMovers(rows, atmStr) {
-  const ceListEl=document.getElementById('ce-movers-list');
-  const peListEl=document.getElementById('pe-movers-list');
+  // Only render when the OI Movers tab is active (avoid rendering hidden DOM)
   const subEl=document.getElementById('movers-sub');
-  if (!ceListEl||!peListEl) return;
+  const noData=id=>{const el=document.getElementById(id);if(el)el.innerHTML='<div style="color:#aaa;font-size:12px;padding:16px 0;text-align:center;">No data yet</div>';};
+
   if (!rows||!rows.length){
-    ceListEl.innerHTML='<div style="color:#aaa;font-size:12px;padding:8px 0;">No data yet</div>';
-    peListEl.innerHTML='<div style="color:#aaa;font-size:12px;padding:8px 0;">No data yet</div>';
+    ['ce-added-list','ce-removed-list','pe-added-list','pe-removed-list'].forEach(noData);
     ['movers-ce-total','movers-pe-total','movers-pcr'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
     return;
   }
 
   const cleanRows=[...rows].filter(r=>r&&(parseFloat(r.ts)||0)>0).sort((a,b)=>(parseFloat(a.ts)||0)-(parseFloat(b.ts)||0));
   if (!cleanRows.length){
-    ceListEl.innerHTML='<div style="color:#aaa;font-size:12px;padding:8px 0;">No valid rows yet</div>';
-    peListEl.innerHTML='<div style="color:#aaa;font-size:12px;padding:8px 0;">No valid rows yet</div>';
+    ['ce-added-list','ce-removed-list','pe-added-list','pe-removed-list'].forEach(noData);
     return;
   }
 
+  // ── Build interval buckets ──
   const buckets=[];
   cleanRows.forEach(r=>{
     const ts=parseFloat(r.ts)||0;
@@ -2405,10 +2449,11 @@ function drawOIMovers(rows, atmStr) {
     buckets[buckets.length-1].label=r.time_label;
   });
 
-  function fmtOIShort(v){const n=Number(v)||0;const a=Math.abs(n);if(a>=1e7)return(n/1e7).toFixed(2)+' Cr';if(a>=1e5)return(n/1e5).toFixed(1)+' L';return Math.round(n).toLocaleString('en-IN');}
+  function fmtOIShort(v){const n=Number(v)||0;const a=Math.abs(n);if(a>=1e7)return(n/1e7).toFixed(2)+' Cr';if(a>=1e5)return(n/1e5).toFixed(1)+' L';if(a>=1e3)return(n/1e3).toFixed(1)+' K';return Math.round(n).toLocaleString('en-IN');}
   function fmtDeltaShort(v){const n=Number(v)||0;return(n>0?'+':'')+fmtOIShort(n);}
 
-  function collectSide(rowsInBucket,side){
+  // Collect all strikes for a side in a bucket, returning sorted arrays
+  function collectSideFull(rowsInBucket, side){
     const sideLower=side.toLowerCase();
     const strikes={};
     rowsInBucket.forEach(r=>{
@@ -2419,45 +2464,61 @@ function drawOIMovers(rows, atmStr) {
         if(oiM){const strike=Number(oiM[1]);if(!strikes[strike])strikes[strike]={strike,delta:0,oi:0};strikes[strike].oi=parseFloat(r[k])||0;}
       });
     });
-    const arr=Object.values(strikes).filter(x=>x.delta!==0);
-    const added=arr.filter(x=>x.delta>0).sort((a,b)=>b.delta-a.delta)[0]||null;
-    const decreased=arr.filter(x=>x.delta<0).sort((a,b)=>a.delta-b.delta)[0]||null;
-    return{added,decreased,strikes};
+    const arr=Object.values(strikes);
+    const added   = arr.filter(x=>x.delta>0).sort((a,b)=>b.delta-a.delta).slice(0,4);
+    const removed = arr.filter(x=>x.delta<0).sort((a,b)=>a.delta-b.delta).slice(0,4);
+    return{added,removed,all:arr};
   }
 
   const results=buckets.map(b=>{
-    const ce=collectSide(b.rows,'CE');
-    const pe=collectSide(b.rows,'PE');
+    const ce=collectSideFull(b.rows,'CE');
+    const pe=collectSideFull(b.rows,'PE');
     const lastRow=b.rows[b.rows.length-1];
     const spot=parseFloat(lastRow?.spot_close)||parseFloat(lastRow?.spot)||0;
     return{bucket:b.bucket,label:b.label,spot,ce,pe};
   });
 
-  function rowHtml(timeLabel,moveLabel,item,spot){
-    if(!item)return`<div class="mover-row"><span class="mover-time">${timeLabel}</span><span class="mover-action">${moveLabel}</span><span style="color:#aaa;font-size:12px;">No move</span></div>`;
-    const color=item.delta>0?'#1D9E75':'#D85A30';
-    const spotLabel=spot?`<span class="mover-type-badge badge-otm" style="background:#f8f8f5;color:#888;font-weight:400;">Spot ${fmt(spot)}</span>`:'';
-    return`<div class="mover-row"><span class="mover-time">${timeLabel}</span><span class="mover-action">${moveLabel}</span><span class="mover-strike">${item.strike.toLocaleString('en-IN')}</span>${spotLabel}<span class="mover-delta" style="color:${color};">${fmtDeltaShort(item.delta)}</span><span class="mover-oi">${fmtOIShort(item.oi)} OI</span></div>`;
-  }
-
-  function renderSide(side){
-    const html=results.map(r=>{
-      const moves=side==='CE'?r.ce:r.pe;
-      return`${rowHtml(r.label,'Add',moves.added,r.spot)}${rowHtml('','Dec',moves.decreased,r.spot)}`;
+  // ── Render one timestamp block with up to 4 strike rows ──
+  function tsBlockHtml(result, items, colorFn, emptyMsg){
+    if(!items.length){
+      return`<div class="mover-ts-block" style="margin-bottom:12px;">
+        <div class="mover-ts-header">${result.label}${result.spot?` <span class="mover-spot-pill">Spot ${fmt(result.spot)}</span>`:''}</div>
+        <div style="color:#bbb;font-size:11px;padding:6px 0 0 0;">${emptyMsg}</div>
+      </div>`;
+    }
+    const rows=items.map((item,rank)=>{
+      const {color,bg}=colorFn(item);
+      return`<div class="mover-4-row">
+        <span class="mover-4-rank">${rank+1}</span>
+        <span class="mover-4-strike">${item.strike.toLocaleString('en-IN')}</span>
+        <span class="mover-4-delta" style="color:${color};background:${bg};">${fmtDeltaShort(item.delta)}</span>
+        <span class="mover-4-oi">${fmtOIShort(item.oi)} OI</span>
+      </div>`;
     }).join('');
-    return html||'<div style="color:#aaa;font-size:12px;padding:8px 0;">No OI moves yet</div>';
+    return`<div class="mover-ts-block">
+      <div class="mover-ts-header">${result.label}${result.spot?` <span class="mover-spot-pill">Spot ${fmt(result.spot)}</span>`:''}</div>
+      ${rows}
+    </div>`;
   }
 
-  ceListEl.innerHTML=renderSide('CE');
-  peListEl.innerHTML=renderSide('PE');
+  const ceAddHtml  = results.map(r=>tsBlockHtml(r, r.ce.added,   ()=>({color:'#D85A30',bg:'#FAECE7'}), 'No CE added'  )).join('');
+  const ceRemHtml  = results.map(r=>tsBlockHtml(r, r.ce.removed, ()=>({color:'#185FA5',bg:'#E6F1FB'}), 'No CE removed')).join('');
+  const peAddHtml  = results.map(r=>tsBlockHtml(r, r.pe.added,   ()=>({color:'#1D9E75',bg:'#E1F5EE'}), 'No PE added'  )).join('');
+  const peRemHtml  = results.map(r=>tsBlockHtml(r, r.pe.removed, ()=>({color:'#993C1D',bg:'#FAEEDA'}), 'No PE removed')).join('');
 
+  const setEl=(id,html)=>{const el=document.getElementById(id);if(el)el.innerHTML=html||'<div style="color:#aaa;font-size:12px;padding:8px 0;">No OI moves yet</div>';};
+  setEl('ce-added-list',   ceAddHtml);
+  setEl('ce-removed-list', ceRemHtml);
+  setEl('pe-added-list',   peAddHtml);
+  setEl('pe-removed-list', peRemHtml);
+
+  // Totals from latest bucket
   const latest=results[results.length-1];
   let tCeDelta=0,tPeDelta=0,tCeOI=0,tPeOI=0;
   if(latest){
-    Object.values(latest.ce.strikes).forEach(v=>{tCeDelta+=v.delta;tCeOI+=v.oi;});
-    Object.values(latest.pe.strikes).forEach(v=>{tPeDelta+=v.delta;tPeOI+=v.oi;});
+    latest.ce.all.forEach(v=>{tCeDelta+=v.delta;tCeOI+=v.oi;});
+    latest.pe.all.forEach(v=>{tPeDelta+=v.delta;tPeOI+=v.oi;});
   }
-
   const ceT=document.getElementById('movers-ce-total');
   const peT=document.getElementById('movers-pe-total');
   const pcr=document.getElementById('movers-pcr');
