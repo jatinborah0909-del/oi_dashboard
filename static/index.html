@@ -227,6 +227,10 @@ tr:last-child td{border-bottom:none;}
 .chart-card.strike-s3{border-top:2px solid #1D9E75;}
 
 /* ── OI MOVERS 4-section styles ── */
+#ce-added-list::-webkit-scrollbar,
+#ce-removed-list::-webkit-scrollbar,
+#pe-added-list::-webkit-scrollbar,
+#pe-removed-list::-webkit-scrollbar { display: none; }
 .mover-ts-block{margin-bottom:14px;padding-bottom:10px;border-bottom:0.5px solid #f0f0ec;}
 .mover-ts-block:last-child{border-bottom:none;margin-bottom:0;}
 .mover-ts-header{font-size:11px;font-weight:600;color:#444;margin-bottom:6px;display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums;}
@@ -834,42 +838,61 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div>
 
-<!-- 4-section grid: 2 columns × 2 rows -->
-<div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:12px;">
+<!-- ── CE ROW (synced) ── -->
+<div style="display:grid;grid-template-columns:1fr 14px 1fr;gap:0 6px;margin-bottom:12px;align-items:stretch;">
 
-  <!-- ── TOP-LEFT: Call OI ADDED ── -->
+  <!-- CE Added -->
   <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #D85A30;display:flex;flex-direction:column;">
     <div style="font-size:11px;font-weight:600;color:#712B13;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #D85A30;display:flex;align-items:center;gap:6px;flex-shrink:0;">
       <span>📞</span> CE Calls — OI Added <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Resistance building)</span>
     </div>
-    <div id="ce-added-list" style="overflow-y:auto;max-height:420px;"></div>
+    <div id="ce-added-list" style="overflow-y:scroll;max-height:420px;scrollbar-width:none;-ms-overflow-style:none;flex:1;"></div>
   </div>
 
-  <!-- ── TOP-RIGHT: Call OI REMOVED ── -->
+  <!-- CE vertical shared scrollbar -->
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:38px 0 4px 0;">
+    <div id="ce-scrollbar-track" style="width:10px;flex:1;background:#f0f0ec;border-radius:5px;border:0.5px solid #ddd;cursor:pointer;position:relative;">
+      <div id="ce-scrollbar-thumb" style="width:100%;background:#D85A30;border-radius:5px;height:30%;position:absolute;top:0;left:0;cursor:grab;"></div>
+    </div>
+  </div>
+
+  <!-- CE Removed -->
   <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #93c5e8;display:flex;flex-direction:column;">
     <div style="font-size:11px;font-weight:600;color:#185FA5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #93c5e8;display:flex;align-items:center;gap:6px;flex-shrink:0;">
       <span>📞</span> CE Calls — OI Removed <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Shorts unwinding)</span>
     </div>
-    <div id="ce-removed-list" style="overflow-y:auto;max-height:420px;"></div>
+    <div id="ce-removed-list" style="overflow-y:scroll;max-height:420px;scrollbar-width:none;-ms-overflow-style:none;flex:1;"></div>
   </div>
 
-  <!-- ── BOTTOM-LEFT: Put OI ADDED ── -->
+</div>
+
+<!-- ── PE ROW (synced) ── -->
+<div style="display:grid;grid-template-columns:1fr 14px 1fr;gap:0 6px;margin-bottom:0;align-items:stretch;">
+
+  <!-- PE Added -->
   <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #1D9E75;display:flex;flex-direction:column;">
     <div style="font-size:11px;font-weight:600;color:#085041;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #1D9E75;display:flex;align-items:center;gap:6px;flex-shrink:0;">
       <span>📤</span> PE Puts — OI Added <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Support building)</span>
     </div>
-    <div id="pe-added-list" style="overflow-y:auto;max-height:420px;"></div>
+    <div id="pe-added-list" style="overflow-y:scroll;max-height:420px;scrollbar-width:none;-ms-overflow-style:none;flex:1;"></div>
   </div>
 
-  <!-- ── BOTTOM-RIGHT: Put OI REMOVED ── -->
+  <!-- PE vertical shared scrollbar -->
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:38px 0 4px 0;">
+    <div id="pe-scrollbar-track" style="width:10px;flex:1;background:#f0f0ec;border-radius:5px;border:0.5px solid #ddd;cursor:pointer;position:relative;">
+      <div id="pe-scrollbar-thumb" style="width:100%;background:#1D9E75;border-radius:5px;height:30%;position:absolute;top:0;left:0;cursor:grab;"></div>
+    </div>
+  </div>
+
+  <!-- PE Removed -->
   <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #f0a080;display:flex;flex-direction:column;">
     <div style="font-size:11px;font-weight:600;color:#993C1D;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #f0a080;display:flex;align-items:center;gap:6px;flex-shrink:0;">
       <span>📤</span> PE Puts — OI Removed <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Longs unwinding)</span>
     </div>
-    <div id="pe-removed-list" style="overflow-y:auto;max-height:420px;"></div>
+    <div id="pe-removed-list" style="overflow-y:scroll;max-height:420px;scrollbar-width:none;-ms-overflow-style:none;flex:1;"></div>
   </div>
 
-</div><!-- end 4-section grid -->
+</div>
 </div><!-- end tab-oi-movers-panel -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -2526,7 +2549,118 @@ function drawOIMovers(rows, atmStr) {
   if(peT){peT.textContent=fmtDeltaShort(tPeDelta);peT.style.color=tPeDelta>=0?'#1D9E75':'#D85A30';}
   if(pcr)pcr.textContent=tCeOI>0?(tPeOI/tCeOI).toFixed(2):'—';
   if(subEl)subEl.textContent=`Dominant OI added/decreased for every ${intervalMin}-min interval · latest ${latest?.label||'—'}`;
+
+  // Update thumb sizes after content renders
+  requestAnimationFrame(()=>{
+    updateSyncThumb('ce');
+    updateSyncThumb('pe');
+  });
 }
+
+// ── SYNCED SCROLLBAR LOGIC ────────────────────────────────────────
+function updateSyncThumb(side) {
+  const lists = side === 'ce'
+    ? [document.getElementById('ce-added-list'), document.getElementById('ce-removed-list')]
+    : [document.getElementById('pe-added-list'), document.getElementById('pe-removed-list')];
+  const thumb = document.getElementById(side+'-scrollbar-thumb');
+  if (!thumb || !lists[0]) return;
+  const el = lists[0];
+  const ratio = el.clientHeight / (el.scrollHeight || 1);
+  const pct = Math.max(10, Math.min(100, ratio * 100));
+  thumb.style.height = pct + '%';
+  thumb.style.opacity = ratio >= 1 ? '0.3' : '1';
+}
+
+function initSyncScroll() {
+  function wireGroup(side, listIds, trackId, thumbId) {
+    const lists = listIds.map(id => document.getElementById(id));
+    const track = document.getElementById(trackId);
+    const thumb = document.getElementById(thumbId);
+    if (!track || !thumb) return;
+
+    let isSyncing = false;
+
+    function updateThumbPos(ratio) {
+      const trackH = track.clientHeight;
+      const thumbH = thumb.offsetHeight;
+      const maxTop = trackH - thumbH;
+      thumb.style.top = Math.max(0, Math.min(maxTop, ratio * maxTop)) + 'px';
+    }
+
+    // When any list scrolls → sync the other + move thumb
+    lists.forEach(src => {
+      if (!src) return;
+      src.addEventListener('scroll', () => {
+        if (isSyncing) return;
+        isSyncing = true;
+        const ratio = src.scrollTop / (src.scrollHeight - src.clientHeight || 1);
+        lists.forEach(tgt => {
+          if (tgt && tgt !== src) tgt.scrollTop = ratio * (tgt.scrollHeight - tgt.clientHeight);
+        });
+        updateThumbPos(ratio);
+        isSyncing = false;
+      });
+    });
+
+    // Drag thumb vertically → scroll lists
+    let dragging = false, dragStartY = 0, dragStartTop = 0;
+    thumb.addEventListener('mousedown', e => {
+      dragging = true;
+      dragStartY = e.clientY;
+      dragStartTop = parseFloat(thumb.style.top) || 0;
+      thumb.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      const trackH = track.clientHeight;
+      const thumbH = thumb.offsetHeight;
+      const maxTop = trackH - thumbH;
+      const newTop = Math.max(0, Math.min(maxTop, dragStartTop + (e.clientY - dragStartY)));
+      thumb.style.top = newTop + 'px';
+      const ratio = maxTop > 0 ? newTop / maxTop : 0;
+      isSyncing = true;
+      lists.forEach(el => { if (el) el.scrollTop = ratio * (el.scrollHeight - el.clientHeight); });
+      isSyncing = false;
+    });
+    document.addEventListener('mouseup', () => {
+      if (dragging) { dragging = false; thumb.style.cursor = 'grab'; }
+    });
+
+    // Click on track → jump
+    track.addEventListener('click', e => {
+      if (e.target === thumb) return;
+      const rect = track.getBoundingClientRect();
+      const thumbH = thumb.offsetHeight;
+      const maxTop = track.clientHeight - thumbH;
+      const newTop = Math.max(0, Math.min(maxTop, (e.clientY - rect.top) - thumbH / 2));
+      thumb.style.top = newTop + 'px';
+      const ratio = maxTop > 0 ? newTop / maxTop : 0;
+      lists.forEach(el => { if (el) el.scrollTop = ratio * (el.scrollHeight - el.clientHeight); });
+    });
+
+    // Touch support
+    lists.forEach(src => {
+      if (!src) return;
+      src.addEventListener('touchmove', () => {
+        if (isSyncing) return;
+        isSyncing = true;
+        const ratio = src.scrollTop / (src.scrollHeight - src.clientHeight || 1);
+        lists.forEach(tgt => {
+          if (tgt && tgt !== src) tgt.scrollTop = ratio * (tgt.scrollHeight - tgt.clientHeight);
+        });
+        updateThumbPos(ratio);
+        isSyncing = false;
+      }, { passive: true });
+    });
+  }
+
+  wireGroup('ce', ['ce-added-list','ce-removed-list'], 'ce-scrollbar-track', 'ce-scrollbar-thumb');
+  wireGroup('pe', ['pe-added-list','pe-removed-list'], 'pe-scrollbar-track', 'pe-scrollbar-thumb');
+}
+
+document.addEventListener('DOMContentLoaded', initSyncScroll);
+if (document.readyState !== 'loading') initSyncScroll();
 
 // ── OPTION CHAIN ──────────────────────────────────────────────────
 // Stores latest LTP snapshot keyed by "s{strike}_{ce|pe}"
