@@ -227,10 +227,6 @@ tr:last-child td{border-bottom:none;}
 .chart-card.strike-s3{border-top:2px solid #1D9E75;}
 
 /* ── OI MOVERS 4-section styles ── */
-#ce-added-list::-webkit-scrollbar,
-#ce-removed-list::-webkit-scrollbar,
-#pe-added-list::-webkit-scrollbar,
-#pe-removed-list::-webkit-scrollbar { display: none; }
 .mover-ts-block{margin-bottom:14px;padding-bottom:10px;border-bottom:0.5px solid #f0f0ec;}
 .mover-ts-block:last-child{border-bottom:none;margin-bottom:0;}
 .mover-ts-header{font-size:11px;font-weight:600;color:#444;margin-bottom:6px;display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums;}
@@ -825,12 +821,21 @@ tr:last-child td{border-bottom:none;}
 
 <!-- Header bar -->
 <div class="index-chart-card" id="oi-movers-card" style="margin-bottom:12px;">
-  <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
     <div>
       <div class="index-chart-title">Top OI Movers — All Strikes</div>
       <div class="index-chart-sub" id="movers-sub">Dominant OI added/decreased for every selected interval · latest —</div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;font-size:11px;color:#888;">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:11px;color:#888;">
+      <span style="display:flex;align-items:center;gap:6px;">
+        <label for="movers-topn" style="white-space:nowrap;">Top strikes:</label>
+        <select id="movers-topn" onchange="drawOIMovers(minuteRows,atmStrike)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;">
+          <option value="1">Top 1</option>
+          <option value="2">Top 2</option>
+          <option value="3">Top 3</option>
+          <option value="4" selected>Top 4</option>
+        </select>
+      </span>
       <span>Total CE Δ: <span id="movers-ce-total" style="font-weight:500;color:#1a1a1a;">—</span></span>
       <span>Total PE Δ: <span id="movers-pe-total" style="font-weight:500;color:#1a1a1a;">—</span></span>
       <span>PCR: <span id="movers-pcr" style="font-weight:500;color:#1a1a1a;">—</span></span>
@@ -838,61 +843,36 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div>
 
-<!-- ── CE ROW (synced) ── -->
-<div style="display:grid;grid-template-columns:1fr 14px 1fr;gap:0 6px;margin-bottom:12px;align-items:stretch;">
-
-  <!-- CE Added -->
-  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #D85A30;display:flex;flex-direction:column;">
-    <div style="font-size:11px;font-weight:600;color:#712B13;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #D85A30;display:flex;align-items:center;gap:6px;flex-shrink:0;">
+<!-- ── CE SECTION ── -->
+<div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;margin-bottom:12px;overflow:hidden;border-top:2px solid #D85A30;">
+  <!-- CE column headers -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #f0ece8;">
+    <div style="padding:10px 16px;font-size:11px;font-weight:600;color:#712B13;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:6px;border-right:1px solid #f0ece8;">
       <span>📞</span> CE Calls — OI Added <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Resistance building)</span>
     </div>
-    <div id="ce-added-list" style="overflow-y:scroll;max-height:420px;scrollbar-width:none;-ms-overflow-style:none;flex:1;"></div>
-  </div>
-
-  <!-- CE vertical shared scrollbar -->
-  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:38px 0 4px 0;">
-    <div id="ce-scrollbar-track" style="width:10px;flex:1;background:#f0f0ec;border-radius:5px;border:0.5px solid #ddd;cursor:pointer;position:relative;">
-      <div id="ce-scrollbar-thumb" style="width:100%;background:#D85A30;border-radius:5px;height:30%;position:absolute;top:0;left:0;cursor:grab;"></div>
-    </div>
-  </div>
-
-  <!-- CE Removed -->
-  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #93c5e8;display:flex;flex-direction:column;">
-    <div style="font-size:11px;font-weight:600;color:#185FA5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #93c5e8;display:flex;align-items:center;gap:6px;flex-shrink:0;">
+    <div style="padding:10px 16px;font-size:11px;font-weight:600;color:#185FA5;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:6px;">
       <span>📞</span> CE Calls — OI Removed <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Shorts unwinding)</span>
     </div>
-    <div id="ce-removed-list" style="overflow-y:scroll;max-height:420px;scrollbar-width:none;-ms-overflow-style:none;flex:1;"></div>
   </div>
-
+  <!-- CE unified scrollable body -->
+  <div id="ce-unified-list" style="overflow-y:auto;max-height:380px;"></div>
 </div>
 
-<!-- ── PE ROW (synced) ── -->
-<div style="display:grid;grid-template-columns:1fr 14px 1fr;gap:0 6px;margin-bottom:0;align-items:stretch;">
-
-  <!-- PE Added -->
-  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #1D9E75;display:flex;flex-direction:column;">
-    <div style="font-size:11px;font-weight:600;color:#085041;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #1D9E75;display:flex;align-items:center;gap:6px;flex-shrink:0;">
+<!-- ── PE SECTION ── -->
+<div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;margin-bottom:0;overflow:hidden;border-top:2px solid #1D9E75;">
+  <!-- PE column headers -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #eaf5ef;">
+    <div style="padding:10px 16px;font-size:11px;font-weight:600;color:#085041;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:6px;border-right:1px solid #eaf5ef;">
       <span>📤</span> PE Puts — OI Added <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Support building)</span>
     </div>
-    <div id="pe-added-list" style="overflow-y:scroll;max-height:420px;scrollbar-width:none;-ms-overflow-style:none;flex:1;"></div>
-  </div>
-
-  <!-- PE vertical shared scrollbar -->
-  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:38px 0 4px 0;">
-    <div id="pe-scrollbar-track" style="width:10px;flex:1;background:#f0f0ec;border-radius:5px;border:0.5px solid #ddd;cursor:pointer;position:relative;">
-      <div id="pe-scrollbar-thumb" style="width:100%;background:#1D9E75;border-radius:5px;height:30%;position:absolute;top:0;left:0;cursor:grab;"></div>
-    </div>
-  </div>
-
-  <!-- PE Removed -->
-  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #f0a080;display:flex;flex-direction:column;">
-    <div style="font-size:11px;font-weight:600;color:#993C1D;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #f0a080;display:flex;align-items:center;gap:6px;flex-shrink:0;">
+    <div style="padding:10px 16px;font-size:11px;font-weight:600;color:#993C1D;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:6px;">
       <span>📤</span> PE Puts — OI Removed <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Longs unwinding)</span>
     </div>
-    <div id="pe-removed-list" style="overflow-y:scroll;max-height:420px;scrollbar-width:none;-ms-overflow-style:none;flex:1;"></div>
   </div>
-
+  <!-- PE unified scrollable body -->
+  <div id="pe-unified-list" style="overflow-y:auto;max-height:380px;"></div>
 </div>
+
 </div><!-- end tab-oi-movers-panel -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -2445,100 +2425,127 @@ function drawCumOIChart(rows) {
 
 // ── OI MOVERS PANEL ──────────────────────────────────────────────
 function drawOIMovers(rows, atmStr) {
-  // Only render when the OI Movers tab is active (avoid rendering hidden DOM)
-  const subEl=document.getElementById('movers-sub');
-  const noData=id=>{const el=document.getElementById(id);if(el)el.innerHTML='<div style="color:#aaa;font-size:12px;padding:16px 0;text-align:center;">No data yet</div>';};
+  const subEl = document.getElementById('movers-sub');
+  const topN = parseInt(document.getElementById('movers-topn')?.value || '4');
 
-  if (!rows||!rows.length){
-    ['ce-added-list','ce-removed-list','pe-added-list','pe-removed-list'].forEach(noData);
+  function setEmpty(id) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<div style="color:#aaa;font-size:12px;padding:20px;text-align:center;">No data yet</div>';
+  }
+
+  if (!rows || !rows.length) {
+    setEmpty('ce-unified-list'); setEmpty('pe-unified-list');
     ['movers-ce-total','movers-pe-total','movers-pcr'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
     return;
   }
 
-  const cleanRows=[...rows].filter(r=>r&&(parseFloat(r.ts)||0)>0).sort((a,b)=>(parseFloat(a.ts)||0)-(parseFloat(b.ts)||0));
-  if (!cleanRows.length){
-    ['ce-added-list','ce-removed-list','pe-added-list','pe-removed-list'].forEach(noData);
-    return;
-  }
+  const cleanRows = [...rows].filter(r=>r&&(parseFloat(r.ts)||0)>0).sort((a,b)=>(parseFloat(a.ts)||0)-(parseFloat(b.ts)||0));
+  if (!cleanRows.length) { setEmpty('ce-unified-list'); setEmpty('pe-unified-list'); return; }
 
   // ── Build interval buckets ──
-  const buckets=[];
-  cleanRows.forEach(r=>{
-    const ts=parseFloat(r.ts)||0;
-    const bucket=Math.floor(ts/(intervalMin*60))*(intervalMin*60);
-    if(!buckets.length||buckets[buckets.length-1].bucket!==bucket){
-      buckets.push({bucket,label:r.time_label,rows:[r]});
+  const buckets = [];
+  cleanRows.forEach(r => {
+    const ts = parseFloat(r.ts) || 0;
+    const bucket = Math.floor(ts / (intervalMin * 60)) * (intervalMin * 60);
+    if (!buckets.length || buckets[buckets.length-1].bucket !== bucket) {
+      buckets.push({bucket, label: r.time_label, rows: [r]});
     } else { buckets[buckets.length-1].rows.push(r); }
-    buckets[buckets.length-1].label=r.time_label;
+    buckets[buckets.length-1].label = r.time_label;
   });
 
   function fmtOIShort(v){const n=Number(v)||0;const a=Math.abs(n);if(a>=1e7)return(n/1e7).toFixed(2)+' Cr';if(a>=1e5)return(n/1e5).toFixed(1)+' L';if(a>=1e3)return(n/1e3).toFixed(1)+' K';return Math.round(n).toLocaleString('en-IN');}
   function fmtDeltaShort(v){const n=Number(v)||0;return(n>0?'+':'')+fmtOIShort(n);}
 
-  // Collect all strikes for a side in a bucket, returning sorted arrays
-  function collectSideFull(rowsInBucket, side){
-    const sideLower=side.toLowerCase();
-    const strikes={};
-    rowsInBucket.forEach(r=>{
-      Object.keys(r).forEach(k=>{
-        const deltaM=k.match(new RegExp('^s(\\d+)_'+sideLower+'_delta$'));
-        const oiM=k.match(new RegExp('^s(\\d+)_'+sideLower+'_oi$'));
-        if(deltaM){const strike=Number(deltaM[1]);if(!strikes[strike])strikes[strike]={strike,delta:0,oi:0};strikes[strike].delta+=parseFloat(r[k])||0;}
-        if(oiM){const strike=Number(oiM[1]);if(!strikes[strike])strikes[strike]={strike,delta:0,oi:0};strikes[strike].oi=parseFloat(r[k])||0;}
+  function collectSide(rowsInBucket, side) {
+    const sl = side.toLowerCase();
+    const strikes = {};
+    rowsInBucket.forEach(r => {
+      Object.keys(r).forEach(k => {
+        const dm = k.match(new RegExp('^s(\\d+)_'+sl+'_delta$'));
+        const om = k.match(new RegExp('^s(\\d+)_'+sl+'_oi$'));
+        if (dm) { const s=Number(dm[1]); if(!strikes[s])strikes[s]={strike:s,delta:0,oi:0}; strikes[s].delta+=parseFloat(r[k])||0; }
+        if (om) { const s=Number(om[1]); if(!strikes[s])strikes[s]={strike:s,delta:0,oi:0}; strikes[s].oi=parseFloat(r[k])||0; }
       });
     });
-    const arr=Object.values(strikes);
-    const added   = arr.filter(x=>x.delta>0).sort((a,b)=>b.delta-a.delta).slice(0,4);
-    const removed = arr.filter(x=>x.delta<0).sort((a,b)=>a.delta-b.delta).slice(0,4);
-    return{added,removed,all:arr};
+    const arr = Object.values(strikes);
+    return {
+      added:   arr.filter(x=>x.delta>0).sort((a,b)=>b.delta-a.delta).slice(0,topN),
+      removed: arr.filter(x=>x.delta<0).sort((a,b)=>a.delta-b.delta).slice(0,topN),
+      all:     arr
+    };
   }
 
-  const results=buckets.map(b=>{
-    const ce=collectSideFull(b.rows,'CE');
-    const pe=collectSideFull(b.rows,'PE');
-    const lastRow=b.rows[b.rows.length-1];
-    const spot=parseFloat(lastRow?.spot_close)||parseFloat(lastRow?.spot)||0;
-    return{bucket:b.bucket,label:b.label,spot,ce,pe};
+  const results = buckets.map(b => {
+    const lastRow = b.rows[b.rows.length-1];
+    const spot = parseFloat(lastRow?.spot_close) || parseFloat(lastRow?.spot) || 0;
+    return { label: b.label, spot, ce: collectSide(b.rows,'CE'), pe: collectSide(b.rows,'PE') };
   });
 
-  // ── Render one timestamp block with up to 4 strike rows ──
-  function tsBlockHtml(result, items, colorFn, emptyMsg){
-    if(!items.length){
-      return`<div class="mover-ts-block" style="margin-bottom:12px;">
-        <div class="mover-ts-header">${result.label}${result.spot?` <span class="mover-spot-pill">Spot ${fmt(result.spot)}</span>`:''}</div>
-        <div style="color:#bbb;font-size:11px;padding:6px 0 0 0;">${emptyMsg}</div>
-      </div>`;
-    }
-    const rows=items.map((item,rank)=>{
-      const {color,bg}=colorFn(item);
-      return`<div class="mover-4-row">
-        <span class="mover-4-rank">${rank+1}</span>
-        <span class="mover-4-strike">${item.strike.toLocaleString('en-IN')}</span>
-        <span class="mover-4-delta" style="color:${color};background:${bg};">${fmtDeltaShort(item.delta)}</span>
-        <span class="mover-4-oi">${fmtOIShort(item.oi)} OI</span>
-      </div>`;
-    }).join('');
-    return`<div class="mover-ts-block">
-      <div class="mover-ts-header">${result.label}${result.spot?` <span class="mover-spot-pill">Spot ${fmt(result.spot)}</span>`:''}</div>
-      ${rows}
+  // ── Render a single strike item row ──
+  function strikeRow(rank, item, addColor, addBg, remColor, remBg, isAdded) {
+    if (!item) return `<div class="mover-4-row" style="opacity:0;pointer-events:none;">
+      <span class="mover-4-rank">—</span><span class="mover-4-strike">—</span>
+      <span class="mover-4-delta">—</span><span class="mover-4-oi">—</span></div>`;
+    const color = isAdded ? addColor : remColor;
+    const bg    = isAdded ? addBg    : remBg;
+    return `<div class="mover-4-row">
+      <span class="mover-4-rank">${rank+1}</span>
+      <span class="mover-4-strike">${item.strike.toLocaleString('en-IN')}</span>
+      <span class="mover-4-delta" style="color:${color};background:${bg};">${fmtDeltaShort(item.delta)}</span>
+      <span class="mover-4-oi">${fmtOIShort(item.oi)} OI</span>
     </div>`;
   }
 
-  const ceAddHtml  = results.map(r=>tsBlockHtml(r, r.ce.added,   ()=>({color:'#D85A30',bg:'#FAECE7'}), 'No CE added'  )).join('');
-  const ceRemHtml  = results.map(r=>tsBlockHtml(r, r.ce.removed, ()=>({color:'#185FA5',bg:'#E6F1FB'}), 'No CE removed')).join('');
-  const peAddHtml  = results.map(r=>tsBlockHtml(r, r.pe.added,   ()=>({color:'#1D9E75',bg:'#E1F5EE'}), 'No PE added'  )).join('');
-  const peRemHtml  = results.map(r=>tsBlockHtml(r, r.pe.removed, ()=>({color:'#993C1D',bg:'#FAEEDA'}), 'No PE removed')).join('');
+  // ── Build unified HTML for CE or PE — timestamps aligned horizontally ──
+  function buildUnified(side) {
+    return results.map(r => {
+      const data   = side === 'CE' ? r.ce : r.pe;
+      const addClr = side === 'CE' ? '#D85A30' : '#1D9E75';
+      const addBg  = side === 'CE' ? '#FAECE7' : '#E1F5EE';
+      const remClr = side === 'CE' ? '#185FA5' : '#993C1D';
+      const remBg  = side === 'CE' ? '#E6F1FB' : '#FAEEDA';
 
-  const setEl=(id,html)=>{const el=document.getElementById(id);if(el)el.innerHTML=html||'<div style="color:#aaa;font-size:12px;padding:8px 0;">No OI moves yet</div>';};
-  setEl('ce-added-list',   ceAddHtml);
-  setEl('ce-removed-list', ceRemHtml);
-  setEl('pe-added-list',   peAddHtml);
-  setEl('pe-removed-list', peRemHtml);
+      // Timestamp header row — full width
+      const tsHeader = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;background:#f8f8f5;border-bottom:0.5px solid #eee;border-top:0.5px solid #eee;">
+          <div style="padding:5px 12px;font-size:11px;font-weight:600;color:#444;display:flex;align-items:center;gap:6px;border-right:0.5px solid #eee;">
+            ${r.label}${r.spot ? `<span class="mover-spot-pill">Spot ${fmt(r.spot)}</span>` : ''}
+          </div>
+          <div style="padding:5px 12px;font-size:11px;font-weight:600;color:#444;display:flex;align-items:center;gap:6px;">
+            ${r.label}${r.spot ? `<span class="mover-spot-pill">Spot ${fmt(r.spot)}</span>` : ''}
+          </div>
+        </div>`;
 
-  // Totals from latest bucket
-  const latest=results[results.length-1];
+      // Strike rows — left=added, right=removed, aligned by rank index
+      const maxLen = Math.max(data.added.length, data.removed.length, 1);
+      const strikeRows = Array.from({length: maxLen}, (_, i) => {
+        const addItem = data.added[i]   || null;
+        const remItem = data.removed[i] || null;
+        const leftHtml  = addItem
+          ? `<div class="mover-4-row"><span class="mover-4-rank">${i+1}</span><span class="mover-4-strike">${addItem.strike.toLocaleString('en-IN')}</span><span class="mover-4-delta" style="color:${addClr};background:${addBg};">${fmtDeltaShort(addItem.delta)}</span><span class="mover-4-oi">${fmtOIShort(addItem.oi)} OI</span></div>`
+          : `<div class="mover-4-row" style="color:#ccc;font-size:11px;padding:4px 8px;">—</div>`;
+        const rightHtml = remItem
+          ? `<div class="mover-4-row"><span class="mover-4-rank">${i+1}</span><span class="mover-4-strike">${remItem.strike.toLocaleString('en-IN')}</span><span class="mover-4-delta" style="color:${remClr};background:${remBg};">${fmtDeltaShort(remItem.delta)}</span><span class="mover-4-oi">${fmtOIShort(remItem.oi)} OI</span></div>`
+          : `<div class="mover-4-row" style="color:#ccc;font-size:11px;padding:4px 8px;">—</div>`;
+        return `<div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:0.5px solid #f5f5f2;">
+          <div style="padding:2px 8px;border-right:0.5px solid #eee;">${leftHtml}</div>
+          <div style="padding:2px 8px;">${rightHtml}</div>
+        </div>`;
+      }).join('');
+
+      return tsHeader + strikeRows;
+    }).join('') || '<div style="color:#aaa;font-size:12px;padding:20px;text-align:center;">No OI moves yet</div>';
+  }
+
+  const ceEl = document.getElementById('ce-unified-list');
+  const peEl = document.getElementById('pe-unified-list');
+  if (ceEl) ceEl.innerHTML = buildUnified('CE');
+  if (peEl) peEl.innerHTML = buildUnified('PE');
+
+  // Totals
+  const latest = results[results.length-1];
   let tCeDelta=0,tPeDelta=0,tCeOI=0,tPeOI=0;
-  if(latest){
+  if (latest) {
     latest.ce.all.forEach(v=>{tCeDelta+=v.delta;tCeOI+=v.oi;});
     latest.pe.all.forEach(v=>{tPeDelta+=v.delta;tPeOI+=v.oi;});
   }
@@ -2549,118 +2556,7 @@ function drawOIMovers(rows, atmStr) {
   if(peT){peT.textContent=fmtDeltaShort(tPeDelta);peT.style.color=tPeDelta>=0?'#1D9E75':'#D85A30';}
   if(pcr)pcr.textContent=tCeOI>0?(tPeOI/tCeOI).toFixed(2):'—';
   if(subEl)subEl.textContent=`Dominant OI added/decreased for every ${intervalMin}-min interval · latest ${latest?.label||'—'}`;
-
-  // Update thumb sizes after content renders
-  requestAnimationFrame(()=>{
-    updateSyncThumb('ce');
-    updateSyncThumb('pe');
-  });
 }
-
-// ── SYNCED SCROLLBAR LOGIC ────────────────────────────────────────
-function updateSyncThumb(side) {
-  const lists = side === 'ce'
-    ? [document.getElementById('ce-added-list'), document.getElementById('ce-removed-list')]
-    : [document.getElementById('pe-added-list'), document.getElementById('pe-removed-list')];
-  const thumb = document.getElementById(side+'-scrollbar-thumb');
-  if (!thumb || !lists[0]) return;
-  const el = lists[0];
-  const ratio = el.clientHeight / (el.scrollHeight || 1);
-  const pct = Math.max(10, Math.min(100, ratio * 100));
-  thumb.style.height = pct + '%';
-  thumb.style.opacity = ratio >= 1 ? '0.3' : '1';
-}
-
-function initSyncScroll() {
-  function wireGroup(side, listIds, trackId, thumbId) {
-    const lists = listIds.map(id => document.getElementById(id));
-    const track = document.getElementById(trackId);
-    const thumb = document.getElementById(thumbId);
-    if (!track || !thumb) return;
-
-    let isSyncing = false;
-
-    function updateThumbPos(ratio) {
-      const trackH = track.clientHeight;
-      const thumbH = thumb.offsetHeight;
-      const maxTop = trackH - thumbH;
-      thumb.style.top = Math.max(0, Math.min(maxTop, ratio * maxTop)) + 'px';
-    }
-
-    // When any list scrolls → sync the other + move thumb
-    lists.forEach(src => {
-      if (!src) return;
-      src.addEventListener('scroll', () => {
-        if (isSyncing) return;
-        isSyncing = true;
-        const ratio = src.scrollTop / (src.scrollHeight - src.clientHeight || 1);
-        lists.forEach(tgt => {
-          if (tgt && tgt !== src) tgt.scrollTop = ratio * (tgt.scrollHeight - tgt.clientHeight);
-        });
-        updateThumbPos(ratio);
-        isSyncing = false;
-      });
-    });
-
-    // Drag thumb vertically → scroll lists
-    let dragging = false, dragStartY = 0, dragStartTop = 0;
-    thumb.addEventListener('mousedown', e => {
-      dragging = true;
-      dragStartY = e.clientY;
-      dragStartTop = parseFloat(thumb.style.top) || 0;
-      thumb.style.cursor = 'grabbing';
-      e.preventDefault();
-    });
-    document.addEventListener('mousemove', e => {
-      if (!dragging) return;
-      const trackH = track.clientHeight;
-      const thumbH = thumb.offsetHeight;
-      const maxTop = trackH - thumbH;
-      const newTop = Math.max(0, Math.min(maxTop, dragStartTop + (e.clientY - dragStartY)));
-      thumb.style.top = newTop + 'px';
-      const ratio = maxTop > 0 ? newTop / maxTop : 0;
-      isSyncing = true;
-      lists.forEach(el => { if (el) el.scrollTop = ratio * (el.scrollHeight - el.clientHeight); });
-      isSyncing = false;
-    });
-    document.addEventListener('mouseup', () => {
-      if (dragging) { dragging = false; thumb.style.cursor = 'grab'; }
-    });
-
-    // Click on track → jump
-    track.addEventListener('click', e => {
-      if (e.target === thumb) return;
-      const rect = track.getBoundingClientRect();
-      const thumbH = thumb.offsetHeight;
-      const maxTop = track.clientHeight - thumbH;
-      const newTop = Math.max(0, Math.min(maxTop, (e.clientY - rect.top) - thumbH / 2));
-      thumb.style.top = newTop + 'px';
-      const ratio = maxTop > 0 ? newTop / maxTop : 0;
-      lists.forEach(el => { if (el) el.scrollTop = ratio * (el.scrollHeight - el.clientHeight); });
-    });
-
-    // Touch support
-    lists.forEach(src => {
-      if (!src) return;
-      src.addEventListener('touchmove', () => {
-        if (isSyncing) return;
-        isSyncing = true;
-        const ratio = src.scrollTop / (src.scrollHeight - src.clientHeight || 1);
-        lists.forEach(tgt => {
-          if (tgt && tgt !== src) tgt.scrollTop = ratio * (tgt.scrollHeight - tgt.clientHeight);
-        });
-        updateThumbPos(ratio);
-        isSyncing = false;
-      }, { passive: true });
-    });
-  }
-
-  wireGroup('ce', ['ce-added-list','ce-removed-list'], 'ce-scrollbar-track', 'ce-scrollbar-thumb');
-  wireGroup('pe', ['pe-added-list','pe-removed-list'], 'pe-scrollbar-track', 'pe-scrollbar-thumb');
-}
-
-document.addEventListener('DOMContentLoaded', initSyncScroll);
-if (document.readyState !== 'loading') initSyncScroll();
 
 // ── OPTION CHAIN ──────────────────────────────────────────────────
 // Stores latest LTP snapshot keyed by "s{strike}_{ce|pe}"
