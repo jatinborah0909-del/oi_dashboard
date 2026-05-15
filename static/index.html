@@ -385,10 +385,10 @@ tr:last-child td{border-bottom:none;}
 
 <!-- Strike selector (legacy global panel kept for bear/bull OI card summary) -->
 <div class="strike-panel">
-  <div class="strike-panel-title">Strike chips — click to set chart strikes (1st = top chart, 2nd = middle, 3rd = bottom)</div>
+  <div class="strike-panel-title" id="strike-panel-title">Strike chips — click to set chart strikes (1st click = top chart, 2nd = middle, 3rd = bottom)</div>
   <div class="strike-row">
     <button class="btn btn-primary" onclick="resetToDefault()">Reset to ATM ±1 step</button>
-    <span style="font-size:11px;color:#888;">
+    <span id="chip-labels-row" style="font-size:11px;color:#888;">
       Top: <strong id="chip-s1-label">—</strong> &nbsp;|&nbsp;
       Mid: <strong id="chip-s2-label">—</strong> &nbsp;|&nbsp;
       Bot: <strong id="chip-s3-label">—</strong>
@@ -487,6 +487,15 @@ tr:last-child td{border-bottom:none;}
 
 <!-- ── CHART SIZE CONTROLS ── -->
 <div class="chart-controls">
+  <label>Charts:</label>
+  <select id="ctrl-ncharts" onchange="onNumChartsChange(this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;">
+    <option value="1">1 — ATM only</option>
+    <option value="3" selected>3 — ATM ±1</option>
+    <option value="5">5 — ATM ±2</option>
+    <option value="7">7 — ATM ±3</option>
+    <option value="9">9 — ATM ±4</option>
+  </select>
+  <span style="color:#aaa;margin:0 4px;">|</span>
   <label>OI bar width:</label>
   <input type="range" id="ctrl-bw" min="8" max="120" value="32" oninput="onCtrlChange()">
   <span id="ctrl-bw-val">32</span>px
@@ -577,19 +586,22 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════
-     THREE STRIKE OI DELTA CHARTS (stacked vertically)
-     S1 = top (ATM + step by default)
-     S2 = middle (ATM by default)
-     S3 = bottom (ATM - step by default)
+     STRIKE OI DELTA CHARTS (stacked vertically)
+     Count controlled by "Charts" dropdown. ATM is always centred.
+     S1 = top (ATM+N), S2 = middle (ATM), S3 = bottom (ATM-N)
+     Extra cards are injected/removed dynamically.
 ════════════════════════════════════════════════════════════════ -->
-<div class="three-charts-col">
+<div class="three-charts-col" id="oi-charts-col">
 
-  <!-- ── CHART 1 (top, ATM+1 by default) ── -->
-  <div class="chart-card strike-s1">
+  <!-- ── Extra charts ABOVE s1 (prepended by JS for 5/7/9 mode) ── -->
+  <div id="extra-charts-above"></div>
+
+  <!-- ── CHART 1 (top of the base 3, ATM+1 by default) ── -->
+  <div class="chart-card strike-s1" id="card-s1">
     <div class="chart-header">
       <div class="chart-header-left">
         <div class="chart-title" id="s1-chart-title">Strike — CE vs PE OI delta</div>
-        <span class="chart-label-top label-s1">▲ Higher</span>
+        <span class="chart-label-top label-s1" id="s1-label-tag">▲ Higher</span>
         <span class="spot-badge s1-badge" id="s1-spot-badge">Nifty —</span>
       </div>
       <div class="chart-header-right">
@@ -625,7 +637,7 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <!-- ── CHART 2 (middle, ATM by default) ── -->
-  <div class="chart-card strike-s2">
+  <div class="chart-card strike-s2" id="card-s2">
     <div class="chart-header">
       <div class="chart-header-left">
         <div class="chart-title" id="s2-chart-title">Strike — CE vs PE OI delta</div>
@@ -665,11 +677,11 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <!-- ── CHART 3 (bottom, ATM-1 by default) ── -->
-  <div class="chart-card strike-s3">
+  <div class="chart-card strike-s3" id="card-s3">
     <div class="chart-header">
       <div class="chart-header-left">
         <div class="chart-title" id="s3-chart-title">Strike — CE vs PE OI delta</div>
-        <span class="chart-label-top label-s3">▼ Lower</span>
+        <span class="chart-label-top label-s3" id="s3-label-tag">▼ Lower</span>
         <span class="spot-badge s3-badge" id="s3-spot-badge">Nifty —</span>
       </div>
       <div class="chart-header-right">
@@ -704,7 +716,10 @@ tr:last-child td{border-bottom:none;}
     </div>
   </div>
 
-</div><!-- end three-charts-col -->
+  <!-- ── Extra charts BELOW s3 (appended by JS for 5/7/9 mode) ── -->
+  <div id="extra-charts-below"></div>
+
+</div><!-- end oi-charts-col -->
 
 <!-- Roll log -->
 <div class="roll-log">
@@ -1039,10 +1054,7 @@ function _deriveStrikesFromRows(rows) {
   }
 
   const atmIdx = allStrikes.indexOf(atmStrike);
-  const s2 = atmStrike;
-  const s1 = atmIdx + 1 < allStrikes.length ? allStrikes[atmIdx+1] : allStrikes[Math.min(atmIdx, allStrikes.length-1)];
-  const s3 = atmIdx - 1 >= 0 ? allStrikes[atmIdx-1] : allStrikes[Math.max(0, atmIdx)];
-  defaultStrikes  = [s1, s2, s3];
+  _computeDefaultStrikes();
   selectedStrikes = [...defaultStrikes];
   populateStrikeSelectors(allStrikes);
 }
@@ -1145,16 +1157,22 @@ let atmStrike      = null;
 let STRIKE_STEP    = 50;  // default, overridden from data
 
 // Three independent strikes: [s1=top, s2=mid/ATM, s3=bottom]
+// In N-chart mode, selectedStrikes expands: [sN_top, ..., s1, s2, s3, ..., sN_bot]
+// The array is always ordered top-to-bottom (highest strike first).
 let selectedStrikes = [null, null, null];
 let defaultStrikes  = [null, null, null];
+let numCharts       = 3;   // current chart count (1, 3, 5, 7, or 9)
 
-// Chart.js instances for each of the 3 charts
+// Chart.js instances — index matches selectedStrikes order
 let chartInstances = [null, null, null];
+
+// Extra chart IDs currently injected into the DOM (for cleanup on change)
+let extraChartIds = [];  // e.g. ['s4','s5','s6','s7'] for 7-chart mode
 
 let lastOIData     = null;
 let liveCandle     = null;
-let latestCandles  = [[], [], []]; // per-strike candle arrays
-let chipClickIdx   = 0;  // 0=s1, 1=s2, 2=s3 (cycles through on chip click)
+let latestCandles  = [[], [], []]; // per-strike candle arrays, length = numCharts
+let chipClickIdx   = 0;  // cycles 0..numCharts-1 on chip click
 const prevLtp      = {};
 let currentSpot    = null;
 
@@ -1175,9 +1193,52 @@ function setIv(el) {
 }
 
 // ── STRIKE SELECTOR ───────────────────────────────────────────────
+
+// Slot-to-DOM-prefix mapping.
+// Base 3 cards always use IDs s1/s2/s3 in the HTML.
+// Their slot positions shift as numCharts grows:
+//   1 chart : [s2]
+//   3 charts: [s1, s2, s3]
+//   5 charts: [sE1, s1, s2, s3, sE2]
+//   7 charts: [sE1, sE2, s1, s2, s3, sE3, sE4]
+//   9 charts: [sE1, sE2, sE3, s1, s2, s3, sE4, sE5, sE6]
+// Extra cards get IDs sE1, sE2, sE3, ... (injected dynamically)
+function slotPfx(idx) {
+  const midIdx = Math.floor(numCharts / 2);
+  // Base 3 slots
+  if (numCharts === 1) return 's2';
+  if (idx === midIdx - 1) return 's1';
+  if (idx === midIdx)     return 's2';
+  if (idx === midIdx + 1) return 's3';
+  // Extra slots: number them from top-to-bottom excluding base 3 positions
+  // Above midIdx-1: slots 0..midIdx-2  → sE1, sE2, ...
+  // Below midIdx+1: slots midIdx+2..N-1 → sE{above_count+1}, ...
+  const aboveCount = midIdx - 1; // number of extra slots above s1
+  if (idx < midIdx - 1) {
+    return 'sE' + (idx + 1);
+  } else {
+    return 'sE' + (aboveCount + (idx - (midIdx + 1)) + 1);
+  }
+}
+
 function populateStrikeSelectors(strikes) {
-  [{id:'s1-select',idx:0},{id:'s2-select',idx:1},{id:'s3-select',idx:2},{id:'bear-conf-select',idx:0},{id:'bull-conf-select',idx:2}].forEach(({id, idx}) => {
-    const sel = document.getElementById(id);
+  // The base 3 selects are always in the DOM; extras are injected by buildExtraChartCards
+  for (let i = 0; i < numCharts; i++) {
+    const sel = document.getElementById(slotPfx(i) + '-select');
+    if (!sel) continue;
+    sel.innerHTML = '';
+    strikes.forEach(st => {
+      const o = document.createElement('option');
+      o.value = st; o.textContent = st;
+      if (st === selectedStrikes[i]) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+
+  // Confluence selects: bear = slot 0 (topmost), bull = slot numCharts-1 (bottommost)
+  const bearSel = document.getElementById('bear-conf-select');
+  const bullSel = document.getElementById('bull-conf-select');
+  [{ sel: bearSel, idx: 0 }, { sel: bullSel, idx: numCharts - 1 }].forEach(({ sel, idx }) => {
     if (!sel) return;
     sel.innerHTML = '';
     strikes.forEach(st => {
@@ -1188,26 +1249,231 @@ function populateStrikeSelectors(strikes) {
     });
   });
 
-  // Update chip display
+  // Chip display
   const chipsEl = document.getElementById('strike-chips');
   chipsEl.innerHTML = strikes.map(st => {
     let cls = 'strike-chip';
-    if (st === atmStrike)          cls += ' atm';
-    if (st === selectedStrikes[0]) cls += ' s1-active';
-    if (st === selectedStrikes[1]) cls += ' s2-active';
-    if (st === selectedStrikes[2]) cls += ' s3-active';
-    return `<span class="${cls}" onclick="onChipClick(${st})" title="Click cycles: top→mid→bottom">${st}</span>`;
+    if (st === atmStrike) cls += ' atm';
+    const si = selectedStrikes.indexOf(st);
+    if (si === 0)                  cls += ' s1-active';
+    else if (si === Math.floor(numCharts / 2)) cls += ' s2-active';
+    else if (si === numCharts - 1) cls += ' s3-active';
+    return `<span class="${cls}" onclick="onChipClick(${st})" title="Click cycles through chart slots">${st}</span>`;
   }).join('');
 
-  // Update chip labels
+  // Chip labels — show top / mid / bot
+  const midIdx = Math.floor(numCharts / 2);
   document.getElementById('chip-s1-label').textContent = selectedStrikes[0] || '—';
-  document.getElementById('chip-s2-label').textContent = selectedStrikes[1] || '—';
-  document.getElementById('chip-s3-label').textContent = selectedStrikes[2] || '—';
+  document.getElementById('chip-s2-label').textContent = selectedStrikes[midIdx] || '—';
+  document.getElementById('chip-s3-label').textContent = selectedStrikes[numCharts - 1] || '—';
+
+  // Update static label tags on s1 / s3 cards based on their ATM offset
+  _updateStaticCardLabels();
+}
+
+// Updates the ▲/◆/▼ label tags and card visibility for the base 3 cards
+function _updateStaticCardLabels() {
+  if (!atmStrike) return;
+  const midIdx = Math.floor(numCharts / 2);
+  // s1 card = slot 0, s2 card = slot midIdx, s3 card = slot numCharts-1
+  // In 1-chart mode the s1 card is hidden, s2 shows ATM, s3 hidden
+  const card1 = document.getElementById('card-s1');
+  const card2 = document.getElementById('card-s2');
+  const card3 = document.getElementById('card-s3');
+  if (numCharts === 1) {
+    if (card1) card1.style.display = 'none';
+    if (card3) card3.style.display = 'none';
+    if (card2) card2.style.display = '';
+  } else {
+    if (card1) card1.style.display = '';
+    if (card2) card2.style.display = '';
+    if (card3) card3.style.display = '';
+  }
+  const tag1 = document.getElementById('s1-label-tag');
+  const tag3 = document.getElementById('s3-label-tag');
+  if (numCharts === 3) {
+    if (tag1) tag1.textContent = '▲ ATM+1';
+    if (tag3) tag3.textContent = '▼ ATM−1';
+  } else if (numCharts === 5) {
+    if (tag1) tag1.textContent = '▲ ATM+2';
+    if (tag3) tag3.textContent = '▼ ATM−2';
+  } else if (numCharts === 7) {
+    if (tag1) tag1.textContent = '▲ ATM+3';
+    if (tag3) tag3.textContent = '▼ ATM−3';
+  } else if (numCharts === 9) {
+    if (tag1) tag1.textContent = '▲ ATM+4';
+    if (tag3) tag3.textContent = '▼ ATM−4';
+  }
+}
+
+// ── N-CHART MANAGEMENT ────────────────────────────────────────────
+
+// Build the HTML for one extra chart card (slot index i, 0-based in selectedStrikes)
+function _extraCardHTML(i) {
+  const pfx = slotPfx(i);
+  const midIdx = Math.floor(numCharts / 2);
+  const offset = midIdx - i;  // positive = above ATM (higher strike), negative = below ATM
+  const aboveBelow = offset > 0 ? `▲ ATM+${offset}` : `▼ ATM${offset}`;
+  const borderCol  = offset > 0 ? '#D85A30' : '#1D9E75';
+  const labelBg    = offset > 0 ? '#FAECE7' : '#E1F5EE';
+  const labelColor = offset > 0 ? '#712B13' : '#085041';
+  const labelBorder= offset > 0 ? '#f0c0b0' : '#a0dcc8';
+  const badgeBg    = offset > 0 ? '#FAECE7' : '#E1F5EE';
+  const badgeColor = offset > 0 ? '#712B13' : '#085041';
+  const badgeBorder= offset > 0 ? '#f0c0b0' : '#a0dcc8';
+  return `
+  <div class="chart-card" id="card-${pfx}" style="border-top:2px solid ${borderCol};margin-bottom:0;">
+    <div class="chart-header">
+      <div class="chart-header-left">
+        <div class="chart-title" id="${pfx}-chart-title">Strike — CE vs PE OI delta</div>
+        <span class="chart-label-top" style="background:${labelBg};color:${labelColor};border:0.5px solid ${labelBorder};">${aboveBelow}</span>
+        <span class="spot-badge" style="background:${badgeBg};color:${badgeColor};border:0.5px solid ${badgeBorder};" id="${pfx}-spot-badge">Nifty —</span>
+      </div>
+      <div class="chart-header-right">
+        <label style="color:#888;white-space:nowrap;">Strike:</label>
+        <select id="${pfx}-select" onchange="onStrikeSelectChange(${i}, this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
+        <button class="btn" style="font-size:11px;padding:3px 8px;" onclick="resetToDefault()">Reset ATM</button>
+      </div>
+    </div>
+    <div class="chart-sub" id="${pfx}-chart-sub">Waiting...</div>
+    <div class="ltp-bar">
+      <div class="ltp-box"><span class="ltp-label" id="${pfx}-ce-sym">— CE</span><span class="ltp-val" id="${pfx}-ce-ltp">—</span><span class="ltp-tag">LTP</span></div>
+      <div class="ltp-divider"></div>
+      <div class="ltp-box"><span class="ltp-label" id="${pfx}-pe-sym">— PE</span><span class="ltp-val" id="${pfx}-pe-ltp">—</span><span class="ltp-tag">LTP</span></div>
+      <div class="ltp-pulse" id="${pfx}-pulse"></div>
+    </div>
+    <div class="legend">
+      <span class="leg-item"><span class="leg-sq" style="background:#D85A30;"></span>CE building (bearish)</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#93c5e8;"></span>CE unwinding</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#1D9E75;"></span>PE building (bullish)</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#f0a080;"></span>PE unwinding</span>
+    </div>
+    <div style="position:relative;display:flex;">
+      <canvas id="${pfx}YAxis" style="flex-shrink:0;position:sticky;left:0;z-index:10;background:#fff;border-right:0.5px solid #eee;"></canvas>
+      <div class="chart-scroll-outer" id="${pfx}-scroll" style="flex:1;min-width:0;">
+        <div class="chart-scroll-inner" id="${pfx}ChartWrap"><canvas id="${pfx}Chart"></canvas></div>
+      </div>
+    </div>
+    <div class="net-row">
+      <div class="net-box"><div class="net-label">Net CE Δ</div><div class="net-val" id="${pfx}-net-ce">—</div></div>
+      <div class="net-box"><div class="net-label">Net PE Δ</div><div class="net-val" id="${pfx}-net-pe">—</div></div>
+      <div class="net-box"><div class="net-label">Bias</div><div class="net-val" id="${pfx}-score">—</div></div>
+    </div>
+  </div>`;
+}
+
+// Inject or remove extra chart cards based on numCharts.
+// Base 3 cards (s1/s2/s3) always exist in the DOM.
+// Extra slots are injected as sE1, sE2, ... cards.
+function syncExtraChartCards() {
+  // Destroy Chart.js instances for extra slots before removing DOM
+  extraChartIds.forEach(pfx => {
+    // Find which slot this pfx belongs to — search chartInstances by rebuilding pfx list
+    for (let i = 0; i < chartInstances.length; i++) {
+      // We'll just destroy all non-base instances; rebuild on next rebuildCharts
+    }
+  });
+  // Destroy ALL instances (will be recreated in _doRebuild)
+  chartInstances.forEach((c, i) => { if (c) { c.destroy(); chartInstances[i] = null; } });
+
+  document.getElementById('extra-charts-above').innerHTML = '';
+  document.getElementById('extra-charts-below').innerHTML = '';
+  extraChartIds = [];
+
+  // Resize chartInstances array to numCharts
+  chartInstances = new Array(numCharts).fill(null);
+
+  if (numCharts === 1) {
+    // Hide s1 and s3 base cards; s2 shows ATM
+    const c1 = document.getElementById('card-s1');
+    const c3 = document.getElementById('card-s3');
+    if (c1) c1.style.display = 'none';
+    if (c3) c3.style.display = 'none';
+    // Remap s2 select to slot 0
+    const s2sel = document.getElementById('s2-select');
+    if (s2sel) s2sel.setAttribute('onchange', 'onStrikeSelectChange(0, this.value)');
+    return;
+  }
+
+  // Show all base cards
+  ['card-s1','card-s2','card-s3'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = '';
+  });
+
+  const midIdx = Math.floor(numCharts / 2);
+
+  // Extra slots ABOVE (slot indices 0 .. midIdx-2, i.e. more-above than s1)
+  // Inject in reverse so highest strike appears at top
+  for (let i = midIdx - 2; i >= 0; i--) {
+    const html = _extraCardHTML(i);
+    document.getElementById('extra-charts-above').insertAdjacentHTML('afterbegin', html);
+    extraChartIds.push(slotPfx(i));
+  }
+
+  // Extra slots BELOW (slot indices midIdx+2 .. numCharts-1, more-below than s3)
+  for (let i = midIdx + 2; i < numCharts; i++) {
+    const html = _extraCardHTML(i);
+    document.getElementById('extra-charts-below').insertAdjacentHTML('beforeend', html);
+    extraChartIds.push(slotPfx(i));
+  }
+
+  // Remap base 3 card selects to their correct slot indices
+  const s1sel = document.getElementById('s1-select');
+  const s2sel = document.getElementById('s2-select');
+  const s3sel = document.getElementById('s3-select');
+  if (s1sel) s1sel.setAttribute('onchange', `onStrikeSelectChange(${midIdx-1}, this.value)`);
+  if (s2sel) s2sel.setAttribute('onchange', `onStrikeSelectChange(${midIdx}, this.value)`);
+  if (s3sel) s3sel.setAttribute('onchange', `onStrikeSelectChange(${midIdx+1}, this.value)`);
+
+  // Confluence selects: bear = slot 0 (topmost), bull = slot numCharts-1 (bottommost)
+  const bearSel = document.getElementById('bear-conf-select');
+  const bullSel = document.getElementById('bull-conf-select');
+  if (bearSel) bearSel.setAttribute('onchange', 'onStrikeSelectChange(0, this.value)');
+  if (bullSel) bullSel.setAttribute('onchange', `onStrikeSelectChange(${numCharts-1}, this.value)`);
+}
+
+// Compute default strikes centred on ATM for current numCharts
+function _computeDefaultStrikes() {
+  if (!atmStrike || !allStrikes.length) return;
+  const atmIdx = allStrikes.indexOf(atmStrike);
+  if (atmIdx < 0) return;
+  const midIdx = Math.floor(numCharts / 2);
+  defaultStrikes = [];
+  for (let i = 0; i < numCharts; i++) {
+    const offset = midIdx - i;  // positive = above ATM (higher strike idx), negative = below
+    const raw = atmIdx + offset;
+    const clamped = Math.max(0, Math.min(allStrikes.length - 1, raw));
+    defaultStrikes.push(allStrikes[clamped]);
+  }
+}
+
+// Called when the user changes the "Charts" dropdown
+function onNumChartsChange(val) {
+  numCharts = parseInt(val);
+  _computeDefaultStrikes();
+  selectedStrikes = [...defaultStrikes];
+  chipClickIdx = 0;
+  syncExtraChartCards();
+  populateStrikeSelectors(allStrikes);
+  rebuildCharts();
+  // Update strike panel hint
+  const hint = document.getElementById('strike-panel-title');
+  if (hint) hint.textContent = `Strike chips — click to set chart strikes (cycles through ${numCharts} slots, top → bottom)`;
+  // Update chip labels row
+  const labelsRow = document.getElementById('chip-labels-row');
+  if (labelsRow) {
+    const midIdx = Math.floor(numCharts / 2);
+    labelsRow.innerHTML =
+      `Top: <strong id="chip-s1-label">${selectedStrikes[0]||'—'}</strong> &nbsp;|&nbsp;` +
+      (numCharts > 1 ? `Mid: <strong id="chip-s2-label">${selectedStrikes[midIdx]||'—'}</strong> &nbsp;|&nbsp;` : '') +
+      (numCharts > 1 ? `Bot: <strong id="chip-s3-label">${selectedStrikes[numCharts-1]||'—'}</strong>` : '');
+  }
 }
 
 function onChipClick(strike) {
   selectedStrikes[chipClickIdx] = strike;
-  chipClickIdx = (chipClickIdx + 1) % 3;
+  chipClickIdx = (chipClickIdx + 1) % numCharts;
   refreshDisplay();
 }
 
@@ -1217,6 +1483,7 @@ function onStrikeSelectChange(idx, value) {
 }
 
 function resetToDefault() {
+  _computeDefaultStrikes();
   selectedStrikes = [...defaultStrikes];
   chipClickIdx = 0;
   refreshDisplay();
@@ -1231,10 +1498,10 @@ function refreshDisplay() {
 // ── UPDATE SPOT BADGES ────────────────────────────────────────────
 function updateSpotBadges() {
   const spotTxt = currentSpot ? fmt(currentSpot) : '—';
-  ['s1','s2','s3'].forEach(id => {
-    const el = document.getElementById(id + '-spot-badge');
+  for (let i = 0; i < numCharts; i++) {
+    const el = document.getElementById(slotPfx(i) + '-spot-badge');
     if (el) el.textContent = 'Nifty ' + spotTxt;
-  });
+  }
 }
 
 // ── LTP ───────────────────────────────────────────────────────────
@@ -1257,25 +1524,20 @@ function updateLTP(data) {
       const calcAtm = allStrikes.includes(newAtm) ? newAtm : closest;
 
       if (calcAtm !== atmStrike) {
-        const atmChanged = true;
         const prevDefaults = [...defaultStrikes];
         atmStrike = calcAtm;
         document.getElementById('atm-val').textContent = atmStrike;
 
         const atmIdx = allStrikes.indexOf(atmStrike);
         if (atmIdx >= 0) {
-          const s2 = atmStrike;
-          const s1 = atmIdx + 1 < allStrikes.length ? allStrikes[atmIdx+1] : allStrikes[Math.min(atmIdx, allStrikes.length-1)];
-          const s3 = atmIdx - 1 >= 0 ? allStrikes[atmIdx-1] : allStrikes[Math.max(0, atmIdx)];
-          defaultStrikes = [s1, s2, s3];
+          _computeDefaultStrikes();
 
-          const wasOnDefault = selectedStrikes.every((s, i) => s === prevDefaults[i]);
+          const wasOnDefault = selectedStrikes.length === prevDefaults.length &&
+            selectedStrikes.every((s, i) => s === prevDefaults[i]);
           if (wasOnDefault) {
             selectedStrikes = [...defaultStrikes];
-            populateStrikeSelectors(allStrikes);
-          } else {
-            populateStrikeSelectors(allStrikes);
           }
+          populateStrikeSelectors(allStrikes);
         }
 
         // Update option chain ATM row highlight
@@ -1285,34 +1547,40 @@ function updateLTP(data) {
   }
 
   const opts = data.options || {};
-  // Update LTP for all 3 charts
-  [0,1,2].forEach(idx => {
+  // Update LTP for all N charts
+  for (let idx = 0; idx < numCharts; idx++) {
     const st = selectedStrikes[idx];
-    if (!st) return;
-    const pfx = ['s1','s2','s3'][idx];
+    if (!st) continue;
+    const pfx = slotPfx(idx);
 
     const ceKey = rk(st,'ce'), peKey = rk(st,'pe');
     const ceD = opts[ceKey], peD = opts[peKey];
 
     if (ceD) {
-      document.getElementById(pfx+'-ce-sym').textContent = ceD.strike + ' CE';
+      const symEl = document.getElementById(pfx+'-ce-sym');
+      if (symEl) symEl.textContent = ceD.strike + ' CE';
       const ltp = ceD.ltp, prev = prevLtp[ceKey]||0;
       const el = document.getElementById(pfx+'-ce-ltp');
-      el.textContent = ltp ? fmt(ltp) : '—';
-      if (prev && ltp !== prev) { const cls = ltp>prev?'flash-up':'flash-down'; el.classList.add(cls); setTimeout(()=>el.classList.remove(cls),600); }
+      if (el) {
+        el.textContent = ltp ? fmt(ltp) : '—';
+        if (prev && ltp !== prev) { const cls = ltp>prev?'flash-up':'flash-down'; el.classList.add(cls); setTimeout(()=>el.classList.remove(cls),600); }
+      }
       prevLtp[ceKey] = ltp;
     }
     if (peD) {
-      document.getElementById(pfx+'-pe-sym').textContent = peD.strike + ' PE';
+      const symEl = document.getElementById(pfx+'-pe-sym');
+      if (symEl) symEl.textContent = peD.strike + ' PE';
       const ltp = peD.ltp, prev = prevLtp[peKey]||0;
       const el = document.getElementById(pfx+'-pe-ltp');
-      el.textContent = ltp ? fmt(ltp) : '—';
-      if (prev && ltp !== prev) { const cls = ltp>prev?'flash-up':'flash-down'; el.classList.add(cls); setTimeout(()=>el.classList.remove(cls),600); }
+      if (el) {
+        el.textContent = ltp ? fmt(ltp) : '—';
+        if (prev && ltp !== prev) { const cls = ltp>prev?'flash-up':'flash-down'; el.classList.add(cls); setTimeout(()=>el.classList.remove(cls),600); }
+      }
       prevLtp[peKey] = ltp;
     }
     const pulse = document.getElementById(pfx+'-pulse');
     if (pulse && (ceD || peD)) { pulse.classList.add('live'); setTimeout(()=>pulse.classList.remove('live'),1500); }
-  });
+  }
 
   // ── Option Chain: tick-by-tick LTP update
   updateOptionChainLTP(data);
@@ -1342,13 +1610,9 @@ async function fetchOI() {
       // Detect step size from strikes array
       if (allStrikes.length >= 2) STRIKE_STEP = allStrikes[1] - allStrikes[0];
 
-      // Default: s1=ATM+step (higher), s2=ATM, s3=ATM-step (lower)
-      const atmIdx = allStrikes.indexOf(atmStrike);
-      const s2 = atmStrike;
-      const s1 = atmIdx + 1 < allStrikes.length ? allStrikes[atmIdx + 1] : allStrikes[Math.min(atmIdx, allStrikes.length-1)];
-      const s3 = atmIdx - 1 >= 0 ? allStrikes[atmIdx - 1] : allStrikes[Math.max(0, atmIdx)];
-
-      defaultStrikes  = [s1, s2, s3];
+      // Default: centred on ATM for current numCharts
+      _computeDefaultStrikes();
+      defaultStrikes  = [...defaultStrikes];
       selectedStrikes = [...defaultStrikes];
 
       populateStrikeSelectors(allStrikes);
@@ -1361,21 +1625,16 @@ async function fetchOI() {
       atmStrike = newAtm;
       const atmIdx = allStrikes.indexOf(atmStrike);
       if (atmIdx >= 0) {
-        const s2 = atmStrike;
-        const s1 = atmIdx + 1 < allStrikes.length ? allStrikes[atmIdx + 1] : allStrikes[Math.min(atmIdx, allStrikes.length-1)];
-        const s3 = atmIdx - 1 >= 0 ? allStrikes[atmIdx - 1] : allStrikes[Math.max(0, atmIdx)];
         const prevDefaults = [...defaultStrikes];
-        defaultStrikes = [s1, s2, s3];
+        _computeDefaultStrikes();
 
-        // Auto-follow ATM: if selected strikes still match the old defaults (user hasn't customised),
-        // update them to track the new ATM.
         if (atmChanged) {
-          const wasOnDefault = selectedStrikes.every((s, i) => s === prevDefaults[i]);
+          const wasOnDefault = selectedStrikes.length === prevDefaults.length &&
+            selectedStrikes.every((s, i) => s === prevDefaults[i]);
           if (wasOnDefault) {
             selectedStrikes = [...defaultStrikes];
             populateStrikeSelectors(allStrikes);
           } else {
-            // Just refresh chips so ATM highlight moves even if user has custom strikes
             populateStrikeSelectors(allStrikes);
           }
         }
@@ -1452,18 +1711,13 @@ async function fetchLiveCandle() {
       isLive:  true,
     };
 
-    // Attach OI deltas for each of the 3 strikes
-    [0,1,2].forEach(idx => {
+    // Attach OI deltas for each of the N selected strikes
+    for (let idx = 0; idx < numCharts; idx++) {
       const st = selectedStrikes[idx];
-      const pfx = ['s1','s2','s3'][idx];
+      const pfx = slotPfx(idx);
       const ceK = rk(st,'ce'), peK = rk(st,'pe');
       liveCandle[pfx+'_dce'] = data.deltas[ceK]?.delta || 0;
       liveCandle[pfx+'_dpe'] = data.deltas[peK]?.delta || 0;
-      // For index OI signal compat
-      liveCandle['s1ce'] = liveCandle['s1_dce'] || 0;
-      liveCandle['s3ce'] = liveCandle['s3_dce'] || 0;
-      liveCandle['s1pe'] = liveCandle['s1_dpe'] || 0;
-      liveCandle['s3pe'] = liveCandle['s3_dpe'] || 0;
       // LTP from cache
       liveCandle[pfx+'_bce_ltp_open']  = prevLtp[ceK]||0;
       liveCandle[pfx+'_bce_ltp_close'] = prevLtp[ceK]||0;
@@ -1475,22 +1729,25 @@ async function fetchLiveCandle() {
       liveCandle[pfx+'_upe_ltp_high']  = prevLtp[peK]||0;
       liveCandle[pfx+'_upe_ltp_low']   = prevLtp[peK]||0;
       liveCandle[pfx+'_upe_oi_delta']  = liveCandle[pfx+'_dpe'];
-      // Un-prefixed aliases so historical-candle accessors work on liveCandle too
-      if (idx === 0) {
-        liveCandle.bce_ltp_open  = prevLtp[ceK]||0;
-        liveCandle.bce_ltp_close = prevLtp[ceK]||0;
-        liveCandle.bce_ltp_high  = prevLtp[ceK]||0;
-        liveCandle.bce_ltp_low   = prevLtp[ceK]||0;
-        liveCandle.bce_oi_delta  = liveCandle[pfx+'_dce'];
-      }
-      if (idx === 2) {
-        liveCandle.upe_ltp_open  = prevLtp[peK]||0;
-        liveCandle.upe_ltp_close = prevLtp[peK]||0;
-        liveCandle.upe_ltp_high  = prevLtp[peK]||0;
-        liveCandle.upe_ltp_low   = prevLtp[peK]||0;
-        liveCandle.upe_oi_delta  = liveCandle[pfx+'_dpe'];
-      }
-    });
+    }
+    // Index OI signal uses slot 0 (top) and slot numCharts-1 (bottom)
+    const topPfx = slotPfx(0), botPfx = slotPfx(numCharts - 1);
+    liveCandle['s1ce'] = liveCandle[topPfx+'_dce'] || 0;
+    liveCandle['s1pe'] = liveCandle[topPfx+'_dpe'] || 0;
+    liveCandle['s3ce'] = liveCandle[botPfx+'_dce'] || 0;
+    liveCandle['s3pe'] = liveCandle[botPfx+'_dpe'] || 0;
+    // Un-prefixed aliases for confluence SVG (top slot = bear lens, bottom = bull lens)
+    const topCeK = rk(selectedStrikes[0],'ce'), botPeK = rk(selectedStrikes[numCharts-1],'pe');
+    liveCandle.bce_ltp_open  = prevLtp[topCeK]||0;
+    liveCandle.bce_ltp_close = prevLtp[topCeK]||0;
+    liveCandle.bce_ltp_high  = prevLtp[topCeK]||0;
+    liveCandle.bce_ltp_low   = prevLtp[topCeK]||0;
+    liveCandle.bce_oi_delta  = liveCandle[topPfx+'_dce'];
+    liveCandle.upe_ltp_open  = prevLtp[botPeK]||0;
+    liveCandle.upe_ltp_close = prevLtp[botPeK]||0;
+    liveCandle.upe_ltp_high  = prevLtp[botPeK]||0;
+    liveCandle.upe_ltp_low   = prevLtp[botPeK]||0;
+    liveCandle.upe_oi_delta  = liveCandle[botPfx+'_dpe'];
 
     document.getElementById('live-candle-status').style.display='inline';
     document.getElementById('live-elapsed').textContent = data.elapsed_sec;
@@ -1500,23 +1757,30 @@ async function fetchLiveCandle() {
 
 function _redrawSVGOnly() {
   // Redraws SVG charts using the same getters as _doRebuild to stay in sync
-  const s1Candles = latestCandles[0];
-  const s3Candles = latestCandles[2];
-  const allWithLive0 = liveCandle ? [...s1Candles, liveCandle] : s1Candles;
-  const allWithLive2 = liveCandle ? [...s3Candles, liveCandle] : s3Candles;
-  drawIndexChart(liveCandle ? [...latestCandles[1], liveCandle] : latestCandles[1]);
-  // Use identical getters to _doRebuild — fall back through both prefixed and un-prefixed field names
-  const bearSigs = drawStrikeActivityChart('svgBear', allWithLive0,
-    c=>c.s1_bce_ltp_open||c.bce_ltp_open||0, c=>c.s1_bce_ltp_high||c.bce_ltp_high||0,
-    c=>c.s1_bce_ltp_low||c.bce_ltp_low||0,   c=>c.s1_bce_ltp_close||c.bce_ltp_close||0,
-    c=>c.s1_bce_oi_delta||c.bce_oi_delta||0, 'bear-activity-badge');
-  const bullSigs = drawStrikeActivityChart('svgBull', allWithLive2,
-    c=>c.s3_upe_ltp_open||c.upe_ltp_open||0, c=>c.s3_upe_ltp_high||c.upe_ltp_high||0,
-    c=>c.s3_upe_ltp_low||c.upe_ltp_low||0,   c=>c.s3_upe_ltp_close||c.upe_ltp_close||0,
-    c=>c.s3_upe_oi_delta||c.upe_oi_delta||0, 'bull-activity-badge');
+  const topCandles = latestCandles[0] || [];
+  const botCandles = latestCandles[numCharts - 1] || [];
+  const midIdx = Math.floor(numCharts / 2);
+  const midCandles = latestCandles[midIdx] || [];
+  const topWithLive = liveCandle ? [...topCandles, liveCandle] : topCandles;
+  const botWithLive = liveCandle ? [...botCandles, liveCandle] : botCandles;
+  drawIndexChart(liveCandle ? [...midCandles, liveCandle] : midCandles);
+  // Confluence getters: top slot uses bce fields, bottom slot uses upe fields
+  const topPfx = slotPfx(0), botPfx = slotPfx(numCharts - 1);
+  const bearSigs = drawStrikeActivityChart('svgBear', topWithLive,
+    c=>c[topPfx+'_bce_ltp_open']||c.s1_bce_ltp_open||c.bce_ltp_open||0,
+    c=>c[topPfx+'_bce_ltp_high']||c.s1_bce_ltp_high||c.bce_ltp_high||0,
+    c=>c[topPfx+'_bce_ltp_low'] ||c.s1_bce_ltp_low ||c.bce_ltp_low ||0,
+    c=>c[topPfx+'_bce_ltp_close']||c.s1_bce_ltp_close||c.bce_ltp_close||0,
+    c=>c[topPfx+'_bce_oi_delta']||c.s1_bce_oi_delta||c.bce_oi_delta||0, 'bear-activity-badge');
+  const bullSigs = drawStrikeActivityChart('svgBull', botWithLive,
+    c=>c[botPfx+'_upe_ltp_open']||c.s3_upe_ltp_open||c.upe_ltp_open||0,
+    c=>c[botPfx+'_upe_ltp_high']||c.s3_upe_ltp_high||c.upe_ltp_high||0,
+    c=>c[botPfx+'_upe_ltp_low'] ||c.s3_upe_ltp_low ||c.upe_ltp_low ||0,
+    c=>c[botPfx+'_upe_ltp_close']||c.s3_upe_ltp_close||c.upe_ltp_close||0,
+    c=>c[botPfx+'_upe_oi_delta']||c.s3_upe_oi_delta||c.upe_oi_delta||0, 'bull-activity-badge');
   buildStrip('bear-strip', bearSigs);
   buildStrip('bull-strip', bullSigs);
-  if (s1Candles.length) updateConfluenceSummary(s1Candles, s3Candles, bearSigs, bullSigs);
+  if (topCandles.length) updateConfluenceSummary(topCandles, botCandles, bearSigs, bullSigs);
 }
 
 async function resetCSV() {
@@ -1536,8 +1800,8 @@ function processSnapshot(data) {
   if (selectedStrikes.some(s=>!s)) return;
   const opts = data.options || {};
 
-  // Update OI summary cards using s1 (top) and s3 (bottom) as the bear/bull pair
-  const s1 = selectedStrikes[0], s3 = selectedStrikes[2];
+  // Update OI summary cards using slot 0 (top) and slot numCharts-1 (bottom) as bear/bull pair
+  const s1 = selectedStrikes[0], s3 = selectedStrikes[numCharts - 1];
   const bc = opts[rk(s1,'ce')], bp = opts[rk(s1,'pe')];
   const uc = opts[rk(s3,'ce')], up = opts[rk(s3,'pe')];
 
@@ -1577,16 +1841,17 @@ function processSnapshot(data) {
   updateRollLog(data.roll_log||[]);
   populateStrikeSelectors(allStrikes);
 
-  // Update chart titles
-  [0,1,2].forEach(idx => {
+  // Update chart titles for all N charts
+  for (let idx = 0; idx < numCharts; idx++) {
     const st = selectedStrikes[idx];
-    const pfx = ['s1','s2','s3'][idx];
-    document.getElementById(pfx+'-chart-title').textContent = st + ' — CE vs PE OI delta';
-  });
+    const pfx = slotPfx(idx);
+    const el = document.getElementById(pfx+'-chart-title');
+    if (el) el.textContent = st + ' — CE vs PE OI delta';
+  }
 
-  // Update confluence titles
-  document.getElementById('bear-conf-title').textContent = 'Strike 1 lens — ' + s1;
-  document.getElementById('bull-conf-title').textContent = 'Strike 3 lens — ' + s3;
+  // Update confluence titles (top slot = bear lens, bottom slot = bull lens)
+  document.getElementById('bear-conf-title').textContent = 'Top strike lens — ' + s1;
+  document.getElementById('bull-conf-title').textContent = 'Bottom strike lens — ' + s3;
   document.getElementById('bear-conf-sub').textContent   = s1 + ' CE option LTP · activity type';
   document.getElementById('bull-conf-sub').textContent   = s3 + ' PE option LTP · activity type';
   document.getElementById('bear-sum-label').textContent  = 'Strike 1 ' + s1 + ' CE';
@@ -2960,68 +3225,80 @@ function rebuildCharts() { requestAnimationFrame(_doRebuild); }
 
 function _doRebuild() {
   if (selectedStrikes.some(s=>!s)) return;
-  const [s1, s2, s3] = selectedStrikes;
 
-  // Build per-strike candle arrays
-  const c1 = buildCandlesForStrike(minuteRows, intervalMin, s1);
-  const c2 = buildCandlesForStrike(minuteRows, intervalMin, s2);
-  const c3 = buildCandlesForStrike(minuteRows, intervalMin, s3);
-  latestCandles = [c1, c2, c3];
+  // Build per-strike candle arrays for all N slots
+  const allCandles = selectedStrikes.map(st => buildCandlesForStrike(minuteRows, intervalMin, st));
+  latestCandles = allCandles;
 
-  // Build merged candles for index chart
+  const midIdx = Math.floor(numCharts / 2);
+  const topCandles = allCandles[0];
+  const midCandles = allCandles[midIdx];
+  const botCandles = allCandles[numCharts - 1];
+  const s1 = selectedStrikes[0], s2 = selectedStrikes[midIdx], s3 = selectedStrikes[numCharts - 1];
+
+  // Build merged candles for index chart (uses top/mid/bot)
   const merged = buildMergedCandles(minuteRows, intervalMin, s1, s2, s3);
 
   const sub = intervalMin+'-min · '+minuteRows.length+' rows · session '+currentSession;
-  ['s1','s2','s3'].forEach(pfx => {
-    document.getElementById(pfx+'-chart-sub').textContent = sub;
-  });
+  for (let i = 0; i < numCharts; i++) {
+    const subEl = document.getElementById(slotPfx(i)+'-chart-sub');
+    if (subEl) subEl.textContent = sub;
+  }
 
   document.getElementById('index-chart-sub').textContent = 'Nifty 50 · '+intervalMin+'m candles · colour = dominant OI move (top+bottom strikes)';
 
-  // Cumulative OI
   drawCumOIChart(minuteRows);
-
-  // OI movers
   drawOIMovers(minuteRows, atmStrike);
 
-  // Index chart (uses merged candles)
   const mergedWithLive = liveCandle ? [...merged, liveCandle] : merged;
   drawIndexChart(mergedWithLive);
 
-  // Confluence SVG charts (s1 CE = top strike lens, s3 PE = bottom strike lens)
-  const c1WithLive = liveCandle ? [...c1, liveCandle] : c1;
-  const c3WithLive = liveCandle ? [...c3, liveCandle] : c3;
+  // Confluence SVG charts: top slot = bear lens, bottom slot = bull lens
+  const topPfx = slotPfx(0), botPfx = slotPfx(numCharts - 1);
+  const topWithLive = liveCandle ? [...topCandles, liveCandle] : topCandles;
+  const botWithLive = liveCandle ? [...botCandles, liveCandle] : botCandles;
 
-  const bearSigs = drawStrikeActivityChart('svgBear', c1WithLive,
-    c=>c.s1_bce_ltp_open||c.bce_ltp_open||0, c=>c.s1_bce_ltp_high||c.bce_ltp_high||0,
-    c=>c.s1_bce_ltp_low||c.bce_ltp_low||0,   c=>c.s1_bce_ltp_close||c.bce_ltp_close||0,
-    c=>c.s1_bce_oi_delta||c.bce_oi_delta||0, 'bear-activity-badge');
-  const bullSigs = drawStrikeActivityChart('svgBull', c3WithLive,
-    c=>c.s3_upe_ltp_open||c.upe_ltp_open||0, c=>c.s3_upe_ltp_high||c.upe_ltp_high||0,
-    c=>c.s3_upe_ltp_low||c.upe_ltp_low||0,   c=>c.s3_upe_ltp_close||c.upe_ltp_close||0,
-    c=>c.s3_upe_oi_delta||c.upe_oi_delta||0, 'bull-activity-badge');
+  const bearSigs = drawStrikeActivityChart('svgBear', topWithLive,
+    c=>c[topPfx+'_bce_ltp_open']||c.s1_bce_ltp_open||c.bce_ltp_open||0,
+    c=>c[topPfx+'_bce_ltp_high']||c.s1_bce_ltp_high||c.bce_ltp_high||0,
+    c=>c[topPfx+'_bce_ltp_low'] ||c.s1_bce_ltp_low ||c.bce_ltp_low ||0,
+    c=>c[topPfx+'_bce_ltp_close']||c.s1_bce_ltp_close||c.bce_ltp_close||0,
+    c=>c[topPfx+'_bce_oi_delta']||c.s1_bce_oi_delta||c.bce_oi_delta||0, 'bear-activity-badge');
+  const bullSigs = drawStrikeActivityChart('svgBull', botWithLive,
+    c=>c[botPfx+'_upe_ltp_open']||c.s3_upe_ltp_open||c.upe_ltp_open||0,
+    c=>c[botPfx+'_upe_ltp_high']||c.s3_upe_ltp_high||c.upe_ltp_high||0,
+    c=>c[botPfx+'_upe_ltp_low'] ||c.s3_upe_ltp_low ||c.upe_ltp_low ||0,
+    c=>c[botPfx+'_upe_ltp_close']||c.s3_upe_ltp_close||c.upe_ltp_close||0,
+    c=>c[botPfx+'_upe_oi_delta']||c.s3_upe_oi_delta||c.upe_oi_delta||0, 'bull-activity-badge');
 
   buildStrip('bear-strip', bearSigs);
   buildStrip('bull-strip', bullSigs);
-  if (c1.length) updateConfluenceSummary(c1, c3, bearSigs, bullSigs);
+  if (topCandles.length) updateConfluenceSummary(topCandles, botCandles, bearSigs, bullSigs);
 
-  // ── THREE OI BAR CHARTS ──
-  const chartDefs = [
-    { candles:c1, strike:s1, pfx:'s1', chartId:'s1Chart', wrapId:'s1ChartWrap', scrollId:'s1-scroll', yAxisId:'s1YAxis' },
-    { candles:c2, strike:s2, pfx:'s2', chartId:'s2Chart', wrapId:'s2ChartWrap', scrollId:'s2-scroll', yAxisId:'s2YAxis' },
-    { candles:c3, strike:s3, pfx:'s3', chartId:'s3Chart', wrapId:'s3ChartWrap', scrollId:'s3-scroll', yAxisId:'s3YAxis' },
-  ];
+  // ── N OI BAR CHARTS ──────────────────────────────────────────────
+  // Map slot index → DOM ids.
+  // Slots midIdx-1=s1card, midIdx=s2card, midIdx+1=s3card; all others are extra cards.
+  for (let idx = 0; idx < numCharts; idx++) {
+    const candles = allCandles[idx];
+    const pfx     = slotPfx(idx);
+    const chartId  = pfx + 'Chart';
+    const wrapId   = pfx + 'ChartWrap';
+    const scrollId = pfx + '-scroll';
+    const yAxisId  = pfx + 'YAxis';
 
-  chartDefs.forEach(({candles, strike, pfx, chartId, wrapId, scrollId, yAxisId}, idx) => {
-    if (!candles.length) return;
+    if (!candles.length) continue;
+
+    const scrollEl = document.getElementById(scrollId);
+    const wrapEl   = document.getElementById(wrapId);
+    if (!scrollEl || !wrapEl) continue;
 
     const labels = candles.map(c=>c.label);
-    const outerW = Math.floor(document.getElementById(scrollId)?.getBoundingClientRect().width||(window.innerWidth-80));
+    const outerW = Math.floor(scrollEl.getBoundingClientRect().width||(window.innerWidth-80));
     const oiW    = Math.max(candles.length*MIN_BAR_PX + 40, outerW);
     const oiH    = OI_CHART_H;
 
-    document.getElementById(wrapId).style.width  = oiW+'px';
-    document.getElementById(wrapId).style.height = oiH+'px';
+    wrapEl.style.width  = oiW+'px';
+    wrapEl.style.height = oiH+'px';
     setCanvas(chartId, oiW, oiH);
 
     const ceCol = candles.map(c=>c.dce>=0?'#D85A30':'#93c5e8');
@@ -3037,7 +3314,6 @@ function _doRebuild() {
       options:opts
     });
 
-    // Net summary
     const netCe = candles.reduce((s,c)=>s+c.dce,0);
     const netPe = candles.reduce((s,c)=>s+c.dpe,0);
     const setNet=(id,v)=>{const el=document.getElementById(id);if(el){el.textContent=fmtD(v);el.className='net-val '+dcls(v);}};
@@ -3049,7 +3325,7 @@ function _doRebuild() {
       scoreEl.textContent=Math.abs(diff)<3000?'Neutral':diff>0?'CE building':'PE building';
       scoreEl.className='net-val '+(diff>3000?'ddn':diff<-3000?'dup':'dfl');
     }
-  });
+  }
 
   scrollToLatest();
   updateSpotBadges();
