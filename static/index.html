@@ -1251,37 +1251,20 @@ function updateLTP(data) {
     document.getElementById('spot-val').textContent = fmt(data.spot);
     updateSpotBadges();
 
-    // ── Recalculate ATM from live spot ──────────────────────────────
-    // Round spot to nearest STRIKE_STEP — don't wait for /oi poll to update ATM
+    // ── Update ATM display from live spot (display-only — fetchOI owns defaultStrikes) ──
+    // We only update the visual ATM indicator and chip highlight here.
+    // defaultStrikes / selectedStrikes are managed exclusively by fetchOI so the
+    // header and dropdown never drift out of sync between the two pollers.
     if (allStrikes.length && STRIKE_STEP) {
       const newAtm = Math.round(data.spot / STRIKE_STEP) * STRIKE_STEP;
-      // Clamp to available strikes
       const closest = allStrikes.reduce((a, b) => Math.abs(b - data.spot) < Math.abs(a - data.spot) ? b : a);
       const calcAtm = allStrikes.includes(newAtm) ? newAtm : closest;
 
       if (calcAtm !== atmStrike) {
-        const atmChanged = true;
-        const prevDefaults = [...defaultStrikes];
         atmStrike = calcAtm;
         document.getElementById('atm-val').textContent = atmStrike;
-
-        const atmIdx = allStrikes.indexOf(atmStrike);
-        if (atmIdx >= 0) {
-          const s2 = atmStrike;
-          const s1 = atmIdx + 1 < allStrikes.length ? allStrikes[atmIdx+1] : allStrikes[Math.min(atmIdx, allStrikes.length-1)];
-          const s3 = atmIdx - 1 >= 0 ? allStrikes[atmIdx-1] : allStrikes[Math.max(0, atmIdx)];
-          defaultStrikes = [s1, s2, s3];
-
-          const wasOnDefault = selectedStrikes.every((s, i) => s === prevDefaults[i]);
-          if (wasOnDefault) {
-            selectedStrikes = [...defaultStrikes];
-            populateStrikeSelectors(allStrikes);
-          } else {
-            populateStrikeSelectors(allStrikes);
-          }
-        }
-
-        // Update option chain ATM row highlight
+        // Refresh chip ATM highlight only — does NOT touch selectedStrikes or defaultStrikes
+        populateStrikeSelectors(allStrikes);
         renderOptionChain();
       }
     }
