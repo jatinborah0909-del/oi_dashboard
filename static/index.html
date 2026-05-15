@@ -237,6 +237,25 @@ tr:last-child td{border-bottom:none;}
 .mover-4-delta{font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;min-width:64px;text-align:center;font-variant-numeric:tabular-nums;}
 .mover-4-oi{font-size:10px;color:#aaa;font-variant-numeric:tabular-nums;margin-left:auto;}
 
+
+/* ── SELECTED STRIKES OI CHANGE TAB ── */
+.oi-change-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;}
+.oi-change-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.oi-change-title{font-size:13px;font-weight:500;margin-bottom:2px;}
+.oi-change-sub{font-size:11px;color:#888;}
+.oi-change-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#f8f8f5;border:0.5px solid #eee;border-radius:8px;padding:8px 10px;margin-bottom:12px;}
+.oi-change-controls label{font-size:12px;color:#666;white-space:nowrap;}
+.oi-change-chip-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.oi-change-chip{font-size:11px;padding:4px 10px;border-radius:20px;border:0.5px solid #ddd;background:#fff;color:#666;cursor:pointer;transition:all .12s;white-space:nowrap;}
+.oi-change-chip:hover{border-color:#185FA5;color:#185FA5;}
+.oi-change-chip.active{background:#185FA5;color:#fff;border-color:#185FA5;font-weight:500;}
+.oi-change-chip.atm{border-color:#534AB7;}
+.oi-change-chart-wrap{position:relative;width:100%;min-height:360px;}
+.oi-change-chart-scroll{overflow-x:auto;overflow-y:hidden;width:100%;border-radius:4px;}
+.oi-change-chart-inner{height:360px;min-width:100%;position:relative;}
+.oi-change-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:#666;}
+.oi-change-pill{background:#f8f8f5;border:0.5px solid #e0e0da;border-radius:20px;padding:4px 9px;}
+
 @media(max-width:700px){
   #tab-oi-movers-panel .grid-4{grid-template-columns:1fr!important;}
 }
@@ -378,6 +397,7 @@ tr:last-child td{border-bottom:none;}
   <button class="tab-btn active" id="tab-dashboard-btn" onclick="switchTab('dashboard')">Dashboard</button>
   <button class="tab-btn" id="tab-option-chain-btn" onclick="switchTab('option-chain')">Option Chain & OI Moves</button>
   <button class="tab-btn" id="tab-oi-movers-btn" onclick="switchTab('oi-movers')">📊 OI Movers</button>
+  <button class="tab-btn" id="tab-oi-change-btn" onclick="switchTab('oi-change')">📈 Selected Strike ΔOI</button>
   <span class="tab-hint">Move heavy tables away from the main trading view</span>
 </div>
 
@@ -889,10 +909,45 @@ tr:last-child td{border-bottom:none;}
 </div><!-- end 4-section grid -->
 </div><!-- end tab-oi-movers-panel -->
 
+
+<div class="tab-panel" id="tab-oi-change-panel">
+  <div class="oi-change-card">
+    <div class="oi-change-header">
+      <div>
+        <div class="oi-change-title">Selected strikes — Change of OI</div>
+        <div class="oi-change-sub" id="oi-change-sub">Select one or more strikes from the visible range. CE and PE ΔOI are plotted separately.</div>
+      </div>
+      <div class="oi-change-controls">
+        <label>Range around ATM:</label>
+        <select id="oi-change-depth" onchange="renderOIChangeStrikeChips(); renderOIChangeChart();">
+          <option value="3">±3</option>
+          <option value="5" selected>±5</option>
+          <option value="8">±8</option>
+          <option value="12">±12</option>
+          <option value="0">All</option>
+        </select>
+        <button class="btn btn-primary" onclick="selectOIChangeDefaultStrikes()">ATM ±1</button>
+        <button class="btn" onclick="selectAllOIChangeVisibleStrikes()">Select visible</button>
+        <button class="btn" onclick="clearOIChangeStrikes()">Clear</button>
+      </div>
+    </div>
+    <div class="strike-panel-title">Visible strike range</div>
+    <div class="oi-change-chip-row" id="oi-change-strike-chips">Waiting for strikes…</div>
+    <div class="oi-change-chart-wrap" style="margin-top:14px;">
+      <div class="oi-change-chart-scroll" id="oi-change-scroll">
+        <div class="oi-change-chart-inner" id="oiChangeChartWrap">
+          <canvas id="oiChangeChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="oi-change-summary" id="oi-change-summary"></div>
+  </div>
+</div><!-- end tab-oi-change-panel -->
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 function switchTab(tabName) {
-  ['dashboard', 'option-chain', 'oi-movers'].forEach(name => {
+  ['dashboard', 'option-chain', 'oi-movers', 'oi-change'].forEach(name => {
     const panel = document.getElementById('tab-' + name + '-panel');
     const btn = document.getElementById('tab-' + name + '-btn');
     const active = name === tabName;
@@ -908,6 +963,11 @@ function switchTab(tabName) {
   }
   if (tabName === 'oi-movers') {
     drawOIMovers(minuteRows, atmStrike);
+  }
+  if (tabName === 'oi-change') {
+    ensureOIChangeSelection();
+    renderOIChangeStrikeChips();
+    renderOIChangeChart();
   }
 }
 
@@ -1163,6 +1223,8 @@ let STRIKE_STEP    = 50;  // default, overridden from data
 // The array is always ordered top-to-bottom (highest strike first).
 let selectedStrikes = [null, null, null];
 let defaultStrikes  = [null, null, null];
+let oiChangeSelectedStrikes = [];
+let oiChangeChartInstance = null;
 let numCharts       = 3;   // current chart count (1, 3, 5, 7, or 9)
 
 // Chart.js instances — index matches selectedStrikes order
@@ -1493,6 +1555,7 @@ function resetToDefault() {
 
 function refreshDisplay() {
   populateStrikeSelectors(allStrikes);
+  renderOIChangeStrikeChips();
   if (lastOIData) processSnapshot(lastOIData);
   rebuildCharts();
 }
@@ -2527,7 +2590,7 @@ function setCanvas(id,w,h){
 }
 
 function scrollToLatest() {
-  ['index-scroll','bear-conf-scroll','bull-conf-scroll','s1-scroll','s2-scroll','s3-scroll'].forEach(id=>{
+  ['index-scroll','bear-conf-scroll','bull-conf-scroll','s1-scroll','s2-scroll','s3-scroll','oi-change-scroll'].forEach(id=>{
     const el=document.getElementById(id);
     if (el) el.scrollLeft=el.scrollWidth;
   });
@@ -3248,6 +3311,156 @@ function scrollOCtoATM() {
   if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+
+// ── SELECTED STRIKES OI CHANGE TAB ───────────────────────────────
+function getOIChangeVisibleStrikes() {
+  if (!allStrikes || !allStrikes.length) return [];
+  const depthEl = document.getElementById('oi-change-depth');
+  const depth = depthEl ? parseInt(depthEl.value || '5') : 5;
+  if (!depth || !atmStrike) return [...allStrikes];
+  const atmIdx = allStrikes.indexOf(atmStrike);
+  if (atmIdx < 0) return [...allStrikes];
+  return allStrikes.slice(Math.max(0, atmIdx - depth), Math.min(allStrikes.length, atmIdx + depth + 1));
+}
+
+function ensureOIChangeSelection() {
+  if (oiChangeSelectedStrikes && oiChangeSelectedStrikes.length) return;
+  if (selectedStrikes && selectedStrikes.length) {
+    oiChangeSelectedStrikes = [...new Set(selectedStrikes.filter(Boolean))];
+  }
+  if ((!oiChangeSelectedStrikes || !oiChangeSelectedStrikes.length) && atmStrike) {
+    const idx = allStrikes.indexOf(atmStrike);
+    oiChangeSelectedStrikes = [allStrikes[idx-1], atmStrike, allStrikes[idx+1]].filter(Boolean);
+  }
+}
+
+function renderOIChangeStrikeChips() {
+  const box = document.getElementById('oi-change-strike-chips');
+  if (!box) return;
+  ensureOIChangeSelection();
+  const visible = getOIChangeVisibleStrikes();
+  if (!visible.length) { box.textContent = 'Waiting for strike data…'; return; }
+  box.innerHTML = visible.map(st => {
+    const active = oiChangeSelectedStrikes.includes(st);
+    const atm = st === atmStrike;
+    return `<span class="oi-change-chip ${active?'active':''} ${atm?'atm':''}" onclick="toggleOIChangeStrike(${st})">${st.toLocaleString('en-IN')}${atm?' · ATM':''}</span>`;
+  }).join('');
+  const sub = document.getElementById('oi-change-sub');
+  if (sub) {
+    sub.textContent = `Visible: ${visible[0].toLocaleString('en-IN')} → ${visible[visible.length-1].toLocaleString('en-IN')} · Selected: ${oiChangeSelectedStrikes.length || 0} strike(s) · ${intervalMin}-min candles`;
+  }
+}
+
+function toggleOIChangeStrike(strike) {
+  if (oiChangeSelectedStrikes.includes(strike)) {
+    oiChangeSelectedStrikes = oiChangeSelectedStrikes.filter(s => s !== strike);
+  } else {
+    oiChangeSelectedStrikes.push(strike);
+    oiChangeSelectedStrikes.sort((a,b)=>a-b);
+  }
+  renderOIChangeStrikeChips();
+  renderOIChangeChart();
+}
+
+function selectOIChangeDefaultStrikes() {
+  if (!atmStrike || !allStrikes.length) return;
+  const idx = allStrikes.indexOf(atmStrike);
+  oiChangeSelectedStrikes = [allStrikes[idx-1], atmStrike, allStrikes[idx+1]].filter(Boolean);
+  renderOIChangeStrikeChips();
+  renderOIChangeChart();
+}
+
+function selectAllOIChangeVisibleStrikes() {
+  oiChangeSelectedStrikes = getOIChangeVisibleStrikes();
+  renderOIChangeStrikeChips();
+  renderOIChangeChart();
+}
+
+function clearOIChangeStrikes() {
+  oiChangeSelectedStrikes = [];
+  renderOIChangeStrikeChips();
+  renderOIChangeChart();
+}
+
+function renderOIChangeChart() {
+  const canvas = document.getElementById('oiChangeChart');
+  const wrap = document.getElementById('oiChangeChartWrap');
+  const scroll = document.getElementById('oi-change-scroll');
+  const summary = document.getElementById('oi-change-summary');
+  if (!canvas || !wrap || !scroll) return;
+
+  ensureOIChangeSelection();
+  const strikes = [...new Set(oiChangeSelectedStrikes.filter(Boolean))].sort((a,b)=>a-b);
+  const validRows = minuteRows || [];
+  if (!strikes.length || !validRows.length) {
+    if (oiChangeChartInstance) { oiChangeChartInstance.destroy(); oiChangeChartInstance = null; }
+    if (summary) summary.innerHTML = '<span class="oi-change-pill">Select at least one strike to plot ΔOI.</span>';
+    return;
+  }
+
+  // Use the same interval aggregation as the main OI charts.
+  const candleSets = strikes.map(st => ({ strike: st, candles: buildCandlesForStrike(validRows, intervalMin, st) }));
+  const labels = candleSets[0]?.candles.map(c => c.label) || [];
+  const chartW = Math.max(labels.length * Math.max(36, MIN_BAR_PX) + 80, Math.floor(scroll.getBoundingClientRect().width || window.innerWidth - 80));
+  const chartH = 360;
+  wrap.style.width = chartW + 'px';
+  wrap.style.height = chartH + 'px';
+  setCanvas('oiChangeChart', chartW, chartH);
+
+  const palette = ['#185FA5','#D85A30','#1D9E75','#534AB7','#EF9F27','#0F6E56','#8B1A1A','#97C459','#666'];
+  const datasets = [];
+  candleSets.forEach((entry, idx) => {
+    const base = palette[idx % palette.length];
+    datasets.push({
+      label: `${entry.strike} CE ΔOI`,
+      data: entry.candles.map(c => c.dce),
+      borderColor: base,
+      backgroundColor: base,
+      borderWidth: 1.8,
+      pointRadius: 0,
+      tension: 0.2
+    });
+    datasets.push({
+      label: `${entry.strike} PE ΔOI`,
+      data: entry.candles.map(c => c.dpe),
+      borderColor: base,
+      backgroundColor: base,
+      borderWidth: 1.8,
+      pointRadius: 0,
+      borderDash: [5,4],
+      tension: 0.2
+    });
+  });
+
+  if (oiChangeChartInstance) { oiChangeChartInstance.destroy(); oiChangeChartInstance = null; }
+  oiChangeChartInstance = new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive:false, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{
+        legend:{display:true, position:'top', labels:{boxWidth:14, font:{size:10}}},
+        tooltip:{callbacks:{label:ctx => `${ctx.dataset.label}: ${fmtD(ctx.raw || 0)}`}}
+      },
+      scales:{
+        x:{grid:{display:false}, ticks:{color:TCLR, font:{size:10}, autoSkip:true, maxTicksLimit:18, maxRotation:90, minRotation:0}},
+        y:{grid:{color:GRID}, ticks:{color:TCLR, font:{size:10}, callback:v => (v>=0?'+':'') + Math.round(v/1000) + 'k'}}
+      },
+      animation:{duration:250}
+    }
+  });
+
+  if (summary) {
+    summary.innerHTML = candleSets.map(entry => {
+      const ce = entry.candles.reduce((s,c)=>s+c.dce,0);
+      const pe = entry.candles.reduce((s,c)=>s+c.dpe,0);
+      return `<span class="oi-change-pill"><strong>${entry.strike}</strong> CE ${fmtD(ce)} · PE ${fmtD(pe)}</span>`;
+    }).join('');
+  }
+  scroll.scrollLeft = scroll.scrollWidth;
+}
+
 // ── MAIN REBUILD ──────────────────────────────────────────────────
 function rebuildCharts() { requestAnimationFrame(_doRebuild); }
 
@@ -3277,6 +3490,8 @@ function _doRebuild() {
 
   drawCumOIChart(minuteRows);
   drawOIMovers(minuteRows, atmStrike);
+  renderOIChangeStrikeChips();
+  if (document.getElementById('tab-oi-change-panel')?.classList.contains('active')) renderOIChangeChart();
 
   const mergedWithLive = liveCandle ? [...merged, liveCandle] : merged;
   drawIndexChart(mergedWithLive);
