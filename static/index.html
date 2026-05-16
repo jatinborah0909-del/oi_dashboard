@@ -250,9 +250,19 @@ tr:last-child td{border-bottom:none;}
 .oi-change-chip:hover{border-color:#185FA5;color:#185FA5;}
 .oi-change-chip.active{background:#185FA5;color:#fff;border-color:#185FA5;font-weight:500;}
 .oi-change-chip.atm{border-color:#534AB7;}
-.oi-change-chart-wrap{position:relative;width:100%;min-height:360px;}
+.oi-change-chart-wrap{position:relative;width:100%;min-height:360px;margin-top:12px;}
+.oi-change-chart-shell{display:flex;align-items:stretch;width:100%;position:relative;}
+.oi-change-yaxis{width:62px;min-width:62px;height:360px;position:sticky;left:0;z-index:12;background:#fff;border-right:0.5px solid #eee;}
 .oi-change-chart-scroll{overflow-x:auto;overflow-y:hidden;width:100%;border-radius:4px;}
 .oi-change-chart-inner{height:360px;min-width:100%;position:relative;}
+.oi-change-section-title{font-size:11px;font-weight:600;color:#444;text-transform:uppercase;letter-spacing:.04em;margin:14px 0 6px;}
+.oi-change-legend{display:flex;gap:18px;align-items:center;flex-wrap:wrap;justify-content:center;margin:6px 0 8px;font-size:11px;color:#555;}
+.oi-change-leg-item{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.oi-change-line-sample{width:28px;height:0;border-top:2px solid #185FA5;display:inline-block;}
+.oi-change-line-sample.pe{border-top-style:dashed;}
+.oi-change-selected-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;}
+.oi-change-selected-chip{font-size:11px;padding:5px 10px;border-radius:8px;border:0.5px solid #ddd;background:#f8f8f5;color:#555;font-weight:500;}
+.oi-change-selected-chip button{border:none;background:transparent;color:inherit;cursor:pointer;margin-left:6px;font-weight:700;}
 .oi-change-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:#666;}
 .oi-change-pill{background:#f8f8f5;border:0.5px solid #e0e0da;border-radius:20px;padding:4px 9px;}
 
@@ -915,7 +925,7 @@ tr:last-child td{border-bottom:none;}
     <div class="oi-change-header">
       <div>
         <div class="oi-change-title">Selected strikes — Change of OI</div>
-        <div class="oi-change-sub" id="oi-change-sub">Select one or more strikes from the visible range. CE and PE ΔOI are plotted separately.</div>
+        <div class="oi-change-sub" id="oi-change-sub">Select one or more strikes from the visible range. CE and PE are plotted separately.</div>
       </div>
       <div class="oi-change-controls">
         <label>Range around ATM:</label>
@@ -931,15 +941,43 @@ tr:last-child td{border-bottom:none;}
         <button class="btn" onclick="clearOIChangeStrikes()">Clear</button>
       </div>
     </div>
+
     <div class="strike-panel-title">Visible strike range</div>
     <div class="oi-change-chip-row" id="oi-change-strike-chips">Waiting for strikes…</div>
-    <div class="oi-change-chart-wrap" style="margin-top:14px;">
-      <div class="oi-change-chart-scroll" id="oi-change-scroll">
-        <div class="oi-change-chart-inner" id="oiChangeChartWrap">
-          <canvas id="oiChangeChart"></canvas>
+
+    <div class="strike-panel-title" style="margin-top:12px;">Selected strikes</div>
+    <div class="oi-change-selected-row" id="oi-change-selected-chips">—</div>
+
+    <div class="oi-change-legend">
+      <span class="oi-change-leg-item"><span class="oi-change-line-sample"></span>CE / Call OI</span>
+      <span class="oi-change-leg-item"><span class="oi-change-line-sample pe"></span>PE / Put OI</span>
+      <span style="color:#888;">Colour = strike</span>
+    </div>
+
+    <div class="oi-change-section-title">Change of OI (ΔOI)</div>
+    <div class="oi-change-chart-wrap">
+      <div class="oi-change-chart-shell">
+        <canvas id="oiChangeYAxis" class="oi-change-yaxis"></canvas>
+        <div class="oi-change-chart-scroll" id="oi-change-scroll">
+          <div class="oi-change-chart-inner" id="oiChangeChartWrap">
+            <canvas id="oiChangeChart"></canvas>
+          </div>
         </div>
       </div>
     </div>
+
+    <div class="oi-change-section-title">Absolute OI</div>
+    <div class="oi-change-chart-wrap">
+      <div class="oi-change-chart-shell">
+        <canvas id="oiAbsYAxis" class="oi-change-yaxis"></canvas>
+        <div class="oi-change-chart-scroll" id="oi-abs-scroll">
+          <div class="oi-change-chart-inner" id="oiAbsChartWrap">
+            <canvas id="oiAbsChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="oi-change-summary" id="oi-change-summary"></div>
   </div>
 </div><!-- end tab-oi-change-panel -->
@@ -1225,6 +1263,7 @@ let selectedStrikes = [null, null, null];
 let defaultStrikes  = [null, null, null];
 let oiChangeSelectedStrikes = [];
 let oiChangeChartInstance = null;
+let oiAbsChartInstance = null;
 let numCharts       = 3;   // current chart count (1, 3, 5, 7, or 9)
 
 // Chart.js instances — index matches selectedStrikes order
@@ -2085,6 +2124,8 @@ function buildCandlesForStrike(rows, mins, strike) {
       upe_ltp_low:   peOHLC.low,
       upe_ltp_close: peOHLC.close,
       upe_oi_delta:  peOiEnd - peOiStart,
+      ce_oi: ceOiEnd,
+      pe_oi: peOiEnd,
     });
   }
   return candles;
@@ -3349,6 +3390,7 @@ function renderOIChangeStrikeChips() {
   if (sub) {
     sub.textContent = `Visible: ${visible[0].toLocaleString('en-IN')} → ${visible[visible.length-1].toLocaleString('en-IN')} · Selected: ${oiChangeSelectedStrikes.length || 0} strike(s) · ${intervalMin}-min candles`;
   }
+  renderOIChangeSelectedChips([...new Set(oiChangeSelectedStrikes.filter(Boolean))].sort((a,b)=>a-b));
 }
 
 function toggleOIChangeStrike(strike) {
@@ -3382,83 +3424,210 @@ function clearOIChangeStrikes() {
   renderOIChangeChart();
 }
 
-function renderOIChangeChart() {
-  const canvas = document.getElementById('oiChangeChart');
-  const wrap = document.getElementById('oiChangeChartWrap');
-  const scroll = document.getElementById('oi-change-scroll');
-  const summary = document.getElementById('oi-change-summary');
-  if (!canvas || !wrap || !scroll) return;
+function drawStickyOIYAxis(axisId, minVal, maxVal, chartH, formatter, title) {
+  const c = document.getElementById(axisId);
+  if (!c) return;
+  const dpr = window.devicePixelRatio || 1;
+  c.width = OI_YAXIS_W * dpr;
+  c.height = chartH * dpr;
+  c.style.width = OI_YAXIS_W + 'px';
+  c.style.height = chartH + 'px';
+  const ctx = c.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,OI_YAXIS_W,chartH);
+  ctx.fillStyle = '#666';
+  ctx.strokeStyle = '#ddd';
+  ctx.lineWidth = 1;
+  ctx.font = '10px system-ui,-apple-system,sans-serif';
 
-  ensureOIChangeSelection();
-  const strikes = [...new Set(oiChangeSelectedStrikes.filter(Boolean))].sort((a,b)=>a-b);
-  const validRows = minuteRows || [];
-  if (!strikes.length || !validRows.length) {
-    if (oiChangeChartInstance) { oiChangeChartInstance.destroy(); oiChangeChartInstance = null; }
-    if (summary) summary.innerHTML = '<span class="oi-change-pill">Select at least one strike to plot ΔOI.</span>';
-    return;
+  const top = 22, bottom = 32;
+  const plotH = chartH - top - bottom;
+  const range = maxVal - minVal || 1;
+  const ticks = 6;
+
+  ctx.beginPath();
+  ctx.moveTo(OI_YAXIS_W - 1, top);
+  ctx.lineTo(OI_YAXIS_W - 1, chartH - bottom);
+  ctx.stroke();
+
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (let i=0; i<=ticks; i++) {
+    const v = maxVal - (range * i / ticks);
+    const y = top + (plotH * i / ticks);
+    ctx.fillStyle = '#888';
+    ctx.fillText(formatter(v), OI_YAXIS_W - 8, y);
+    ctx.strokeStyle = '#eee';
+    ctx.beginPath();
+    ctx.moveTo(OI_YAXIS_W - 5, y);
+    ctx.lineTo(OI_YAXIS_W - 1, y);
+    ctx.stroke();
   }
 
-  // Use the same interval aggregation as the main OI charts.
-  const candleSets = strikes.map(st => ({ strike: st, candles: buildCandlesForStrike(validRows, intervalMin, st) }));
-  const labels = candleSets[0]?.candles.map(c => c.label) || [];
-  const chartW = Math.max(labels.length * Math.max(36, MIN_BAR_PX) + 80, Math.floor(scroll.getBoundingClientRect().width || window.innerWidth - 80));
-  const chartH = 360;
-  wrap.style.width = chartW + 'px';
-  wrap.style.height = chartH + 'px';
-  setCanvas('oiChangeChart', chartW, chartH);
+  if (title) {
+    ctx.save();
+    ctx.translate(13, chartH/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillStyle = '#444';
+    ctx.font = '11px system-ui,-apple-system,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(title, 0, 0);
+    ctx.restore();
+  }
+}
 
-  const palette = ['#185FA5','#D85A30','#1D9E75','#534AB7','#EF9F27','#0F6E56','#8B1A1A','#97C459','#666'];
+function niceRange(values, forceZero=false) {
+  const clean = values.filter(v => Number.isFinite(v));
+  if (!clean.length) return {min: forceZero ? 0 : -1, max: 1};
+  let min = Math.min(...clean), max = Math.max(...clean);
+  if (forceZero) min = Math.min(0, min);
+  if (min === max) {
+    const pad = Math.max(1, Math.abs(max) * 0.1);
+    min -= pad; max += pad;
+  }
+  const pad = (max - min) * 0.08;
+  return {min: min - pad, max: max + pad};
+}
+
+function fmtCompactAxis(v, signed=false) {
+  const sign = signed && v > 0 ? '+' : '';
+  const av = Math.abs(v);
+  if (av >= 1000000) return sign + (v/1000000).toFixed(av >= 10000000 ? 0 : 1) + 'M';
+  if (av >= 1000) return sign + Math.round(v/1000) + 'k';
+  return sign + Math.round(v);
+}
+
+function renderOIChangeSelectedChips(strikes) {
+  const box = document.getElementById('oi-change-selected-chips');
+  if (!box) return;
+  if (!strikes.length) {
+    box.innerHTML = '<span class="oi-change-pill">No strike selected.</span>';
+    return;
+  }
+  const palette = ['#185FA5','#1D9E75','#D85A30','#534AB7','#EF9F27','#0F6E56','#8B1A1A','#97C459','#666'];
+  box.innerHTML = strikes.map((st, idx) => {
+    const col = palette[idx % palette.length];
+    const atm = st === atmStrike ? ' (ATM)' : '';
+    return `<span class="oi-change-selected-chip" style="border-color:${col};color:${col};background:#fff;">${st.toLocaleString('en-IN')}${atm}<button onclick="toggleOIChangeStrike(${st})" title="Remove strike">×</button></span>`;
+  }).join('');
+}
+
+function buildOIChartDatasets(candleSets, mode) {
+  const palette = ['#185FA5','#1D9E75','#D85A30','#534AB7','#EF9F27','#0F6E56','#8B1A1A','#97C459','#666'];
   const datasets = [];
   candleSets.forEach((entry, idx) => {
     const base = palette[idx % palette.length];
+    const atm = entry.strike === atmStrike ? ' (ATM)' : '';
+    const ceField = mode === 'abs' ? 'ce_oi' : 'dce';
+    const peField = mode === 'abs' ? 'pe_oi' : 'dpe';
+    const suffix = mode === 'abs' ? 'OI' : 'ΔOI';
+
     datasets.push({
-      label: `${entry.strike} CE ΔOI`,
-      data: entry.candles.map(c => c.dce),
+      label: `${entry.strike.toLocaleString('en-IN')} CE ${suffix}${atm}`,
+      data: entry.candles.map(c => c[ceField] || 0),
       borderColor: base,
       backgroundColor: base,
-      borderWidth: 1.8,
+      borderWidth: 2,
       pointRadius: 0,
       tension: 0.2
     });
     datasets.push({
-      label: `${entry.strike} PE ΔOI`,
-      data: entry.candles.map(c => c.dpe),
+      label: `${entry.strike.toLocaleString('en-IN')} PE ${suffix}${atm}`,
+      data: entry.candles.map(c => c[peField] || 0),
       borderColor: base,
       backgroundColor: base,
-      borderWidth: 1.8,
+      borderWidth: 2,
       pointRadius: 0,
-      borderDash: [5,4],
+      borderDash: [6,5],
       tension: 0.2
     });
   });
+  return datasets;
+}
 
-  if (oiChangeChartInstance) { oiChangeChartInstance.destroy(); oiChangeChartInstance = null; }
-  oiChangeChartInstance = new Chart(canvas, {
+function createOIChart(canvas, labels, datasets, yRange, signedAxis, tooltipSuffix) {
+  return new Chart(canvas, {
     type: 'line',
     data: { labels, datasets },
     options: {
       responsive:false, maintainAspectRatio:false,
       interaction:{mode:'index', intersect:false},
+      layout:{padding:{left:8,right:18,top:8,bottom:0}},
       plugins:{
-        legend:{display:true, position:'top', labels:{boxWidth:14, font:{size:10}}},
-        tooltip:{callbacks:{label:ctx => `${ctx.dataset.label}: ${fmtD(ctx.raw || 0)}`}}
+        legend:{display:true, position:'top', labels:{boxWidth:22, font:{size:10}, usePointStyle:false}},
+        tooltip:{callbacks:{label:ctx => `${ctx.dataset.label}: ${fmtCompactAxis(ctx.raw || 0, signedAxis)} ${tooltipSuffix}`}}
       },
       scales:{
-        x:{grid:{display:false}, ticks:{color:TCLR, font:{size:10}, autoSkip:true, maxTicksLimit:18, maxRotation:90, minRotation:0}},
-        y:{grid:{color:GRID}, ticks:{color:TCLR, font:{size:10}, callback:v => (v>=0?'+':'') + Math.round(v/1000) + 'k'}}
+        x:{grid:{color:'rgba(136,135,128,0.08)'}, ticks:{color:TCLR, font:{size:10}, autoSkip:true, maxTicksLimit:18, maxRotation:0, minRotation:0}},
+        y:{display:false, min:yRange.min, max:yRange.max, grid:{color:GRID}}
       },
       animation:{duration:250}
     }
   });
+}
+
+function renderOIChangeChart() {
+  const changeCanvas = document.getElementById('oiChangeChart');
+  const changeWrap = document.getElementById('oiChangeChartWrap');
+  const changeScroll = document.getElementById('oi-change-scroll');
+  const absCanvas = document.getElementById('oiAbsChart');
+  const absWrap = document.getElementById('oiAbsChartWrap');
+  const absScroll = document.getElementById('oi-abs-scroll');
+  const summary = document.getElementById('oi-change-summary');
+  if (!changeCanvas || !changeWrap || !changeScroll || !absCanvas || !absWrap || !absScroll) return;
+
+  ensureOIChangeSelection();
+  const strikes = [...new Set(oiChangeSelectedStrikes.filter(Boolean))].sort((a,b)=>a-b);
+  renderOIChangeSelectedChips(strikes);
+
+  const validRows = minuteRows || [];
+  if (!strikes.length || !validRows.length) {
+    if (oiChangeChartInstance) { oiChangeChartInstance.destroy(); oiChangeChartInstance = null; }
+    if (oiAbsChartInstance) { oiAbsChartInstance.destroy(); oiAbsChartInstance = null; }
+    if (summary) summary.innerHTML = '<span class="oi-change-pill">Select at least one strike to plot OI.</span>';
+    return;
+  }
+
+  const candleSets = strikes.map(st => ({ strike: st, candles: buildCandlesForStrike(validRows, intervalMin, st) }));
+  const labels = candleSets[0]?.candles.map(c => c.label) || [];
+  const chartW = Math.max(labels.length * Math.max(36, MIN_BAR_PX) + 120, Math.floor(changeScroll.getBoundingClientRect().width || window.innerWidth - 120));
+  const chartH = 360;
+
+  [changeWrap, absWrap].forEach(wrap => {
+    wrap.style.width = chartW + 'px';
+    wrap.style.height = chartH + 'px';
+  });
+  setCanvas('oiChangeChart', chartW, chartH);
+  setCanvas('oiAbsChart', chartW, chartH);
+
+  const changeDatasets = buildOIChartDatasets(candleSets, 'chg');
+  const absDatasets = buildOIChartDatasets(candleSets, 'abs');
+  const changeValues = changeDatasets.flatMap(ds => ds.data);
+  const absValues = absDatasets.flatMap(ds => ds.data);
+  const changeRange = niceRange(changeValues, false);
+  const absRange = niceRange(absValues, true);
+
+  drawStickyOIYAxis('oiChangeYAxis', changeRange.min, changeRange.max, chartH, v => fmtCompactAxis(v, true), 'Change in OI');
+  drawStickyOIYAxis('oiAbsYAxis', absRange.min, absRange.max, chartH, v => fmtCompactAxis(v, false), 'Open Interest');
+
+  if (oiChangeChartInstance) { oiChangeChartInstance.destroy(); oiChangeChartInstance = null; }
+  if (oiAbsChartInstance) { oiAbsChartInstance.destroy(); oiAbsChartInstance = null; }
+
+  oiChangeChartInstance = createOIChart(changeCanvas, labels, changeDatasets, changeRange, true, 'contracts');
+  oiAbsChartInstance = createOIChart(absCanvas, labels, absDatasets, absRange, false, 'contracts');
 
   if (summary) {
     summary.innerHTML = candleSets.map(entry => {
-      const ce = entry.candles.reduce((s,c)=>s+c.dce,0);
-      const pe = entry.candles.reduce((s,c)=>s+c.dpe,0);
-      return `<span class="oi-change-pill"><strong>${entry.strike}</strong> CE ${fmtD(ce)} · PE ${fmtD(pe)}</span>`;
+      const ceD = entry.candles.reduce((s,c)=>s+(c.dce||0),0);
+      const peD = entry.candles.reduce((s,c)=>s+(c.dpe||0),0);
+      const last = entry.candles[entry.candles.length-1] || {};
+      return `<span class="oi-change-pill"><strong>${entry.strike.toLocaleString('en-IN')}</strong> Δ CE ${fmtD(ceD)} · Δ PE ${fmtD(peD)} · OI CE ${fmtCompactAxis(last.ce_oi||0)} · OI PE ${fmtCompactAxis(last.pe_oi||0)}</span>`;
     }).join('');
   }
-  scroll.scrollLeft = scroll.scrollWidth;
+
+  changeScroll.scrollLeft = changeScroll.scrollWidth;
+  absScroll.scrollLeft = absScroll.scrollWidth;
 }
 
 // ── MAIN REBUILD ──────────────────────────────────────────────────
