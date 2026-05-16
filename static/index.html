@@ -3608,16 +3608,16 @@ function createOIChart(canvas, labels, datasets, yRange, signedAxis, tooltipSuff
           ticks:{
             color:TCLR,
             font:{size:10},
-            autoSkip:true,
-            autoSkipPadding:8,
+            autoSkip:false,
             maxRotation:0,
             minRotation:0,
-            maxTicksLimit: Math.max(4, Math.floor((canvas.width - 60) / 52)),
             callback:function(value, index) {
-              const label = this.getLabelForValue(value);
-              // Always show first and last label
-              if (index === 0 || index === labels.length - 1) return label;
-              return shouldShowOIChangeXLabel(label, index, labels) ? label : '';
+              const total = labels.length;
+              // Always show last label
+              if (index === total - 1) return labels[index];
+              // Show every Nth label so they don't overlap — same logic as the SVG index chart
+              const labelEvery = Math.max(1, Math.ceil(total / Math.max(4, Math.floor((canvas.width - 60) / 52))));
+              return index % labelEvery === 0 ? labels[index] : '';
             }
           }
         },
