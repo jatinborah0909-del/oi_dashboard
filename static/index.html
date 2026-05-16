@@ -3572,6 +3572,9 @@ function shouldShowOIChangeXLabel(label, index, labels) {
   const step = getOIChangeTimeLabelStep();
   if (!step || step <= 1) return true;
 
+  // Always show the last label so the rightmost timestamp is never hidden.
+  if (labels && index === labels.length - 1) return true;
+
   // For regular interval candles this keeps labels close together even when
   // the first candle starts at an offset time like 13:49 instead of 13:45.
   const firstMin = oiLabelToMinutes(labels && labels[0]);
@@ -3594,7 +3597,7 @@ function createOIChart(canvas, labels, datasets, yRange, signedAxis, tooltipSuff
     options: {
       responsive:false, maintainAspectRatio:false,
       interaction:{mode:'index', intersect:false},
-      layout:{padding:{left:8,right:18,top:8,bottom:0}},
+      layout:{padding:{left:8,right:50,top:8,bottom:0}},
       plugins:{
         legend:{display:true, position:'top', labels:{boxWidth:22, font:{size:10}, usePointStyle:false}},
         tooltip:{callbacks:{label:ctx => `${ctx.dataset.label}: ${fmtCompactAxis(ctx.raw || 0, signedAxis)} ${tooltipSuffix}`}}
@@ -3645,7 +3648,7 @@ function renderOIChangeChart() {
 
   const candleSets = strikes.map(st => ({ strike: st, candles: buildCandlesForStrike(validRows, intervalMin, st) }));
   const labels = candleSets[0]?.candles.map(c => c.label) || [];
-  const chartW = Math.max(labels.length * Math.max(36, MIN_BAR_PX) + 120, Math.floor(changeScroll.getBoundingClientRect().width || window.innerWidth - 120));
+  const chartW = Math.max(labels.length * Math.max(36, MIN_BAR_PX) + 160, Math.floor(changeScroll.getBoundingClientRect().width || window.innerWidth - 120));
   const chartH = 360;
 
   [changeWrap, absWrap].forEach(wrap => {
