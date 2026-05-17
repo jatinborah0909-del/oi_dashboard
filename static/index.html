@@ -388,6 +388,39 @@ tr:last-child td{border-bottom:none;}
 /* ── TIME VALUE column ── */
 .oc-tv{color:#666;font-size:11px;font-variant-numeric:tabular-nums;}
 .oc-tv-high{color:#D85A30;}
+
+/* ── PAPER TRADING TAB ── */
+.pt-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;}
+.pt-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;}
+.pt-title{font-size:13px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:8px;}
+.pt-sub{font-size:11px;color:#888;margin-bottom:12px;}
+.pt-stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.pt-stat-box{background:#f8f8f5;border:0.5px solid #e0e0da;border-radius:8px;padding:8px 14px;min-width:100px;}
+.pt-stat-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;}
+.pt-stat-val{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;}
+.pt-table{width:100%;border-collapse:collapse;font-size:12px;}
+.pt-table th{padding:6px 10px;background:#f8f8f5;font-weight:600;font-size:10px;color:#555;border-bottom:1.5px solid #e0e0da;white-space:nowrap;text-transform:uppercase;letter-spacing:.04em;}
+.pt-table td{padding:7px 10px;border-bottom:0.5px solid #f2f2ee;font-variant-numeric:tabular-nums;white-space:nowrap;vertical-align:middle;}
+.pt-table tr:last-child td{border-bottom:none;}
+.pt-table tr:hover td{background:#fafaf8;}
+.pt-open tr:hover td{background:#f0f8ff;}
+.pt-badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600;white-space:nowrap;}
+.pt-sell{background:#FAECE7;color:#712B13;}
+.pt-buy{background:#E1F5EE;color:#085041;}
+.pt-win{background:#E1F5EE;color:#085041;}
+.pt-loss{background:#FAECE7;color:#712B13;}
+.pt-sl{background:#FAEEDA;color:#854F0B;}
+.pt-open-badge{background:#E6F1FB;color:#185FA5;}
+.pt-reason{font-size:10px;color:#888;max-width:220px;white-space:normal;line-height:1.4;}
+.pt-pnl-pos{color:#1D9E75;font-weight:600;}
+.pt-pnl-neg{color:#D85A30;font-weight:600;}
+.pt-section-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px;display:flex;align-items:center;gap:8px;}
+.pt-section-title::after{content:'';flex:1;height:0.5px;background:#e0e0da;}
+.pt-empty{text-align:center;padding:24px;color:#aaa;font-size:12px;}
+.pt-rule-box{background:#f8f8f5;border:0.5px solid #e0e0da;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:11px;color:#555;line-height:1.7;}
+.pt-rule-box strong{color:#1a1a1a;}
+.pt-live-dot{width:7px;height:7px;border-radius:50%;background:#1D9E75;display:inline-block;animation:blink 1.5s infinite;margin-right:4px;}
+.pt-candle-label{font-size:10px;color:#aaa;margin-left:4px;}
 </style>
 </head>
 <body>
@@ -433,6 +466,7 @@ tr:last-child td{border-bottom:none;}
   <button class="tab-btn" id="tab-oi-movers-btn" onclick="switchTab('oi-movers')">📊 OI Movers</button>
   <button class="tab-btn" id="tab-oi-change-btn" onclick="switchTab('oi-change')">📈 Selected Strike ΔOI</button>
   <button class="tab-btn" id="tab-nifty-chart-btn" onclick="switchTab('nifty-chart')">📊 Nifty Chart</button>
+  <button class="tab-btn" id="tab-paper-trade-btn" onclick="switchTab('paper-trade')">🤖 Paper Trades</button>
   <span class="tab-hint">Move heavy tables away from the main trading view</span>
 </div>
 
@@ -1078,10 +1112,80 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div><!-- end tab-nifty-chart-panel -->
 
+<!-- ══════════════════════════════════════════════════════════════════
+     PAPER TRADING TAB
+════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-paper-trade-panel">
+
+<div class="pt-card">
+  <div class="pt-header">
+    <div class="pt-title">
+      🤖 Automated Paper Trades
+      <span id="pt-mode-badge" class="eod-sentiment-pill eod-sentiment-neutral" style="font-size:10px;">—</span>
+    </div>
+    <button class="btn btn-danger" onclick="ptClearAll()" style="font-size:11px;">Clear All</button>
+  </div>
+  <!-- Strategy rules -->
+  <div class="pt-rule-box">
+    <strong>SELL Setup (bearish — spot falling):</strong> When spot is falling and approaching a 50-pt strike (not yet crossed), look for <em>PE unwinding</em> ≥ 3L at that strike → SELL. Target = next lower strike. SL = high of prev 2 (3-min) candles.<br>
+    <strong>SELL Setup B (post-cross):</strong> If spot crossed below a strike with no PE unwind → wait for a retracement (up) candle, then PE unwind on the next falling candle → SELL, only if spot ≥ 40 pts above the next lower strike. SL = entry + 20 pts.<br>
+    <strong>BUY Setup (bullish — spot rising):</strong> When spot is rising and approaching a strike (not yet crossed), look for <em>CE unwinding</em> ≥ 3L → BUY. Target = next higher strike. SL = low of prev 2 candles.<br>
+    <strong>BUY Setup B (post-cross):</strong> Symmetrical — retracement (down) candle, then CE unwind → BUY, ≥ 40 pts gap. SL = entry − 20 pts.
+  </div>
+  <!-- Stats bar -->
+  <div class="pt-stats" id="pt-stats">
+    <div class="pt-stat-box"><div class="pt-stat-label">Total Trades</div><div class="pt-stat-val" id="pt-total">0</div></div>
+    <div class="pt-stat-box"><div class="pt-stat-label">Open</div><div class="pt-stat-val" style="color:#185FA5;" id="pt-open-count">0</div></div>
+    <div class="pt-stat-box"><div class="pt-stat-label">Winners</div><div class="pt-stat-val" style="color:#1D9E75;" id="pt-wins">0</div></div>
+    <div class="pt-stat-box"><div class="pt-stat-label">Losers</div><div class="pt-stat-val" style="color:#D85A30;" id="pt-losses">0</div></div>
+    <div class="pt-stat-box"><div class="pt-stat-label">SL Hit</div><div class="pt-stat-val" style="color:#854F0B;" id="pt-sl-count">0</div></div>
+    <div class="pt-stat-box"><div class="pt-stat-label">Net P&L (pts)</div><div class="pt-stat-val" id="pt-net-pnl">0</div></div>
+    <div class="pt-stat-box"><div class="pt-stat-label">Win Rate</div><div class="pt-stat-val" id="pt-winrate">—</div></div>
+  </div>
+</div>
+
+<!-- Open Trades -->
+<div class="pt-card" id="pt-open-card">
+  <div class="pt-section-title">🟢 Open Positions</div>
+  <div style="overflow-x:auto;">
+    <table class="pt-table pt-open" id="pt-open-table">
+      <thead>
+        <tr>
+          <th>Time</th><th>Dir</th><th>Entry</th><th>Target</th><th>SL</th>
+          <th>Setup</th><th>Reason</th><th>Curr Spot</th><th>Unreal P&L</th>
+        </tr>
+      </thead>
+      <tbody id="pt-open-body">
+        <tr><td colspan="9" class="pt-empty">No open positions</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Closed Trades -->
+<div class="pt-card">
+  <div class="pt-section-title">📋 Closed Trades</div>
+  <div style="overflow-x:auto;">
+    <table class="pt-table" id="pt-closed-table">
+      <thead>
+        <tr>
+          <th>Entry Time</th><th>Exit Time</th><th>Dir</th><th>Entry</th>
+          <th>Exit</th><th>SL</th><th>Target</th><th>P&L (pts)</th><th>Result</th><th>Reason / Setup</th>
+        </tr>
+      </thead>
+      <tbody id="pt-closed-body">
+        <tr><td colspan="10" class="pt-empty">No closed trades yet</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- end tab-paper-trade-panel -->
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 function switchTab(tabName) {
-  ['dashboard', 'option-chain', 'oi-movers', 'oi-change', 'nifty-chart'].forEach(name => {
+  ['dashboard', 'option-chain', 'oi-movers', 'oi-change', 'nifty-chart', 'paper-trade'].forEach(name => {
     const panel = document.getElementById('tab-' + name + '-panel');
     const btn = document.getElementById('tab-' + name + '-btn');
     const active = name === tabName;
@@ -1106,6 +1210,9 @@ function switchTab(tabName) {
   }
   if (tabName === 'nifty-chart') {
     drawNiftyTabChart();
+  }
+  if (tabName === 'paper-trade') {
+    ptRenderAll();
   }
 }
 
@@ -1220,6 +1327,10 @@ async function loadHistoricalData(date) {
     // Update EOD summary
     if (document.getElementById('tab-option-chain-panel')?.classList.contains('active')) {
       renderEODSummary(minuteRows);
+    }
+    // Update paper trades
+    if (document.getElementById('tab-paper-trade-panel')?.classList.contains('active')) {
+      ptRenderAll();
     }
     if (minuteRows.length) {
       const firstRow = minuteRows[0];
@@ -1872,6 +1983,10 @@ async function fetchHistory() {
     // Update EOD summary if option chain tab is visible
     if (document.getElementById('tab-option-chain-panel')?.classList.contains('active')) {
       renderEODSummary(minuteRows);
+    }
+    // Update paper trades if that tab is visible
+    if (document.getElementById('tab-paper-trade-panel')?.classList.contains('active')) {
+      ptRenderAll();
     }
     rebuildCharts();
   } catch(e) {}
@@ -3269,6 +3384,467 @@ function fmtDeltaOI(v) {
   if (Math.abs(v) < 1) return '—';
   const sign = v > 0 ? '+' : '-';
   return sign + fmtOI(Math.abs(v));
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PAPER TRADING ENGINE  (3-min candles, OI-confirmed entries)
+// ══════════════════════════════════════════════════════════════════
+//
+// CORRECTED LOGIC:
+//   SELL (bearish) — spot falling:
+//     Look for PE UNWINDING (put writers covering shorts = they expect further fall = bearish)
+//     at the strike spot is approaching / just crossed.
+//     Setup A (pre-cross): spot approaching strike from above, not yet crossed,
+//       PE unwind ≥ 3L at that strike → SELL at close, Target=next lower strike,
+//       SL = high of prev 2 (3-min) candles.
+//     Setup B (post-cross): spot crossed below strike without PE unwind → wait for
+//       retracement (bullish) candle, then PE unwind on falling candle → SELL,
+//       only if spot ≥ 40 pts above next lower strike, SL = entry + 20 pts.
+//
+//   BUY (bullish) — spot rising:
+//     Look for CE UNWINDING (call writers covering shorts = they expect further rise = bullish)
+//     at the strike spot is approaching / just crossed.
+//     Setup A (pre-cross): spot approaching strike from below, not yet crossed,
+//       CE unwind ≥ 3L → BUY at close, Target=next higher strike,
+//       SL = low of prev 2 (3-min) candles.
+//     Setup B (post-cross): spot crossed above strike without CE unwind → wait for
+//       retracement (bearish) candle, then CE unwind on rising candle → BUY,
+//       only if spot ≥ 40 pts below next higher strike, SL = entry − 20 pts.
+//
+// One trade at a time. Engine reruns on every history/data refresh.
+// ══════════════════════════════════════════════════════════════════
+
+const PT_MIN_UNWIND   = 300000;   // 3 lakh OI threshold
+const PT_POST_SL_PTS  = 20;       // post-cross SL distance in pts
+const PT_MIN_GAP_PTS  = 40;       // min pts to next strike for post-cross entry
+
+let ptTrades = [];  // filled by ptRunEngine
+
+// ── Tiny formatters ───────────────────────────────────────────────
+function ptFmtOI(v) {
+  const n = Math.abs(Number(v) || 0);
+  if (n >= 1e7) return (v / 1e7).toFixed(2) + ' Cr';
+  if (n >= 1e5) return (v / 1e5).toFixed(1) + ' L';
+  if (n >= 1e3) return (v / 1e3).toFixed(0) + ' K';
+  return Math.round(v).toLocaleString('en-IN');
+}
+function ptFmt(v) {
+  return v == null ? '—' : Number(v).toLocaleString('en-IN', { maximumFractionDigits: 1 });
+}
+function ptFmtPnl(pnl) {
+  if (pnl == null) return '—';
+  const n = Number(pnl);
+  const cls = n > 0 ? 'pt-pnl-pos' : n < 0 ? 'pt-pnl-neg' : '';
+  return `<span class="${cls}">${n > 0 ? '+' : ''}${n.toFixed(1)}</span>`;
+}
+
+// ── Strike helpers ────────────────────────────────────────────────
+function ptNextLower(spot, strikes) {
+  return [...strikes].filter(s => s < spot).sort((a, b) => b - a)[0] ?? null;
+}
+function ptNextHigher(spot, strikes) {
+  return [...strikes].filter(s => s > spot).sort((a, b) => a - b)[0] ?? null;
+}
+// Is spot within `margin` pts of `strike` but on the correct side?
+function ptNear(spot, strike, margin) {
+  return Math.abs(spot - strike) <= margin;
+}
+
+// ── Build 3-min candles from 1-min rows ──────────────────────────
+// Each candle carries per-strike CE/PE net OI change (sum of 1-min deltas)
+function ptBuild3MinCandles(rows1min) {
+  const step = STRIKE_STEP || 50;
+  const out  = [];
+  for (let i = 0; i < rows1min.length; i += 3) {
+    const slice = rows1min.slice(i, i + 3);
+    const first = slice[0];
+    const last  = slice[slice.length - 1];
+    const highs  = slice.map(r => parseFloat(r.spot_high)  || 0).filter(v => v > 0);
+    const lows   = slice.map(r => parseFloat(r.spot_low)   || 0).filter(v => v > 0);
+    const opens  = slice.map(r => parseFloat(r.spot_open)  || 0).filter(v => v > 0);
+    const closes = slice.map(r => parseFloat(r.spot_close) || 0).filter(v => v > 0);
+    if (!closes.length) continue;
+
+    const c = {
+      label : first.time_label,
+      ts    : parseFloat(first.ts) * 1000,
+      open  : opens[0]  || closes[0],
+      high  : highs.length ? Math.max(...highs) : closes[0],
+      low   : lows.length  ? Math.min(...lows)  : closes[0],
+      close : closes[closes.length - 1],
+      oi    : {},  // { strike: { ce, pe } }  — net OI change this candle
+    };
+
+    // Collect all strikes mentioned in this slice
+    const strikeSet = new Set();
+    slice.forEach(r => {
+      Object.keys(r).forEach(k => {
+        const m = k.match(/^s(\d+)_(ce|pe)_oi$/);
+        if (m) strikeSet.add(Number(m[1]));
+      });
+    });
+
+    strikeSet.forEach(st => {
+      const ck = `s${st}_ce`, pk = `s${st}_pe`;
+      // Net OI change = last minute OI − first minute OI (most accurate)
+      const ceFirst = parseFloat(first[ck + '_oi']) || 0;
+      const ceLast  = parseFloat(last[ck  + '_oi']) || 0;
+      const peFirst = parseFloat(first[pk + '_oi']) || 0;
+      const peLast  = parseFloat(last[pk  + '_oi']) || 0;
+      // Fall back to summed deltas if raw OI missing
+      const ceDelta = slice.reduce((s, r) => s + (parseFloat(r[ck + '_delta']) || 0), 0);
+      const peDelta = slice.reduce((s, r) => s + (parseFloat(r[pk + '_delta']) || 0), 0);
+      const ce = (ceFirst > 0 && ceLast > 0) ? (ceLast - ceFirst) : ceDelta;
+      const pe = (peFirst > 0 && peLast > 0) ? (peLast - peFirst) : peDelta;
+      if (ce !== 0 || pe !== 0) c.oi[st] = { ce, pe };
+    });
+
+    out.push(c);
+  }
+  return out;
+}
+
+// OI unwind helpers: returns magnitude (always positive) if unwind detected, else 0
+function ptPeUnwind(candle, strike) {   // PE OI decreased → bearish confirmation
+  const s = candle.oi[strike];
+  return (s && s.pe < 0) ? Math.abs(s.pe) : 0;
+}
+function ptCeUnwind(candle, strike) {   // CE OI decreased → bullish confirmation
+  const s = candle.oi[strike];
+  return (s && s.ce < 0) ? Math.abs(s.ce) : 0;
+}
+
+// ── Main engine ───────────────────────────────────────────────────
+function ptRunEngine(rows) {
+  ptTrades = [];
+  if (!rows || rows.length < 6) return;   // need ≥ 2 candles (2×3 = 6 rows)
+
+  const step    = STRIKE_STEP || 50;
+  const strikes = allStrikes.length ? [...allStrikes].sort((a, b) => a - b)
+                                    : ptDeriveStrikes(rows, step);
+  if (!strikes.length) return;
+
+  const candles = ptBuild3MinCandles(rows);
+  if (candles.length < 2) return;
+
+  let openTrade       = null;
+  let waitSell        = null;   // { crossedStrike, retraced: bool }
+  let waitBuy         = null;   // { crossedStrike, retraced: bool }
+
+  const approach = step * 0.66;   // "approaching" = within 33 pts (for step=50)
+
+  for (let i = 1; i < candles.length; i++) {
+    const c     = candles[i];
+    const p1    = candles[i - 1];
+    const p2    = i >= 2 ? candles[i - 2] : p1;
+
+    if (!c.close) continue;
+    const falling = c.close < c.open - 1;
+    const rising  = c.close > c.open + 1;
+
+    // ── Check exit on open trade ──────────────────────────────────
+    if (openTrade) {
+      const { dir, sl, target } = openTrade;
+      let exitPrice = null, exitReason = null, exitStatus = null;
+
+      if (dir === 'SELL') {
+        if (c.high >= sl)      { exitPrice = sl;     exitReason = 'SL Hit';     exitStatus = 'sl';     }
+        else if (c.low <= target){ exitPrice = target; exitReason = 'Target Hit'; exitStatus = 'target'; }
+      } else {  // BUY
+        if (c.low <= sl)       { exitPrice = sl;     exitReason = 'SL Hit';     exitStatus = 'sl';     }
+        else if (c.high >= target){ exitPrice = target; exitReason = 'Target Hit'; exitStatus = 'target'; }
+      }
+
+      if (exitPrice != null) {
+        openTrade.exitTime   = c.label;
+        openTrade.exitPrice  = exitPrice;
+        openTrade.exitReason = exitReason;
+        openTrade.status     = exitStatus;
+        openTrade.pnl        = dir === 'SELL' ? openTrade.entryPrice - exitPrice
+                                              : exitPrice - openTrade.entryPrice;
+        ptTrades.push({ ...openTrade });
+        openTrade = null;
+        waitSell  = null;
+        waitBuy   = null;
+        continue;
+      }
+    }
+
+    if (openTrade) continue;  // one trade at a time — skip signal detection
+
+    // ═══ SELL SIGNALS (spot falling, look for PE UNWINDING) ═══════
+
+    // Detect fresh downward cross (spot crossed below a strike this candle)
+    if (falling) {
+      const newCross = strikes.find(s => p1.close > s && c.close < s);
+      if (newCross !== undefined) {
+        const peUW = ptPeUnwind(c, newCross);
+        if (peUW >= PT_MIN_UNWIND) {
+          // PE unwind confirmed at the moment of crossing — Setup B immediate
+          const tgt = ptNextLower(c.close, strikes);
+          if (tgt != null && c.close - tgt >= PT_MIN_GAP_PTS) {
+            openTrade = {
+              id: ptTrades.length + 1, dir: 'SELL', setup: 'B',
+              entryTime: c.label, entryPrice: c.close,
+              target: tgt, sl: c.high + PT_POST_SL_PTS,
+              strike: newCross, status: 'open',
+              reason: `Crossed ${newCross}↓ + PE unwind ${ptFmtOI(peUW)} @ cross`,
+            };
+            waitSell = null;
+          }
+        } else {
+          // No unwind yet — enter wait-retrace state
+          waitSell = { crossedStrike: newCross, retraced: false };
+          waitBuy  = null;
+        }
+      }
+    }
+
+    // Setup A — pre-cross: spot falling, approaching a strike (not yet crossed)
+    if (!openTrade && !waitSell && falling) {
+      const nearStrike = strikes.find(s =>
+        c.close > s && p1.close > s &&       // not crossed yet
+        (c.close - s) <= approach &&          // within margin
+        (c.close < p1.close)                  // genuinely falling toward it
+      );
+      if (nearStrike !== undefined) {
+        const peUW = ptPeUnwind(c, nearStrike);
+        if (peUW >= PT_MIN_UNWIND) {
+          const tgt = ptNextLower(nearStrike - 1, strikes);
+          const slV = Math.max(p1.high, p2.high);
+          if (tgt != null) {
+            openTrade = {
+              id: ptTrades.length + 1, dir: 'SELL', setup: 'A',
+              entryTime: c.label, entryPrice: c.close,
+              target: tgt, sl: slV,
+              strike: nearStrike, status: 'open',
+              reason: `Approaching ${nearStrike}↓ (pre-cross) + PE unwind ${ptFmtOI(peUW)}`,
+            };
+          }
+        }
+      }
+    }
+
+    // Setup B — post-cross: waiting for retracement then PE unwind
+    if (!openTrade && waitSell) {
+      const { crossedStrike } = waitSell;
+      // Mark retracement if previous candle was bullish (pullback into fallen zone)
+      if (!waitSell.retraced && p1.close > p1.open) waitSell.retraced = true;
+      // Entry: retracement seen, current candle falling again, PE unwind now
+      if (waitSell.retraced && falling) {
+        const peUW = ptPeUnwind(c, crossedStrike);
+        if (peUW >= PT_MIN_UNWIND) {
+          const tgt = ptNextLower(c.close, strikes);
+          if (tgt != null && c.close - tgt >= PT_MIN_GAP_PTS) {
+            openTrade = {
+              id: ptTrades.length + 1, dir: 'SELL', setup: 'B',
+              entryTime: c.label, entryPrice: c.close,
+              target: tgt, sl: c.close + PT_POST_SL_PTS,
+              strike: crossedStrike, status: 'open',
+              reason: `Post-cross ${crossedStrike}↓: retrace then PE unwind ${ptFmtOI(peUW)}, gap ${(c.close - tgt).toFixed(0)}pts`,
+            };
+            waitSell = null;
+          }
+        }
+      }
+      // Abandon if spot rallies far back above the crossed strike
+      if (c.close > crossedStrike + step) waitSell = null;
+    }
+
+    // ═══ BUY SIGNALS (spot rising, look for CE UNWINDING) ═════════
+
+    // Detect fresh upward cross
+    if (!openTrade && rising) {
+      const newCross = strikes.find(s => p1.close < s && c.close > s);
+      if (newCross !== undefined) {
+        const ceUW = ptCeUnwind(c, newCross);
+        if (ceUW >= PT_MIN_UNWIND) {
+          const tgt = ptNextHigher(c.close, strikes);
+          if (tgt != null && tgt - c.close >= PT_MIN_GAP_PTS) {
+            openTrade = {
+              id: ptTrades.length + 1, dir: 'BUY', setup: 'B',
+              entryTime: c.label, entryPrice: c.close,
+              target: tgt, sl: c.low - PT_POST_SL_PTS,
+              strike: newCross, status: 'open',
+              reason: `Crossed ${newCross}↑ + CE unwind ${ptFmtOI(ceUW)} @ cross`,
+            };
+            waitBuy = null;
+          }
+        } else {
+          waitBuy  = { crossedStrike: newCross, retraced: false };
+          waitSell = null;
+        }
+      }
+    }
+
+    // Setup A — pre-cross bullish: spot rising, approaching a strike from below
+    if (!openTrade && !waitBuy && rising) {
+      const nearStrike = strikes.find(s =>
+        c.close < s && p1.close < s &&
+        (s - c.close) <= approach &&
+        c.close > p1.close
+      );
+      if (nearStrike !== undefined) {
+        const ceUW = ptCeUnwind(c, nearStrike);
+        if (ceUW >= PT_MIN_UNWIND) {
+          const tgt = ptNextHigher(nearStrike + 1, strikes);
+          const slV = Math.min(p1.low, p2.low);
+          if (tgt != null) {
+            openTrade = {
+              id: ptTrades.length + 1, dir: 'BUY', setup: 'A',
+              entryTime: c.label, entryPrice: c.close,
+              target: tgt, sl: slV,
+              strike: nearStrike, status: 'open',
+              reason: `Approaching ${nearStrike}↑ (pre-cross) + CE unwind ${ptFmtOI(ceUW)}`,
+            };
+          }
+        }
+      }
+    }
+
+    // Setup B — post-cross bullish: waiting for retracement then CE unwind
+    if (!openTrade && waitBuy) {
+      const { crossedStrike } = waitBuy;
+      if (!waitBuy.retraced && p1.close < p1.open) waitBuy.retraced = true;  // bearish = pullback
+      if (waitBuy.retraced && rising) {
+        const ceUW = ptCeUnwind(c, crossedStrike);
+        if (ceUW >= PT_MIN_UNWIND) {
+          const tgt = ptNextHigher(c.close, strikes);
+          if (tgt != null && tgt - c.close >= PT_MIN_GAP_PTS) {
+            openTrade = {
+              id: ptTrades.length + 1, dir: 'BUY', setup: 'B',
+              entryTime: c.label, entryPrice: c.close,
+              target: tgt, sl: c.close - PT_POST_SL_PTS,
+              strike: crossedStrike, status: 'open',
+              reason: `Post-cross ${crossedStrike}↑: retrace then CE unwind ${ptFmtOI(ceUW)}, gap ${(tgt - c.close).toFixed(0)}pts`,
+            };
+            waitBuy = null;
+          }
+        }
+      }
+      if (c.close < crossedStrike - step) waitBuy = null;
+    }
+  }  // end candle loop
+
+  // Any still-open trade at session end
+  if (openTrade) {
+    const last = candles[candles.length - 1];
+    openTrade.lastSpot = last.close;
+    openTrade.pnl = openTrade.dir === 'SELL'
+      ? openTrade.entryPrice - last.close
+      : last.close - openTrade.entryPrice;
+    ptTrades.push({ ...openTrade });
+  }
+}
+
+// Derive strike list from raw rows when allStrikes not populated
+function ptDeriveStrikes(rows, step) {
+  const spots = rows.map(r => parseFloat(r.spot_close) || 0).filter(v => v > 0);
+  if (!spots.length) return [];
+  const lo = Math.floor(Math.min(...spots) / step) * step - step * 6;
+  const hi = Math.ceil(Math.max(...spots) / step)  * step + step * 6;
+  const out = [];
+  for (let s = lo; s <= hi; s += step) out.push(s);
+  return out;
+}
+
+// ── Render ────────────────────────────────────────────────────────
+function ptRenderAll() {
+  ptRunEngine(minuteRows);
+
+  const open   = ptTrades.filter(t => t.status === 'open');
+  const closed = ptTrades.filter(t => t.status !== 'open');
+  const wins   = closed.filter(t => (t.pnl || 0) > 0);
+  const losses = closed.filter(t => (t.pnl || 0) < 0);
+  const slHit  = closed.filter(t => t.status === 'sl');
+  const netPnl = closed.reduce((s, t) => s + (t.pnl || 0), 0);
+  const wr     = closed.length ? ((wins.length / closed.length) * 100).toFixed(0) + '%' : '—';
+
+  const el = id => document.getElementById(id);
+
+  // Stats
+  if (el('pt-total'))     el('pt-total').textContent     = ptTrades.length;
+  if (el('pt-open-count'))el('pt-open-count').textContent= open.length;
+  if (el('pt-wins'))      el('pt-wins').textContent      = wins.length;
+  if (el('pt-losses'))    el('pt-losses').textContent    = losses.length;
+  if (el('pt-sl-count'))  el('pt-sl-count').textContent  = slHit.length;
+  if (el('pt-winrate'))   el('pt-winrate').textContent   = wr;
+  const pnlEl = el('pt-net-pnl');
+  if (pnlEl) {
+    pnlEl.textContent = (netPnl > 0 ? '+' : '') + netPnl.toFixed(1);
+    pnlEl.style.color = netPnl > 0 ? '#1D9E75' : netPnl < 0 ? '#D85A30' : '#1a1a1a';
+  }
+
+  // Mode badge
+  const badge = el('pt-mode-badge');
+  if (badge) {
+    const isHistorical = !!selectedDate && selectedDate !== todayIST();
+    badge.textContent  = isHistorical ? `📅 ${selectedDate}` : '🔴 Live';
+    badge.className    = 'eod-sentiment-pill ' + (isHistorical ? 'eod-sentiment-neutral' : 'eod-sentiment-bull');
+  }
+
+  // Open trades table
+  const openBody = el('pt-open-body');
+  if (openBody) {
+    if (!open.length) {
+      openBody.innerHTML = '<tr><td colspan="9" class="pt-empty">No open positions</td></tr>';
+    } else {
+      openBody.innerHTML = open.map(t => {
+        const unreal = t.pnl != null ? ptFmtPnl(t.pnl) : '—';
+        const dirBadge = t.dir === 'SELL'
+          ? `<span class="pt-badge pt-sell">▼ SELL</span>`
+          : `<span class="pt-badge pt-buy">▲ BUY</span>`;
+        const setupBadge = `<span class="pt-badge pt-open-badge">${t.setup}</span>`;
+        return `<tr>
+          <td>${t.entryTime}</td>
+          <td>${dirBadge}</td>
+          <td><strong>${ptFmt(t.entryPrice)}</strong></td>
+          <td style="color:#1D9E75;">${ptFmt(t.target)}</td>
+          <td style="color:#D85A30;">${ptFmt(t.sl)}</td>
+          <td>${setupBadge}</td>
+          <td class="pt-reason">${t.reason || '—'}</td>
+          <td>${ptFmt(t.lastSpot || currentSpot)}</td>
+          <td>${unreal}</td>
+        </tr>`;
+      }).join('');
+    }
+  }
+
+  // Closed trades table
+  const closedBody = el('pt-closed-body');
+  if (closedBody) {
+    if (!closed.length) {
+      closedBody.innerHTML = '<tr><td colspan="10" class="pt-empty">No closed trades yet — run the engine on a day with data</td></tr>';
+    } else {
+      closedBody.innerHTML = [...closed].reverse().map(t => {
+        const dirBadge = t.dir === 'SELL'
+          ? `<span class="pt-badge pt-sell">▼ SELL</span>`
+          : `<span class="pt-badge pt-buy">▲ BUY</span>`;
+        const resultBadge = t.status === 'target'
+          ? `<span class="pt-badge pt-win">✓ Target</span>`
+          : t.status === 'sl'
+          ? `<span class="pt-badge pt-sl">✕ SL</span>`
+          : `<span class="pt-badge">—</span>`;
+        return `<tr>
+          <td>${t.entryTime}</td>
+          <td>${t.exitTime || '—'}</td>
+          <td>${dirBadge}</td>
+          <td><strong>${ptFmt(t.entryPrice)}</strong></td>
+          <td>${ptFmt(t.exitPrice)}</td>
+          <td style="color:#D85A30;">${ptFmt(t.sl)}</td>
+          <td style="color:#1D9E75;">${ptFmt(t.target)}</td>
+          <td>${ptFmtPnl(t.pnl)}</td>
+          <td>${resultBadge}</td>
+          <td class="pt-reason">${t.reason || '—'}</td>
+        </tr>`;
+      }).join('');
+    }
+  }
+}
+
+function ptClearAll() {
+  ptTrades = [];
+  ptRenderAll();
 }
 
 // ── EOD OI SUMMARY ────────────────────────────────────────────────
