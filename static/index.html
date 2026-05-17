@@ -272,6 +272,30 @@ tr:last-child td{border-bottom:none;}
 
 /* ── OPTION CHAIN ── */
 .oc-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;}
+/* ── EOD OI Summary ── */
+.eod-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;}
+.eod-title{font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:4px;display:flex;align-items:center;gap:8px;}
+.eod-sub{font-size:11px;color:#888;margin-bottom:12px;}
+.eod-table{width:100%;border-collapse:collapse;font-size:12px;}
+.eod-table th{padding:6px 10px;background:#f8f8f5;font-weight:600;font-size:11px;color:#555;border-bottom:1.5px solid #e0e0da;white-space:nowrap;}
+.eod-table td{padding:6px 10px;border-bottom:0.5px solid #f2f2ee;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.eod-table tr:last-child td{border-bottom:none;}
+.eod-table tr:hover td{background:#fafaf8;}
+.eod-strike-label{font-weight:600;color:#1a1a1a;}
+.eod-badge{display:inline-block;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;}
+.eod-add{color:#D85A30;background:#FAECE7;}
+.eod-rem{color:#185FA5;background:#E6F1FB;}
+.eod-add-pe{color:#1D9E75;background:#E1F5EE;}
+.eod-rem-pe{color:#8B4513;background:#FAEEDA;}
+.eod-net-bull{color:#1D9E75;font-weight:600;}
+.eod-net-bear{color:#D85A30;font-weight:600;}
+.eod-net-neutral{color:#888;font-weight:600;}
+.eod-sentiment-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.eod-sentiment-bull{background:#E1F5EE;color:#1D9E75;}
+.eod-sentiment-bear{background:#FAECE7;color:#D85A30;}
+.eod-sentiment-neutral{background:#f0f0ec;color:#666;}
+.eod-section-header{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px 4px;background:#f8f8f5;border-bottom:0.5px solid #e8e8e4;}
+.eod-rank{color:#aaa;font-size:10px;min-width:16px;display:inline-block;text-align:right;margin-right:4px;}
 .oc-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;}
 .oc-title{font-size:13px;font-weight:500;}
 .oc-meta{font-size:11px;color:#888;}
@@ -858,6 +882,34 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 
+<!-- ── EOD OI SUMMARY TABLE ── -->
+<div class="eod-card" id="eod-summary-card">
+  <div class="eod-title">
+    📊 End-of-Day OI Summary
+    <span class="eod-sentiment-pill eod-sentiment-neutral" id="eod-sentiment-pill">—</span>
+    <span style="font-size:11px;color:#aaa;font-weight:400;margin-left:4px;" id="eod-summary-meta"></span>
+  </div>
+  <div class="eod-sub">Cumulative OI change across the whole day — which strikes saw the biggest addition/removal</div>
+  <div style="overflow-x:auto;">
+    <table class="eod-table" id="eod-table">
+      <thead>
+        <tr>
+          <th style="text-align:left;">Category</th>
+          <th style="text-align:left;">#1 Strike</th>
+          <th style="text-align:right;">OI Change</th>
+          <th style="text-align:left;">#2 Strike</th>
+          <th style="text-align:right;">OI Change</th>
+          <th style="text-align:left;">#3 Strike</th>
+          <th style="text-align:right;">OI Change</th>
+        </tr>
+      </thead>
+      <tbody id="eod-body">
+        <tr><td colspan="7" style="text-align:center;padding:20px;color:#aaa;font-size:12px;">Waiting for history data…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
 </div><!-- end tab-option-chain-panel -->
 
 <!-- ══════════════════════════════════════════════════════════════════
@@ -1038,6 +1090,7 @@ function switchTab(tabName) {
   });
   if (tabName === 'option-chain') {
     renderOptionChain();
+    renderEODSummary(minuteRows);
     setTimeout(scrollOCtoATM, 80);
     // Refresh ticker + max pain when switching to this tab
     updateOCTicker(currentSpot, ocExpiryDate);
@@ -1164,8 +1217,10 @@ async function loadHistoricalData(date) {
     }
 
     rebuildCharts();
-
-    // Seed ticker open price from first history row
+    // Update EOD summary
+    if (document.getElementById('tab-option-chain-panel')?.classList.contains('active')) {
+      renderEODSummary(minuteRows);
+    }
     if (minuteRows.length) {
       const firstRow = minuteRows[0];
       const openSpot = parseFloat(firstRow.spot_open || firstRow.spot_close || 0);
@@ -1814,6 +1869,10 @@ async function fetchHistory() {
     document.getElementById('rows-info').textContent = minuteRows.length+' 1-min rows (market hours)';
     // Pre-seed OI deltas from history so CHG OI shows immediately in option chain
     _seedAllOIDeltasFromHistory();
+    // Update EOD summary if option chain tab is visible
+    if (document.getElementById('tab-option-chain-panel')?.classList.contains('active')) {
+      renderEODSummary(minuteRows);
+    }
     rebuildCharts();
   } catch(e) {}
 }
@@ -3210,6 +3269,124 @@ function fmtDeltaOI(v) {
   if (Math.abs(v) < 1) return '—';
   const sign = v > 0 ? '+' : '-';
   return sign + fmtOI(Math.abs(v));
+}
+
+// ── EOD OI SUMMARY ────────────────────────────────────────────────
+// Computes whole-day cumulative OI change per strike (last row OI - first row OI)
+// and categorises into: CE Added, CE Removed, PE Added, PE Removed
+function renderEODSummary(rows) {
+  const body = document.getElementById('eod-body');
+  const pill = document.getElementById('eod-sentiment-pill');
+  const meta = document.getElementById('eod-summary-meta');
+  if (!body) return;
+
+  function fmtOIEod(v) {
+    const n = Number(v) || 0;
+    const a = Math.abs(n);
+    const s = a >= 1e7 ? (n / 1e7).toFixed(2) + ' Cr'
+            : a >= 1e5 ? (n / 1e5).toFixed(1) + ' L'
+            : a >= 1e3 ? (n / 1e3).toFixed(1) + ' K'
+            : Math.round(n).toLocaleString('en-IN');
+    return s;
+  }
+  function fmtDelta(v) {
+    const n = Number(v) || 0;
+    return (n > 0 ? '+' : '') + fmtOIEod(n);
+  }
+
+  const cleanRows = [...(rows || [])].filter(r => r && (parseFloat(r.ts) || 0) > 0)
+    .sort((a, b) => (parseFloat(a.ts) || 0) - (parseFloat(b.ts) || 0));
+
+  if (cleanRows.length < 2) {
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#aaa;font-size:12px;">Need at least 2 candles of data</td></tr>';
+    if (pill) { pill.textContent = '—'; pill.className = 'eod-sentiment-pill eod-sentiment-neutral'; }
+    if (meta) meta.textContent = '';
+    return;
+  }
+
+  const first = cleanRows[0];
+  const last  = cleanRows[cleanRows.length - 1];
+
+  // Collect all strike keys that appear in the data
+  const strikeSet = {};
+  cleanRows.forEach(r => {
+    Object.keys(r).forEach(k => {
+      const m = k.match(/^s(\d+)_(ce|pe)_oi$/);
+      if (m) {
+        const key = 's' + m[1] + '_' + m[2];
+        if (!strikeSet[key]) strikeSet[key] = { strike: Number(m[1]), side: m[2].toUpperCase() };
+      }
+    });
+  });
+
+  // Compute day-total OI change = last candle OI - first candle OI
+  const changes = Object.entries(strikeSet).map(([key, info]) => {
+    const oiField = key + '_oi';
+    const firstOI = parseFloat(first[oiField]) || 0;
+    const lastOI  = parseFloat(last[oiField])  || 0;
+    const delta   = lastOI - firstOI;
+    return { key, strike: info.strike, side: info.side, delta, lastOI, firstOI };
+  }).filter(x => x.firstOI > 0 || x.lastOI > 0);
+
+  const ceChanges = changes.filter(x => x.side === 'CE');
+  const peChanges = changes.filter(x => x.side === 'PE');
+
+  const ceAdded   = [...ceChanges].filter(x => x.delta > 0).sort((a,b) => b.delta - a.delta);
+  const ceRemoved = [...ceChanges].filter(x => x.delta < 0).sort((a,b) => a.delta - b.delta);
+  const peAdded   = [...peChanges].filter(x => x.delta > 0).sort((a,b) => b.delta - a.delta);
+  const peRemoved = [...peChanges].filter(x => x.delta < 0).sort((a,b) => a.delta - b.delta);
+
+  function rowCells(items, badgeCls, n = 3) {
+    const top = items.slice(0, n);
+    let cells = '';
+    for (let i = 0; i < n; i++) {
+      const item = top[i];
+      if (item) {
+        cells += `<td class="eod-strike-label" style="text-align:left;">${item.strike.toLocaleString('en-IN')}</td>`;
+        cells += `<td style="text-align:right;"><span class="eod-badge ${badgeCls}">${fmtDelta(item.delta)}</span> <span style="color:#aaa;font-size:10px;">(${fmtOIEod(item.lastOI)})</span></td>`;
+      } else {
+        cells += '<td style="color:#ccc;text-align:left;">—</td><td></td>';
+      }
+    }
+    return cells;
+  }
+
+  const rows4 = [
+    { label: '📈 Call OI Added',   items: ceAdded,   badgeCls: 'eod-add',    desc: 'Strikes where writers added CE positions (bearish pressure)' },
+    { label: '📉 Call OI Removed', items: ceRemoved, badgeCls: 'eod-rem',    desc: 'Strikes where CE unwinding happened (bullish relief)' },
+    { label: '📈 Put OI Added',    items: peAdded,   badgeCls: 'eod-add-pe', desc: 'Strikes where writers added PE positions (bullish support)' },
+    { label: '📉 Put OI Removed',  items: peRemoved, badgeCls: 'eod-rem-pe', desc: 'Strikes where PE unwinding happened (bearish signal)' },
+  ];
+
+  const htmlRows = rows4.map(({ label, items, badgeCls, desc }) => {
+    return `<tr title="${desc}">
+      <td style="font-size:11px;font-weight:600;color:#444;white-space:nowrap;">${label}</td>
+      ${rowCells(items, badgeCls, 3)}
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = htmlRows || '<tr><td colspan="7" style="text-align:center;padding:16px;color:#aaa;">No OI data found</td></tr>';
+
+  // ── Sentiment logic ──
+  // CE Added (bearish) vs PE Added (bullish) vs CE Removed (bullish) vs PE Removed (bearish)
+  const totalCeAdded   = ceAdded.reduce((s, x) => s + x.delta, 0);
+  const totalCeRemoved = ceRemoved.reduce((s, x) => s + Math.abs(x.delta), 0);
+  const totalPeAdded   = peAdded.reduce((s, x) => s + x.delta, 0);
+  const totalPeRemoved = peRemoved.reduce((s, x) => s + Math.abs(x.delta), 0);
+
+  // Bullish score: PE added + CE removed (writers protect downside, CE shorts cover)
+  // Bearish score: CE added + PE removed (call writers pile in, puts unwound)
+  const bullScore = totalPeAdded + totalCeRemoved;
+  const bearScore = totalCeAdded + totalPeRemoved;
+  const ratio = bullScore + bearScore > 0 ? bullScore / (bullScore + bearScore) : 0.5;
+
+  let sentiment, sentCls;
+  if (ratio >= 0.57) { sentiment = '🟢 Bullish'; sentCls = 'eod-sentiment-bull'; }
+  else if (ratio <= 0.43) { sentiment = '🔴 Bearish'; sentCls = 'eod-sentiment-bear'; }
+  else { sentiment = '⚪ Neutral'; sentCls = 'eod-sentiment-neutral'; }
+
+  if (pill) { pill.textContent = sentiment; pill.className = 'eod-sentiment-pill ' + sentCls; }
+  if (meta) meta.textContent = `${cleanRows.length} candles · ${first.time_label || '—'} → ${last.time_label || '—'}`;
 }
 
 function renderOptionChain() {
