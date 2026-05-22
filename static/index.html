@@ -4974,6 +4974,7 @@ _initBadge.className = 'date-mode-badge live';
 _initBadge.textContent = '● Live';
 
 fetchAvailableDates();
+syncExtraChartCards();   // build extra chart cards for default numCharts=5 before first data fetch
 fetchOI().then(()=>fetchHistory());
 fetchLTP();
 fetchLiveCandle();
