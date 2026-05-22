@@ -421,6 +421,34 @@ tr:last-child td{border-bottom:none;}
 .pt-rule-box strong{color:#1a1a1a;}
 .pt-live-dot{width:7px;height:7px;border-radius:50%;background:#1D9E75;display:inline-block;animation:blink 1.5s infinite;margin-right:4px;}
 .pt-candle-label{font-size:10px;color:#aaa;margin-left:4px;}
+/* ── COLLAPSIBLE SECTIONS ── */
+.collapsible-section{background:#fff;border:0.5px solid #ddd;border-radius:10px;margin-bottom:12px;overflow:hidden;}
+.collapsible-section .index-chart-card,
+.collapsible-section .bias-block,
+.collapsible-section .grid2,
+.collapsible-section .dual-grid,
+.collapsible-section .conf-summary,
+.collapsible-section .three-charts-col,
+.collapsible-section .roll-log,
+.collapsible-section .chart-controls{border:none;border-radius:0;margin-bottom:0;}
+.cs-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;user-select:none;background:#fff;border-radius:10px;transition:background .15s;}
+.cs-header:hover{background:#f8f8f5;}
+.cs-header-left{display:flex;align-items:center;gap:8px;}
+.cs-title{font-size:13px;font-weight:500;color:#1a1a1a;}
+.cs-badge{font-size:10px;padding:2px 8px;border-radius:20px;background:#f0f0ec;color:#666;border:0.5px solid #ddd;}
+.cs-chevron{font-size:11px;color:#aaa;transition:transform .2s;display:inline-block;margin-left:6px;}
+.cs-header.open .cs-chevron{transform:rotate(180deg);}
+.cs-body{display:none;border-top:0.5px solid #eee;}
+.cs-body.open{display:block;}
+.cs-body > .index-chart-card,
+.cs-body > .chart-controls,
+.cs-body > .bias-block,
+.cs-body > .grid2,
+.cs-body > .dual-grid,
+.cs-body > .conf-summary,
+.cs-body > .roll-log{margin-bottom:0;}
+/* OI charts col lives directly in cs-body */
+.cs-body > #oi-charts-col{padding:0;}
 </style>
 </head>
 <body>
@@ -491,18 +519,36 @@ tr:last-child td{border-bottom:none;}
 <div class="alert alert-roll"  id="alert-roll"></div>
 
 <!-- Bias -->
-<div class="bias-block">
-  <div class="bias-big neutral" id="bias-big">—</div>
-  <div class="bias-desc" id="bias-desc">Waiting for first reading...</div>
-  <div>
-    <div style="font-size:11px;color:#888;margin-bottom:4px;">Streak (last 12)</div>
-    <div class="streak" id="streak-dots"></div>
-    <div class="streak-label" id="streak-label"></div>
+<div class="collapsible-section">
+  <div class="cs-header" onclick="toggleSection(this)" id="cs-bias">
+    <div class="cs-header-left">
+      <span class="cs-title">📊 Bias &amp; Streak</span>
+    </div>
+    <span class="cs-chevron">▼</span>
+  </div>
+  <div class="cs-body">
+    <div class="bias-block" style="border-radius:0;margin-bottom:0;">
+      <div class="bias-big neutral" id="bias-big">—</div>
+      <div class="bias-desc" id="bias-desc">Waiting for first reading...</div>
+      <div>
+        <div style="font-size:11px;color:#888;margin-bottom:4px;">Streak (last 12)</div>
+        <div class="streak" id="streak-dots"></div>
+        <div class="streak-label" id="streak-label"></div>
+      </div>
+    </div>
   </div>
 </div>
 
 <!-- OI summary cards (uses s2 = ATM/middle chart strike) -->
-<div class="grid2">
+<div class="collapsible-section">
+  <div class="cs-header" onclick="toggleSection(this)" id="cs-oi-summary">
+    <div class="cs-header-left">
+      <span class="cs-title">📋 OI Summary Cards</span>
+    </div>
+    <span class="cs-chevron">▼</span>
+  </div>
+  <div class="cs-body">
+    <div class="grid2" style="border-radius:0;margin-bottom:0;padding:12px;">
   <div class="card">
     <div class="card-title" id="bear-card-title">Strike 1 (top)</div>
     <div class="oi-row"><span class="oi-muted" id="bc-lbl">— CE</span><span id="bc-oi" style="font-weight:500">—</span></div>
@@ -527,10 +573,20 @@ tr:last-child td{border-bottom:none;}
     <div class="bar-wrap"><div class="bar" id="bull-bar" style="background:#1D9E75;width:50%;"></div></div>
     <div class="dom-label" id="bull-dom-label"></div>
   </div>
+    </div>
+  </div>
 </div>
 
 <!-- ── NIFTY INDEX CHART ── -->
-<div class="index-chart-card">
+<div class="collapsible-section">
+  <div class="cs-header" onclick="toggleSection(this)" id="cs-nifty-chart">
+    <div class="cs-header-left">
+      <span class="cs-title">📈 Nifty Price Chart</span>
+    </div>
+    <span class="cs-chevron">▼</span>
+  </div>
+  <div class="cs-body">
+    <div class="index-chart-card" style="border-radius:0;margin-bottom:0;">
   <div class="index-chart-title">Nifty 50 — price chart · candle colour = dominant OI move</div>
   <div class="index-chart-sub" id="index-chart-sub">Colour = dominant OI move across both selected strikes (CE building / PE building / CE unwinding / PE unwinding)</div>
   <div class="index-legend">
@@ -549,10 +605,20 @@ tr:last-child td{border-bottom:none;}
     <svg id="svgIndexYAxis" class="yaxis-overlay" style="display:block;"></svg>
   </div>
   <div class="signal-strip" id="index-strip"></div>
+    </div>
+  </div>
 </div>
 
 <!-- ── CUMULATIVE OI CHANGE CHART ── -->
-<div class="index-chart-card" id="cumoi-card">
+<div class="collapsible-section">
+  <div class="cs-header" onclick="toggleSection(this)" id="cs-cumoi">
+    <div class="cs-header-left">
+      <span class="cs-title">📊 Cumulative OI Change</span>
+    </div>
+    <span class="cs-chevron">▼</span>
+  </div>
+  <div class="cs-body">
+    <div class="index-chart-card" id="cumoi-card" style="border-radius:0;margin-bottom:0;">
   <div class="index-chart-title">Cumulative OI Change — All Strikes</div>
   <div class="index-chart-sub" id="cumoi-sub">Aggregate CE and PE OI change from session start across all tracked strikes</div>
   <div class="index-legend">
@@ -572,10 +638,20 @@ tr:last-child td{border-bottom:none;}
     <span>Total PE Δ: <span id="cumoi-pe-total" style="font-weight:500;">—</span></span>
     <span>PCR (OI): <span id="cumoi-pcr" style="font-weight:500;">—</span></span>
   </div>
+    </div>
+  </div>
 </div>
 
 <!-- ── CHART SIZE CONTROLS ── -->
-<div class="chart-controls">
+<div class="collapsible-section">
+  <div class="cs-header" onclick="toggleSection(this)" id="cs-chart-controls">
+    <div class="cs-header-left">
+      <span class="cs-title">⚙️ Chart Size Controls</span>
+    </div>
+    <span class="cs-chevron">▼</span>
+  </div>
+  <div class="cs-body">
+    <div class="chart-controls" style="border-radius:0;margin-bottom:0;">
   <label>Charts:</label>
   <select id="ctrl-ncharts" onchange="onNumChartsChange(this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;">
     <option value="1">1 — ATM only</option>
@@ -597,10 +673,21 @@ tr:last-child td{border-bottom:none;}
   <label style="margin-left:10px;">Index height:</label>
   <input type="range" id="ctrl-ih" min="100" max="400" value="200" step="10" oninput="onCtrlChange()">
   <span id="ctrl-ih-val">200</span>px
+    </div>
+  </div>
 </div>
 
 <!-- ── DUAL CONFLUENCE CHARTS (kept for bear/bull CE/PE activity) ── -->
-<div class="dual-grid">
+<div class="collapsible-section">
+  <div class="cs-header" onclick="toggleSection(this)" id="cs-confluence">
+    <div class="cs-header-left">
+      <span class="cs-title">🔍 Confluence Charts &amp; Summary</span>
+    </div>
+    <span class="cs-chevron">▼</span>
+  </div>
+  <div class="cs-body">
+    <div style="padding:12px;">
+<div class="dual-grid" style="margin-bottom:12px;">
   <div class="conf-card bear-card">
     <div class="conf-title bear" id="bear-conf-title">Top strike lens</div>
     <div class="conf-sub" id="bear-conf-sub">CE option LTP price · colour = activity type</div>
@@ -659,7 +746,7 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 <!-- Confluence summary -->
-<div class="conf-summary">
+<div class="conf-summary" style="margin-bottom:0;">
   <div class="conf-sum-title" id="conf-sum-title">Confluence reading — latest interval</div>
   <div class="conf-sum-row">
     <span class="conf-sum-label" id="bear-sum-label">Strike 1 —</span>
@@ -673,6 +760,9 @@ tr:last-child td{border-bottom:none;}
   </div>
   <div class="conf-interp" id="conf-interp">Waiting for first candle...</div>
 </div>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════════════════════════════
      STRIKE OI DELTA CHARTS (stacked vertically)
@@ -680,6 +770,14 @@ tr:last-child td{border-bottom:none;}
      S1 = top (ATM+N), S2 = middle (ATM), S3 = bottom (ATM-N)
      Extra cards are injected/removed dynamically.
 ════════════════════════════════════════════════════════════════ -->
+<div class="collapsible-section">
+  <div class="cs-header open" onclick="toggleSection(this)" id="cs-oi-charts">
+    <div class="cs-header-left">
+      <span class="cs-title">📉 CE vs PE OI Delta Charts</span>
+    </div>
+    <span class="cs-chevron">▼</span>
+  </div>
+  <div class="cs-body open">
 <div class="three-charts-col" id="oi-charts-col">
 
   <!-- ── Extra charts ABOVE s1 (prepended by JS for 5/7/9 mode) ── -->
@@ -809,11 +907,22 @@ tr:last-child td{border-bottom:none;}
   <div id="extra-charts-below"></div>
 
 </div><!-- end oi-charts-col -->
+  </div><!-- end cs-body -->
+</div><!-- end collapsible-section oi-charts -->
 
 <!-- Roll log -->
-<div class="roll-log">
-  <div class="card-title" style="margin-bottom:8px;">Strike roll history</div>
-  <div id="roll-log-body" style="font-size:12px;color:#888;">No rolls today.</div>
+<div class="collapsible-section">
+  <div class="cs-header" onclick="toggleSection(this)" id="cs-roll-log">
+    <div class="cs-header-left">
+      <span class="cs-title">🔁 Strike Roll History</span>
+    </div>
+    <span class="cs-chevron">▼</span>
+  </div>
+  <div class="cs-body">
+    <div class="roll-log" style="border-radius:0;margin-bottom:0;">
+      <div id="roll-log-body" style="font-size:12px;color:#888;">No rolls today.</div>
+    </div>
+  </div>
 </div>
 
 </div><!-- end tab-dashboard-panel -->
@@ -1216,7 +1325,15 @@ function switchTab(tabName) {
   }
 }
 
-// ── CONFIG ────────────────────────────────────────────────────────
+// ── COLLAPSIBLE SECTIONS ──────────────────────────────────────────
+function toggleSection(headerEl) {
+  const body = headerEl.nextElementSibling;
+  const isOpen = headerEl.classList.contains('open');
+  headerEl.classList.toggle('open', !isOpen);
+  body.classList.toggle('open', !isOpen);
+}
+
+
 const BRIDGE       = '';
 const POLL_OI_SEC  = 30;
 const POLL_HX_SEC  = 60;
@@ -1883,6 +2000,9 @@ function updateLTP(data) {
         if (prev && ltp !== prev) { const cls = ltp>prev?'flash-up':'flash-down'; el.classList.add(cls); setTimeout(()=>el.classList.remove(cls),600); }
       }
       prevLtp[ceKey] = ltp;
+      // Keep chart header title in sync with CE LTP
+      const titleEl = document.getElementById(pfx+'-chart-title');
+      if (titleEl) titleEl.textContent = st + ' CE ' + (ltp ? fmt(ltp) : '—') + ' LTP — CE vs PE OI delta';
     }
     if (peD) {
       const symEl = document.getElementById(pfx+'-pe-sym');
@@ -2171,7 +2291,11 @@ function processSnapshot(data) {
     const st = selectedStrikes[idx];
     const pfx = slotPfx(idx);
     const el = document.getElementById(pfx+'-chart-title');
-    if (el) el.textContent = st + ' — CE vs PE OI delta';
+    if (el) {
+      const ltpEl = document.getElementById(pfx+'-ce-ltp');
+      const ltpVal = ltpEl ? ltpEl.textContent : '—';
+      el.textContent = st + ' CE ' + ltpVal + ' LTP — CE vs PE OI delta';
+    }
   }
 
   // Update confluence titles (top slot = bear lens, bottom slot = bull lens)
