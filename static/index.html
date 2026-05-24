@@ -1236,12 +1236,10 @@ tr:last-child td{border-bottom:none;}
   </div>
   <!-- Strategy rules -->
   <div class="pt-rule-box">
-    <strong>SELL Setup A (bearish — spot falling):</strong> When spot is falling and approaching a 50-pt strike (not yet crossed), look for <em>PE unwinding</em> ≥ 3L at that strike → SELL. Target = next lower strike. SL = high of prev 2 (3-min) candles.<br>
-    <strong>SELL Setup B (post-cross):</strong> If spot crossed below a strike with no PE unwind → wait for a retracement (up) candle, then PE unwind on the next falling candle → SELL, only if spot ≥ 40 pts above the next lower strike. SL = entry + 20 pts.<br>
+    <strong>SELL Setup B (post-cross):</strong> Spot crosses below a strike. If PE unwind ≥ 3L at the moment of crossing → SELL immediately. Otherwise wait for a retracement (bullish candle), then PE unwind ≥ 3L on the next falling candle → SELL, only if spot ≥ 40 pts above the next lower strike. SL = entry + 20 pts.<br>
     <strong>SELL Setup C (reversal candle breakdown):</strong> After a falling candle, if the next candle is bullish (bounce) <em>and</em> ATM put OI unwinds ≥ 2L on that bounce candle → the bounce is just short-covering. Arm a SELL. Entry when any subsequent candle breaks <em>below</em> the reversal candle's low. Target = next lower 50-pt strike. SL = reversal candle's high + 30 pts.<br>
-    <strong>BUY Setup C (reversal candle breakout):</strong> Symmetrical — after a rising candle, bearish reversal candle with ATM CE unwind ≥ 2L → arm a BUY. Entry when price breaks <em>above</em> the reversal candle's high. Target = next higher strike. SL = reversal candle's low − 30 pts.
-    <strong>BUY Setup A (bullish — spot rising):</strong> When spot is rising and approaching a strike (not yet crossed), look for <em>CE unwinding</em> ≥ 3L → BUY. Target = next higher strike. SL = low of prev 2 candles.<br>
-    <strong>BUY Setup B (post-cross):</strong> Symmetrical — retracement (down) candle, then CE unwind → BUY, ≥ 40 pts gap. SL = entry − 20 pts.
+    <strong>BUY Setup B (post-cross):</strong> Spot crosses above a strike. CE unwind ≥ 3L at cross → BUY immediately. Otherwise wait for a retracement (bearish candle), then CE unwind ≥ 3L on the next rising candle → BUY, ≥ 40 pts gap to next higher strike. SL = entry − 20 pts.<br>
+    <strong>BUY Setup C (reversal candle breakout):</strong> After a rising candle, bearish reversal candle with ATM CE unwind ≥ 2L → arm a BUY. Entry when price breaks <em>above</em> the reversal candle's high. Target = next higher strike. SL = reversal candle's low − 30 pts.
   </div>
   <!-- Stats bar -->
   <div class="pt-stats" id="pt-stats">
@@ -3520,22 +3518,20 @@ function fmtDeltaOI(v) {
 //   SELL (bearish) — spot falling:
 //     Look for PE UNWINDING (put writers covering shorts = they expect further fall = bearish)
 //     at the strike spot is approaching / just crossed.
-//     Setup A (pre-cross): spot approaching strike from above, not yet crossed,
-//       PE unwind ≥ 3L at that strike → SELL at close, Target=next lower strike,
-//       SL = high of prev 2 (3-min) candles.
-//     Setup B (post-cross): spot crossed below strike without PE unwind → wait for
-//       retracement (bullish) candle, then PE unwind on falling candle → SELL,
+//     Setup B (post-cross): spot crossed below strike → PE unwind ≥ 3L at cross
+//       → SELL immediately. Or wait for retracement then PE unwind → SELL,
 //       only if spot ≥ 40 pts above next lower strike, SL = entry + 20 pts.
+//     Setup C (reversal candle): falling candle → bullish bounce + ATM PE unwind ≥ 2L
+//       → arm. Next candle breaks below bounce-low → SELL. SL = bounce-high + 30 pts.
 //
 //   BUY (bullish) — spot rising:
 //     Look for CE UNWINDING (call writers covering shorts = they expect further rise = bullish)
-//     at the strike spot is approaching / just crossed.
-//     Setup A (pre-cross): spot approaching strike from below, not yet crossed,
-//       CE unwind ≥ 3L → BUY at close, Target=next higher strike,
-//       SL = low of prev 2 (3-min) candles.
-//     Setup B (post-cross): spot crossed above strike without CE unwind → wait for
-//       retracement (bearish) candle, then CE unwind on rising candle → BUY,
+//     at the strike spot just crossed.
+//     Setup B (post-cross): spot crossed above strike → CE unwind ≥ 3L at cross
+//       → BUY immediately. Or wait for retracement then CE unwind → BUY,
 //       only if spot ≥ 40 pts below next higher strike, SL = entry − 20 pts.
+//     Setup C (reversal candle): rising candle → bearish dip + ATM CE unwind ≥ 2L
+//       → arm. Next candle breaks above dip-high → BUY. SL = dip-low − 30 pts.
 //
 // One trade at a time. Engine reruns on every history/data refresh.
 // ══════════════════════════════════════════════════════════════════
@@ -3676,7 +3672,6 @@ function ptRunEngine(rows) {
   let waitRevSell = null;  // { revLow, revHigh, atmStrike, label }
   let waitRevBuy  = null;  // { revLow, revHigh, atmStrike, label }
 
-  const approach = step * 0.66;   // "approaching" = within 33 pts (for step=50)
 
   for (let i = 1; i < candles.length; i++) {
     const c     = candles[i];
@@ -3828,31 +3823,6 @@ function ptRunEngine(rows) {
       }
     }
 
-    // Setup A — pre-cross: spot falling, approaching a strike (not yet crossed)
-    if (!openTrade && !waitSell && falling) {
-      const nearStrike = strikes.find(s =>
-        c.close > s && p1.close > s &&       // not crossed yet
-        (c.close - s) <= approach &&          // within margin
-        (c.close < p1.close)                  // genuinely falling toward it
-      );
-      if (nearStrike !== undefined) {
-        const peUW = ptPeUnwind(c, nearStrike);
-        if (peUW >= PT_MIN_UNWIND) {
-          const tgt = ptNextLower(nearStrike - 1, strikes);
-          const slV = Math.max(p1.high, p2.high);
-          if (tgt != null) {
-            openTrade = {
-              id: ptTrades.length + 1, dir: 'SELL', setup: 'A',
-              entryTime: c.label, entryPrice: c.close,
-              target: tgt, sl: slV,
-              strike: nearStrike, status: 'open',
-              reason: `Approaching ${nearStrike}↓ (pre-cross) + PE unwind ${ptFmtOI(peUW)}`,
-            };
-          }
-        }
-      }
-    }
-
     // Setup B — post-cross: waiting for retracement then PE unwind
     if (!openTrade && waitSell) {
       const { crossedStrike } = waitSell;
@@ -3901,31 +3871,6 @@ function ptRunEngine(rows) {
         } else {
           waitBuy  = { crossedStrike: newCross, retraced: false };
           waitSell = null;
-        }
-      }
-    }
-
-    // Setup A — pre-cross bullish: spot rising, approaching a strike from below
-    if (!openTrade && !waitBuy && rising) {
-      const nearStrike = strikes.find(s =>
-        c.close < s && p1.close < s &&
-        (s - c.close) <= approach &&
-        c.close > p1.close
-      );
-      if (nearStrike !== undefined) {
-        const ceUW = ptCeUnwind(c, nearStrike);
-        if (ceUW >= PT_MIN_UNWIND) {
-          const tgt = ptNextHigher(nearStrike + 1, strikes);
-          const slV = Math.min(p1.low, p2.low);
-          if (tgt != null) {
-            openTrade = {
-              id: ptTrades.length + 1, dir: 'BUY', setup: 'A',
-              entryTime: c.label, entryPrice: c.close,
-              target: tgt, sl: slV,
-              strike: nearStrike, status: 'open',
-              reason: `Approaching ${nearStrike}↑ (pre-cross) + CE unwind ${ptFmtOI(ceUW)}`,
-            };
-          }
         }
       }
     }
