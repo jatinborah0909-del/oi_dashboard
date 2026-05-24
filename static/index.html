@@ -411,7 +411,7 @@ tr:last-child td{border-bottom:none;}
 .pt-loss{background:#FAECE7;color:#712B13;}
 .pt-sl{background:#FAEEDA;color:#854F0B;}
 .pt-open-badge{background:#E6F1FB;color:#185FA5;}
-.pt-reason{font-size:10px;color:#888;max-width:220px;white-space:normal;line-height:1.4;}
+.pt-reason{font-size:10px;color:#888;max-width:360px;white-space:normal;line-height:1.6;}
 .pt-pnl-pos{color:#1D9E75;font-weight:600;}
 .pt-pnl-neg{color:#D85A30;font-weight:600;}
 .pt-section-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px;display:flex;align-items:center;gap:8px;}
@@ -3735,7 +3735,8 @@ function ptRunEngine(rows) {
         const atmNow = ptAtmStrike(c.close, step);
         const peUW_C = ptPeUnwind(c, atmNow);
         if (peUW_C >= PT_C_MIN_UNWIND) {
-          waitRevSell = { revLow: c.low, revHigh: c.high, atmStrike: atmNow, label: c.label, oiStr: ptFmtOI(peUW_C) };
+          waitRevSell = { revLow: c.low, revHigh: c.high, atmStrike: atmNow, label: c.label, oiStr: ptFmtOI(peUW_C),
+                          revOpen: c.open, revClose: c.close, priorLabel: p1.label, priorClose: p1.close };
         }
       }
     }
@@ -3748,7 +3749,8 @@ function ptRunEngine(rows) {
         const atmNow = ptAtmStrike(c.close, step);
         const ceUW_C = ptCeUnwind(c, atmNow);
         if (ceUW_C >= PT_C_MIN_UNWIND) {
-          waitRevBuy = { revLow: c.low, revHigh: c.high, atmStrike: atmNow, label: c.label, oiStr: ptFmtOI(ceUW_C) };
+          waitRevBuy = { revLow: c.low, revHigh: c.high, atmStrike: atmNow, label: c.label, oiStr: ptFmtOI(ceUW_C),
+                         revOpen: c.open, revClose: c.close, priorLabel: p1.label, priorClose: p1.close };
         }
       }
     }
@@ -3765,7 +3767,7 @@ function ptRunEngine(rows) {
             id: ptTrades.length + 1, dir: 'SELL', setup: 'C',
             entryTime: c.label, entryPrice: entryPx,
             target: tgt, sl: slPx, strike: atmStrike, status: 'open',
-            reason: `Rev-candle ${label} low ${revLow} broken | ATM ${atmStrike} PE unwind ${oiStr} | SL=${slPx.toFixed(0)}`,
+            reason: `[C-SELL] Prior fall@${waitRevSell.priorLabel} (C:${waitRevSell.priorClose.toFixed(0)}) → Bounce candle@${label} (O:${waitRevSell.revOpen.toFixed(0)} H:${revHigh.toFixed(0)} L:${revLow.toFixed(0)} C:${waitRevSell.revClose.toFixed(0)}) | ATM ${atmStrike} PE unwind ${oiStr} on bounce candle → Breakdown triggered@${c.label} (spot ${c.close.toFixed(0)} < bounce-low ${revLow.toFixed(0)}) | Entry@${entryPx.toFixed(0)} Tgt:${tgt} SL:${slPx.toFixed(0)} (bounce-H+30)`,
           };
         }
         waitRevSell = null;
@@ -3786,7 +3788,7 @@ function ptRunEngine(rows) {
             id: ptTrades.length + 1, dir: 'BUY', setup: 'C',
             entryTime: c.label, entryPrice: entryPx,
             target: tgt, sl: slPx, strike: atmStrike, status: 'open',
-            reason: `Rev-candle ${label} high ${revHigh} broken | ATM ${atmStrike} CE unwind ${oiStr} | SL=${slPx.toFixed(0)}`,
+            reason: `[C-BUY] Prior rise@${waitRevBuy.priorLabel} (C:${waitRevBuy.priorClose.toFixed(0)}) → Dip candle@${label} (O:${waitRevBuy.revOpen.toFixed(0)} H:${revHigh.toFixed(0)} L:${revLow.toFixed(0)} C:${waitRevBuy.revClose.toFixed(0)}) | ATM ${atmStrike} CE unwind ${oiStr} on dip candle → Breakout triggered@${c.label} (spot ${c.close.toFixed(0)} > dip-high ${revHigh.toFixed(0)}) | Entry@${entryPx.toFixed(0)} Tgt:${tgt} SL:${slPx.toFixed(0)} (dip-L−30)`,
           };
         }
         waitRevBuy = null;
@@ -3811,13 +3813,14 @@ function ptRunEngine(rows) {
               entryTime: c.label, entryPrice: c.close,
               target: tgt, sl: c.high + PT_POST_SL_PTS,
               strike: newCross, status: 'open',
-              reason: `Crossed ${newCross}↓ + PE unwind ${ptFmtOI(peUW)} @ cross`,
+              reason: `[B-SELL] ${c.label} candle: spot crossed ↓ ${newCross} (O:${c.open.toFixed(0)} H:${c.high.toFixed(0)} L:${c.low.toFixed(0)} C:${c.close.toFixed(0)}) | PE unwind ${ptFmtOI(peUW)} on cross candle | Entry@${c.close.toFixed(0)} → Tgt:${tgt} | SL:${(c.high+PT_POST_SL_PTS).toFixed(0)} (cross-high+${PT_POST_SL_PTS})`,
             };
             waitSell = null;
           }
         } else {
           // No unwind yet — enter wait-retrace state
-          waitSell = { crossedStrike: newCross, retraced: false };
+          waitSell = { crossedStrike: newCross, retraced: false,
+                       crossTime: c.label, crossClose: c.close, crossHigh: c.high, crossLow: c.low };
           waitBuy  = null;
         }
       }
@@ -3827,7 +3830,7 @@ function ptRunEngine(rows) {
     if (!openTrade && waitSell) {
       const { crossedStrike } = waitSell;
       // Mark retracement if previous candle was bullish (pullback into fallen zone)
-      if (!waitSell.retraced && p1.close > p1.open) waitSell.retraced = true;
+      if (!waitSell.retraced && p1.close > p1.open) { waitSell.retraced = true; waitSell.retraceTime = p1.label; waitSell.retraceHigh = p1.high; }
       // Entry: retracement seen, current candle falling again, PE unwind now
       if (waitSell.retraced && falling) {
         const peUW = ptPeUnwind(c, crossedStrike);
@@ -3839,7 +3842,7 @@ function ptRunEngine(rows) {
               entryTime: c.label, entryPrice: c.close,
               target: tgt, sl: c.close + PT_POST_SL_PTS,
               strike: crossedStrike, status: 'open',
-              reason: `Post-cross ${crossedStrike}↓: retrace then PE unwind ${ptFmtOI(peUW)}, gap ${(c.close - tgt).toFixed(0)}pts`,
+              reason: `[B-SELL] Cross@${waitSell.crossTime} spot ↓${crossedStrike} (C:${waitSell.crossClose.toFixed(0)}) → Retrace@${waitSell.retraceTime||"—"} (H:${waitSell.retraceHigh ? waitSell.retraceHigh.toFixed(0) : "—"}) → PE unwind ${ptFmtOI(peUW)} on ${c.label} candle (C:${c.close.toFixed(0)}) | Gap to tgt: ${(c.close-tgt).toFixed(0)} pts | Entry@${c.close.toFixed(0)} Tgt:${tgt} SL:${(c.close+PT_POST_SL_PTS).toFixed(0)}`,
             };
             waitSell = null;
           }
@@ -3864,12 +3867,13 @@ function ptRunEngine(rows) {
               entryTime: c.label, entryPrice: c.close,
               target: tgt, sl: c.low - PT_POST_SL_PTS,
               strike: newCross, status: 'open',
-              reason: `Crossed ${newCross}↑ + CE unwind ${ptFmtOI(ceUW)} @ cross`,
+              reason: `[B-BUY] ${c.label} candle: spot crossed ↑ ${newCross} (O:${c.open.toFixed(0)} H:${c.high.toFixed(0)} L:${c.low.toFixed(0)} C:${c.close.toFixed(0)}) | CE unwind ${ptFmtOI(ceUW)} on cross candle | Entry@${c.close.toFixed(0)} → Tgt:${tgt} | SL:${(c.low-PT_POST_SL_PTS).toFixed(0)} (cross-low−${PT_POST_SL_PTS})`,
             };
             waitBuy = null;
           }
         } else {
-          waitBuy  = { crossedStrike: newCross, retraced: false };
+          waitBuy  = { crossedStrike: newCross, retraced: false,
+                      crossTime: c.label, crossClose: c.close, crossHigh: c.high, crossLow: c.low };
           waitSell = null;
         }
       }
@@ -3878,7 +3882,7 @@ function ptRunEngine(rows) {
     // Setup B — post-cross bullish: waiting for retracement then CE unwind
     if (!openTrade && waitBuy) {
       const { crossedStrike } = waitBuy;
-      if (!waitBuy.retraced && p1.close < p1.open) waitBuy.retraced = true;  // bearish = pullback
+      if (!waitBuy.retraced && p1.close < p1.open) { waitBuy.retraced = true; waitBuy.retraceTime = p1.label; waitBuy.retraceLow = p1.low; }  // bearish = pullback
       if (waitBuy.retraced && rising) {
         const ceUW = ptCeUnwind(c, crossedStrike);
         if (ceUW >= PT_MIN_UNWIND) {
@@ -3889,7 +3893,7 @@ function ptRunEngine(rows) {
               entryTime: c.label, entryPrice: c.close,
               target: tgt, sl: c.close - PT_POST_SL_PTS,
               strike: crossedStrike, status: 'open',
-              reason: `Post-cross ${crossedStrike}↑: retrace then CE unwind ${ptFmtOI(ceUW)}, gap ${(tgt - c.close).toFixed(0)}pts`,
+              reason: `[B-BUY] Cross@${waitBuy.crossTime} spot ↑${crossedStrike} (C:${waitBuy.crossClose.toFixed(0)}) → Retrace@${waitBuy.retraceTime||"—"} (L:${waitBuy.retraceLow ? waitBuy.retraceLow.toFixed(0) : "—"}) → CE unwind ${ptFmtOI(ceUW)} on ${c.label} candle (C:${c.close.toFixed(0)}) | Gap to tgt: ${(tgt-c.close).toFixed(0)} pts | Entry@${c.close.toFixed(0)} Tgt:${tgt} SL:${(c.close-PT_POST_SL_PTS).toFixed(0)}`,
             };
             waitBuy = null;
           }
