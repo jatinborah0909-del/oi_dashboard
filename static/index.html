@@ -1236,9 +1236,10 @@ tr:last-child td{border-bottom:none;}
   </div>
   <!-- Strategy rules -->
   <div class="pt-rule-box">
-    <strong>SELL Setup (bearish — spot falling):</strong> When spot is falling and approaching a 50-pt strike (not yet crossed), look for <em>PE unwinding</em> ≥ 3L at that strike → SELL. Target = next lower strike. SL = high of prev 2 (3-min) candles.<br>
+    <strong>SELL Setup A (bearish — spot falling):</strong> When spot is falling and approaching a 50-pt strike (not yet crossed), look for <em>PE unwinding</em> ≥ 3L at that strike → SELL. Target = next lower strike. SL = high of prev 2 (3-min) candles.<br>
     <strong>SELL Setup B (post-cross):</strong> If spot crossed below a strike with no PE unwind → wait for a retracement (up) candle, then PE unwind on the next falling candle → SELL, only if spot ≥ 40 pts above the next lower strike. SL = entry + 20 pts.<br>
-    <strong>BUY Setup (bullish — spot rising):</strong> When spot is rising and approaching a strike (not yet crossed), look for <em>CE unwinding</em> ≥ 3L → BUY. Target = next higher strike. SL = low of prev 2 candles.<br>
+    <strong>SELL Setup C (swing-low breakdown):</strong> On any falling 3-min candle, if ATM put OI unwinds ≥ 2L, that candle's low becomes the <em>swing low</em>. Once spot breaks below that swing low on a subsequent candle → SELL. Target = next lower 50-pt strike. SL = swing-low candle's high + 30 pts. Signal is cancelled if spot rallies more than 50 pts above the swing-high.<br>
+    <strong>BUY Setup A (bullish — spot rising):</strong> When spot is rising and approaching a strike (not yet crossed), look for <em>CE unwinding</em> ≥ 3L → BUY. Target = next higher strike. SL = low of prev 2 candles.<br>
     <strong>BUY Setup B (post-cross):</strong> Symmetrical — retracement (down) candle, then CE unwind → BUY, ≥ 40 pts gap. SL = entry − 20 pts.
   </div>
   <!-- Stats bar -->
@@ -3542,6 +3543,10 @@ const PT_MIN_UNWIND   = 300000;   // 3 lakh OI threshold
 const PT_POST_SL_PTS  = 20;       // post-cross SL distance in pts
 const PT_MIN_GAP_PTS  = 40;       // min pts to next strike for post-cross entry
 
+// Setup C — ATM PE unwind swing-low breakdown
+const PT_C_MIN_UNWIND = 200000;   // 2 lakh PE OI unwind triggers the watch
+const PT_C_SL_PTS     = 30;       // fixed 30-pt SL above swing-low's high
+
 let ptTrades = [];  // filled by ptRunEngine
 
 // ── Tiny formatters ───────────────────────────────────────────────
@@ -3638,6 +3643,11 @@ function ptCeUnwind(candle, strike) {   // CE OI decreased → bullish confirmat
   return (s && s.ce < 0) ? Math.abs(s.ce) : 0;
 }
 
+// Return the ATM strike (nearest 50-pt multiple to spot) for a given candle
+function ptAtmStrike(spot, step) {
+  return Math.round(spot / step) * step;
+}
+
 // ── Main engine ───────────────────────────────────────────────────
 function ptRunEngine(rows) {
   ptTrades = [];
@@ -3654,6 +3664,11 @@ function ptRunEngine(rows) {
   let openTrade       = null;
   let waitSell        = null;   // { crossedStrike, retraced: bool }
   let waitBuy         = null;   // { crossedStrike, retraced: bool }
+
+  // Setup C state — ATM PE unwind → swing-low breakdown
+  // Armed when a 2L+ PE unwind at ATM is seen on a falling candle.
+  // Entry fires when spot breaks below that candle's low (the swing low).
+  let waitSwingBreak  = null;   // { swingLow, swingHigh, atmStrike, reason }
 
   const approach = step * 0.66;   // "approaching" = within 33 pts (for step=50)
 
@@ -3690,11 +3705,61 @@ function ptRunEngine(rows) {
         openTrade = null;
         waitSell  = null;
         waitBuy   = null;
+        waitSwingBreak = null;
         continue;
       }
     }
 
     if (openTrade) continue;  // one trade at a time — skip signal detection
+
+    // ═══ SETUP C — ATM PE UNWIND → SWING-LOW BREAKDOWN ═══════════
+    // Step 1: ARM — on any falling candle where ATM PE unwinds ≥ 2L,
+    //   record this candle as the potential swing low.
+    if (!openTrade && falling) {
+      const atmNow = ptAtmStrike(c.close, step);
+      const peUW_C = ptPeUnwind(c, atmNow);
+      if (peUW_C >= PT_C_MIN_UNWIND) {
+        // Replace any previous armed signal (use the freshest one)
+        waitSwingBreak = {
+          swingLow  : c.low,          // price level that must break
+          swingHigh : c.high,         // used for SL = swingHigh + 30
+          atmStrike : atmNow,
+          reason    : `ATM ${atmNow} PE unwind ${ptFmtOI(peUW_C)} on falling candle ${c.label}`,
+        };
+      }
+    }
+
+    // Step 2: TRIGGER — if armed and spot on a later candle breaks below
+    //   the swing low, enter SELL immediately.
+    if (!openTrade && waitSwingBreak) {
+      const { swingLow, swingHigh, atmStrike, reason } = waitSwingBreak;
+      // Entry: current candle's low or close pierces below the swing low
+      if (c.low < swingLow || c.close < swingLow) {
+        const entryPx = c.close < swingLow ? c.close : swingLow;  // conserve entry
+        const tgt     = ptNextLower(entryPx, strikes);            // next 50-pt strike below
+        const slPx    = swingHigh + PT_C_SL_PTS;
+        if (tgt != null) {
+          openTrade = {
+            id        : ptTrades.length + 1,
+            dir       : 'SELL',
+            setup     : 'C',
+            entryTime : c.label,
+            entryPrice: entryPx,
+            target    : tgt,
+            sl        : slPx,
+            strike    : atmStrike,
+            status    : 'open',
+            reason    : `Swing-low break (${swingLow}) | ${reason} | SL=${slPx.toFixed(0)}`,
+          };
+          waitSwingBreak = null;
+          waitSell       = null;
+        }
+      }
+      // Abandon if spot rallies far above the swing high (signal invalidated)
+      if (c.close > swingHigh + step) {
+        waitSwingBreak = null;
+      }
+    }
 
     // ═══ SELL SIGNALS (spot falling, look for PE UNWINDING) ═══════
 
