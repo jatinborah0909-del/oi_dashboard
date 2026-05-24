@@ -1238,7 +1238,8 @@ tr:last-child td{border-bottom:none;}
   <div class="pt-rule-box">
     <strong>SELL Setup A (bearish — spot falling):</strong> When spot is falling and approaching a 50-pt strike (not yet crossed), look for <em>PE unwinding</em> ≥ 3L at that strike → SELL. Target = next lower strike. SL = high of prev 2 (3-min) candles.<br>
     <strong>SELL Setup B (post-cross):</strong> If spot crossed below a strike with no PE unwind → wait for a retracement (up) candle, then PE unwind on the next falling candle → SELL, only if spot ≥ 40 pts above the next lower strike. SL = entry + 20 pts.<br>
-    <strong>SELL Setup C (swing-low breakdown):</strong> On any falling 3-min candle, if ATM put OI unwinds ≥ 2L, that candle's low becomes the <em>swing low</em>. Once spot breaks below that swing low on a subsequent candle → SELL. Target = next lower 50-pt strike. SL = swing-low candle's high + 30 pts. Signal is cancelled if spot rallies more than 50 pts above the swing-high.<br>
+    <strong>SELL Setup C (reversal candle breakdown):</strong> After a falling candle, if the next candle is bullish (bounce) <em>and</em> ATM put OI unwinds ≥ 2L on that bounce candle → the bounce is just short-covering. Arm a SELL. Entry when any subsequent candle breaks <em>below</em> the reversal candle's low. Target = next lower 50-pt strike. SL = reversal candle's high + 30 pts.<br>
+    <strong>BUY Setup C (reversal candle breakout):</strong> Symmetrical — after a rising candle, bearish reversal candle with ATM CE unwind ≥ 2L → arm a BUY. Entry when price breaks <em>above</em> the reversal candle's high. Target = next higher strike. SL = reversal candle's low − 30 pts.
     <strong>BUY Setup A (bullish — spot rising):</strong> When spot is rising and approaching a strike (not yet crossed), look for <em>CE unwinding</em> ≥ 3L → BUY. Target = next higher strike. SL = low of prev 2 candles.<br>
     <strong>BUY Setup B (post-cross):</strong> Symmetrical — retracement (down) candle, then CE unwind → BUY, ≥ 40 pts gap. SL = entry − 20 pts.
   </div>
@@ -3665,10 +3666,15 @@ function ptRunEngine(rows) {
   let waitSell        = null;   // { crossedStrike, retraced: bool }
   let waitBuy         = null;   // { crossedStrike, retraced: bool }
 
-  // Setup C state — ATM PE unwind → swing-low breakdown
-  // Armed when a 2L+ PE unwind at ATM is seen on a falling candle.
-  // Entry fires when spot breaks below that candle's low (the swing low).
-  let waitSwingBreak  = null;   // { swingLow, swingHigh, atmStrike, reason }
+  // Setup C state — reversal candle + ATM OI unwind → breakout entry
+  // SELL: after a prior fall, a bullish (up) candle appears with ATM PE unwind ≥ 2L
+  //   → arm. Next candle that breaks BELOW the reversal candle's low → SELL.
+  //   SL = reversal candle's high + 30 pts.
+  // BUY: after a prior rise, a bearish (down) candle appears with ATM CE unwind ≥ 2L
+  //   → arm. Next candle that breaks ABOVE the reversal candle's high → BUY.
+  //   SL = reversal candle's low - 30 pts.
+  let waitRevSell = null;  // { revLow, revHigh, atmStrike, label }
+  let waitRevBuy  = null;  // { revLow, revHigh, atmStrike, label }
 
   const approach = step * 0.66;   // "approaching" = within 33 pts (for step=50)
 
@@ -3705,60 +3711,93 @@ function ptRunEngine(rows) {
         openTrade = null;
         waitSell  = null;
         waitBuy   = null;
-        waitSwingBreak = null;
+        waitRevSell = null;
+        waitRevBuy  = null;
         continue;
       }
     }
 
     if (openTrade) continue;  // one trade at a time — skip signal detection
 
-    // ═══ SETUP C — ATM PE UNWIND → SWING-LOW BREAKDOWN ═══════════
-    // Step 1: ARM — on any falling candle where ATM PE unwinds ≥ 2L,
-    //   record this candle as the potential swing low.
-    if (!openTrade && falling) {
-      const atmNow = ptAtmStrike(c.close, step);
-      const peUW_C = ptPeUnwind(c, atmNow);
-      if (peUW_C >= PT_C_MIN_UNWIND) {
-        // Replace any previous armed signal (use the freshest one)
-        waitSwingBreak = {
-          swingLow  : c.low,          // price level that must break
-          swingHigh : c.high,         // used for SL = swingHigh + 30
-          atmStrike : atmNow,
-          reason    : `ATM ${atmNow} PE unwind ${ptFmtOI(peUW_C)} on falling candle ${c.label}`,
-        };
+    // ═══ SETUP C — REVERSAL CANDLE + ATM OI UNWIND ════════════════
+    // After a sustained move, a counter-direction candle appears.
+    // If that counter candle shows ATM OI unwinding ≥ 2L it is weak
+    // (just covering), not a genuine reversal.  Arm a breakout entry.
+    //
+    // SELL: prior candle falling → current candle bullish + ATM PE unwind ≥ 2L
+    //        → arm.  Next candle breaks below reversal-candle's low → SELL.
+    //          SL = reversal-candle high + 30 pts.
+    //
+    // BUY:  prior candle rising → current candle bearish + ATM CE unwind ≥ 2L
+    //        → arm.  Next candle breaks above reversal-candle's high → BUY.
+    //          SL = reversal-candle low − 30 pts.
+
+    // ── Arm SELL: bullish reversal candle after a falling candle ──
+    if (!waitRevSell && !waitRevBuy) {
+      const prevFalling = p1.close < p1.open - 1;
+      const currBullish = c.close > c.open + 1;
+      if (prevFalling && currBullish) {
+        const atmNow = ptAtmStrike(c.close, step);
+        const peUW_C = ptPeUnwind(c, atmNow);
+        if (peUW_C >= PT_C_MIN_UNWIND) {
+          waitRevSell = { revLow: c.low, revHigh: c.high, atmStrike: atmNow, label: c.label, oiStr: ptFmtOI(peUW_C) };
+        }
       }
     }
 
-    // Step 2: TRIGGER — if armed and spot on a later candle breaks below
-    //   the swing low, enter SELL immediately.
-    if (!openTrade && waitSwingBreak) {
-      const { swingLow, swingHigh, atmStrike, reason } = waitSwingBreak;
-      // Entry: current candle's low or close pierces below the swing low
-      if (c.low < swingLow || c.close < swingLow) {
-        const entryPx = c.close < swingLow ? c.close : swingLow;  // conserve entry
-        const tgt     = ptNextLower(entryPx, strikes);            // next 50-pt strike below
-        const slPx    = swingHigh + PT_C_SL_PTS;
-        if (tgt != null) {
-          openTrade = {
-            id        : ptTrades.length + 1,
-            dir       : 'SELL',
-            setup     : 'C',
-            entryTime : c.label,
-            entryPrice: entryPx,
-            target    : tgt,
-            sl        : slPx,
-            strike    : atmStrike,
-            status    : 'open',
-            reason    : `Swing-low break (${swingLow}) | ${reason} | SL=${slPx.toFixed(0)}`,
-          };
-          waitSwingBreak = null;
-          waitSell       = null;
+    // ── Arm BUY: bearish reversal candle after a rising candle ────
+    if (!waitRevSell && !waitRevBuy) {
+      const prevRising  = p1.close > p1.open + 1;
+      const currBearish = c.close < c.open - 1;
+      if (prevRising && currBearish) {
+        const atmNow = ptAtmStrike(c.close, step);
+        const ceUW_C = ptCeUnwind(c, atmNow);
+        if (ceUW_C >= PT_C_MIN_UNWIND) {
+          waitRevBuy = { revLow: c.low, revHigh: c.high, atmStrike: atmNow, label: c.label, oiStr: ptFmtOI(ceUW_C) };
         }
       }
-      // Abandon if spot rallies far above the swing high (signal invalidated)
-      if (c.close > swingHigh + step) {
-        waitSwingBreak = null;
+    }
+
+    // ── Fire SELL: break below reversal candle's low ───────────────
+    if (!openTrade && waitRevSell) {
+      const { revLow, revHigh, atmStrike, label, oiStr } = waitRevSell;
+      if (c.low < revLow || c.close < revLow) {
+        const entryPx = Math.min(c.close, revLow);
+        const tgt     = ptNextLower(entryPx, strikes);
+        const slPx    = revHigh + PT_C_SL_PTS;
+        if (tgt != null) {
+          openTrade = {
+            id: ptTrades.length + 1, dir: 'SELL', setup: 'C',
+            entryTime: c.label, entryPrice: entryPx,
+            target: tgt, sl: slPx, strike: atmStrike, status: 'open',
+            reason: `Rev-candle ${label} low ${revLow} broken | ATM ${atmStrike} PE unwind ${oiStr} | SL=${slPx.toFixed(0)}`,
+          };
+        }
+        waitRevSell = null;
       }
+      // Invalidate if price rallies well above the reversal candle's high
+      if (c.close > revHigh + step) waitRevSell = null;
+    }
+
+    // ── Fire BUY: break above reversal candle's high ──────────────
+    if (!openTrade && waitRevBuy) {
+      const { revLow, revHigh, atmStrike, label, oiStr } = waitRevBuy;
+      if (c.high > revHigh || c.close > revHigh) {
+        const entryPx = Math.max(c.close, revHigh);
+        const tgt     = ptNextHigher(entryPx, strikes);
+        const slPx    = revLow - PT_C_SL_PTS;
+        if (tgt != null) {
+          openTrade = {
+            id: ptTrades.length + 1, dir: 'BUY', setup: 'C',
+            entryTime: c.label, entryPrice: entryPx,
+            target: tgt, sl: slPx, strike: atmStrike, status: 'open',
+            reason: `Rev-candle ${label} high ${revHigh} broken | ATM ${atmStrike} CE unwind ${oiStr} | SL=${slPx.toFixed(0)}`,
+          };
+        }
+        waitRevBuy = null;
+      }
+      // Invalidate if price drops well below the reversal candle's low
+      if (c.close < revLow - step) waitRevBuy = null;
     }
 
     // ═══ SELL SIGNALS (spot falling, look for PE UNWINDING) ═══════
