@@ -411,7 +411,8 @@ tr:last-child td{border-bottom:none;}
 .pt-loss{background:#FAECE7;color:#712B13;}
 .pt-sl{background:#FAEEDA;color:#854F0B;}
 .pt-open-badge{background:#E6F1FB;color:#185FA5;}
-.pt-reason{font-size:10px;color:#888;max-width:360px;white-space:normal;line-height:1.6;}
+.pt-reason{font-size:12px;color:#555;max-width:420px;white-space:normal !important;line-height:1.7;word-break:break-word;}
+.pt-reason .reason-line{display:block;}
 .pt-pnl-pos{color:#1D9E75;font-weight:600;}
 .pt-pnl-neg{color:#D85A30;font-weight:600;}
 .pt-section-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px;display:flex;align-items:center;gap:8px;}
@@ -3979,7 +3980,7 @@ function ptRenderAll() {
           <td style="color:#1D9E75;">${ptFmt(t.target)}</td>
           <td style="color:#D85A30;">${ptFmt(t.sl)}</td>
           <td>${setupBadge}</td>
-          <td class="pt-reason">${t.reason || '—'}</td>
+          <td class="pt-reason">${t.reason ? t.reason.split(' — ').map((s,i)=>`<span class="reason-line">${i>0?'— ':''  }${s}</span>`).join('') : '—'}</td>
           <td>${ptFmt(t.lastSpot || currentSpot)}</td>
           <td>${unreal}</td>
         </tr>`;
@@ -4012,7 +4013,7 @@ function ptRenderAll() {
           <td style="color:#1D9E75;">${ptFmt(t.target)}</td>
           <td>${ptFmtPnl(t.pnl)}</td>
           <td>${resultBadge}</td>
-          <td class="pt-reason">${t.reason || '—'}</td>
+          <td class="pt-reason">${t.reason ? t.reason.split(' — ').map((s,i)=>`<span class="reason-line">${i>0?'— ':''  }${s}</span>`).join('') : '—'}</td>
         </tr>`;
       }).join('');
     }
