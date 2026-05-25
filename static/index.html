@@ -1297,6 +1297,17 @@ tr:last-child td{border-bottom:none;}
 .imb-pos{color:#1D9E75;font-weight:500;} .imb-neg{color:#D85A30;font-weight:500;}
 .oi-drop{color:#D85A30;} .oi-rise{color:#1D9E75;}
 
+/* Max qty live banner */
+.dw-maxqty{display:none;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+.dw-maxqty-box{flex:1;min-width:160px;border-radius:9px;padding:10px 16px;display:flex;flex-direction:column;gap:3px;}
+.dw-maxqty-box.bid{background:#E1F5EE;border:1px solid #a0dcc8;}
+.dw-maxqty-box.ask{background:#FAECE7;border:1px solid #f0c0b0;}
+.dw-maxqty-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
+.dw-maxqty-label.bid{color:#085041;} .dw-maxqty-label.ask{color:#712B13;}
+.dw-maxqty-price{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.5px;}
+.dw-maxqty-price.bid{color:#1D9E75;} .dw-maxqty-price.ask{color:#D85A30;}
+.dw-maxqty-meta{font-size:11px;color:#666;}
+
 /* Piggyback highlight */
 .dw-piggyback{background:#FAEEDA;border:0.5px solid #EF9F27;border-radius:8px;padding:10px 14px;font-size:12px;color:#854F0B;margin-bottom:14px;display:none;}
 .dw-piggyback strong{font-weight:600;}
@@ -1349,6 +1360,20 @@ tr:last-child td{border-bottom:none;}
   <div class="dw-status" id="dw-status">
     <div class="dw-dot" id="dw-dot"></div>
     <span id="dw-status-text">Ready — enter a strike and press Start</span>
+  </div>
+
+  <!-- Max qty price — live during recording -->
+  <div class="dw-maxqty" id="dw-maxqty">
+    <div class="dw-maxqty-box bid">
+      <div class="dw-maxqty-label bid">🟢 Max bid qty at price</div>
+      <div class="dw-maxqty-price bid" id="dw-maxqty-bid-price">—</div>
+      <div class="dw-maxqty-meta" id="dw-maxqty-bid-meta">—</div>
+    </div>
+    <div class="dw-maxqty-box ask">
+      <div class="dw-maxqty-label ask">🔴 Max ask qty at price</div>
+      <div class="dw-maxqty-price ask" id="dw-maxqty-ask-price">—</div>
+      <div class="dw-maxqty-meta" id="dw-maxqty-ask-meta">—</div>
+    </div>
   </div>
 
   <!-- Piggyback suggestion -->
@@ -1500,11 +1525,16 @@ async function dwStart() {
 
   // ── Reset UI ──────────────────────────────────────────────────
   dwSamples = [];
-  ['dw-summary','dw-interp','dw-big-grid','dw-spark-wrap','dw-table-section']
+  ['dw-summary','dw-interp','dw-maxqty','dw-spark-wrap','dw-table-section']
     .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
   const pig = document.getElementById('dw-piggyback');
   if (pig) pig.style.display = 'none';
   document.getElementById('dw-tbody').innerHTML = '';
+  const bb = document.getElementById('dw-big-bids');
+  const ba = document.getElementById('dw-big-asks');
+  if (bb) bb.innerHTML = '<div class="dw-big-empty">Waiting for first tick…</div>';
+  if (ba) ba.innerHTML = '<div class="dw-big-empty">Waiting for first tick…</div>';
+  document.getElementById('dw-big-grid').style.display = 'grid';
 
   // ── POST /depth/watch/start ───────────────────────────────────
   let resp;
@@ -1551,7 +1581,7 @@ async function dwStart() {
       dwSetStatus(
         `Watching ${strike} ${type} · ${dwSecondsLeft}s left · ${msg.seq} samples`, 'running'
       );
-      // Live updates
+      // Live updates — sample.bid_levels / sample.ask_levels always present
       dwUpdateLive(msg.sample, msg.rolling);
     }
 
@@ -1627,6 +1657,77 @@ function dwUpdateLive(sample, rolling) {
     const covering = delta < 0 && avgImb > 0.05;
     const adding   = delta > 0 && avgImb < -0.05;
     interp.className = 'dw-interp ' + (covering ? 'cover' : adding ? 'add' : 'neutral');
+  }
+
+  // ── Max qty price banner (live) ───────────────────────────────
+  const mqBox = document.getElementById('dw-maxqty');
+  if (mqBox) {
+    mqBox.style.display = 'flex';
+    const topBid = rolling.big_bid_prices?.[0];
+    const topAsk = rolling.big_ask_prices?.[0];
+    const bpEl = document.getElementById('dw-maxqty-bid-price');
+    const bmEl = document.getElementById('dw-maxqty-bid-meta');
+    const apEl = document.getElementById('dw-maxqty-ask-price');
+    const amEl = document.getElementById('dw-maxqty-ask-meta');
+    if (topBid) {
+      if (bpEl) bpEl.textContent = '₹' + topBid.price;
+      if (bmEl) bmEl.textContent = topBid.peak_qty.toLocaleString('en-IN') + ' lots peak · seen ' + topBid.seen_count + 's';
+    } else {
+      if (bpEl) bpEl.textContent = '—';
+      if (bmEl) bmEl.textContent = 'No bid above threshold yet';
+    }
+    if (topAsk) {
+      if (apEl) apEl.textContent = '₹' + topAsk.price;
+      if (amEl) amEl.textContent = topAsk.peak_qty.toLocaleString('en-IN') + ' lots peak · seen ' + topAsk.seen_count + 's';
+    } else {
+      if (apEl) apEl.textContent = '—';
+      if (amEl) amEl.textContent = 'No ask above threshold yet';
+    }
+  }
+
+  // ── Big orders panel — always visible from tick 1 ────────────
+  // Shows all current depth levels; highlights any that cross threshold
+  const bigGrid = document.getElementById('dw-big-grid');
+  if (bigGrid) {
+    bigGrid.style.display = 'grid';
+
+    const buyLevels  = sample.bid_levels || [];
+    const sellLevels = sample.ask_levels || [];
+    const maxBidQty  = Math.max(...buyLevels.map(l => l.quantity || 0), 1);
+    const maxAskQty  = Math.max(...sellLevels.map(l => l.quantity || 0), 1);
+
+    // Build threshold sets and peak maps from rolling summary
+    const bigBidPrices = new Set((rolling.big_bid_prices || []).map(r => r.price));
+    const bigAskPrices = new Set((rolling.big_ask_prices || []).map(r => r.price));
+    const bidPeakMap   = {};
+    (rolling.big_bid_prices || []).forEach(r => { bidPeakMap[r.price] = r; });
+    const askPeakMap   = {};
+    (rolling.big_ask_prices || []).forEach(r => { askPeakMap[r.price] = r; });
+
+    const renderLiveLevels = (levels, maxQty, color, bigPrices, peakMap) =>
+      levels.length ? levels.map((l, i) => {
+        const isBig  = bigPrices.has(l.price);
+        const peak   = peakMap[l.price];
+        const isTop  = i === 0;
+        return `<div class="dw-big-row" style="${isBig ? 'background:#f0faf5;border-radius:5px;' : ''}">
+          <span class="dw-big-price" style="color:${color};${isBig?'font-weight:700;':'opacity:0.7;'}">
+            ${isBig ? '★ ' : ''}₹${l.price}
+          </span>
+          <div class="dw-big-bar-wrap">
+            <div class="dw-big-bar" style="width:${Math.round((l.quantity||0)/maxQty*100)}%;background:${color};opacity:${isBig?1:0.4};"></div>
+          </div>
+          <span class="dw-big-qty" style="${isBig?'':'opacity:0.6;'}">
+            ${(l.quantity||0).toLocaleString('en-IN')}
+            ${isBig && peak ? `<span style="color:#bbb;font-size:10px;"> · peak ${peak.peak_qty.toLocaleString('en-IN')} (${peak.seen_count}s)</span>` : ''}
+          </span>
+        </div>`;
+      }).join('')
+      : '<div class="dw-big-empty">No depth data yet</div>';
+
+    const bb = document.getElementById('dw-big-bids');
+    const ba = document.getElementById('dw-big-asks');
+    if (bb) bb.innerHTML = renderLiveLevels(buyLevels,  maxBidQty, '#1D9E75', bigBidPrices, bidPeakMap);
+    if (ba) ba.innerHTML = renderLiveLevels(sellLevels, maxAskQty, '#D85A30', bigAskPrices, askPeakMap);
   }
 
   // Live sparkline
@@ -1705,29 +1806,39 @@ function dwRenderFinal(summary, samples, type) {
   }
 
   // Big orders
+  // Final render: show all 5 levels, star+bold those above threshold
   const bigGrid = document.getElementById('dw-big-grid');
   if (bigGrid) bigGrid.style.display = 'grid';
 
-  const maxBid = big_bid_prices?.length ? big_bid_prices[0].peak_qty : 1;
-  const maxAsk = big_ask_prices?.length ? big_ask_prices[0].peak_qty : 1;
+  const lastSample   = samples[samples.length - 1] || {};
+  const finalBuyLvl  = lastSample.bid_levels || [];
+  const finalSellLvl = lastSample.ask_levels || [];
+  const bigBidSet    = new Set((big_bid_prices||[]).map(r => r.price));
+  const bigAskSet    = new Set((big_ask_prices||[]).map(r => r.price));
+  const bidPeakMap   = {}; (big_bid_prices||[]).forEach(r => bidPeakMap[r.price] = r);
+  const askPeakMap   = {}; (big_ask_prices||[]).forEach(r => askPeakMap[r.price] = r);
+  const maxBidQty    = Math.max(...finalBuyLvl.map(l => l.quantity||0), 1);
+  const maxAskQty    = Math.max(...finalSellLvl.map(l => l.quantity||0), 1);
 
-  const renderBigRows = (rows, maxQty, color) => rows?.length
-    ? rows.map(r => `
-        <div class="dw-big-row">
-          <span class="dw-big-price" style="color:${color};">₹${r.price}</span>
-          <div class="dw-big-bar-wrap">
-            <div class="dw-big-bar" style="width:${Math.round(r.peak_qty/maxQty*100)}%;background:${color};"></div>
-          </div>
-          <span class="dw-big-qty">${r.peak_qty.toLocaleString('en-IN')}
-            <span style="color:#bbb;font-size:10px;">(${r.seen_count}s)</span>
-          </span>
-        </div>`).join('')
-    : '<div class="dw-big-empty">None above threshold</div>';
+  const renderFinalLevels = (levels, maxQty, color, bigSet, peakMap) =>
+    levels.length ? levels.map(l => {
+      const isBig = bigSet.has(l.price);
+      const peak  = peakMap[l.price];
+      return `<div class="dw-big-row" style="${isBig?'background:#f0faf5;border-radius:5px;':''}">
+        <span class="dw-big-price" style="color:${color};${isBig?'font-weight:700;':'opacity:0.7;'}">${isBig?'★ ':''}₹${l.price}</span>
+        <div class="dw-big-bar-wrap"><div class="dw-big-bar" style="width:${Math.round((l.quantity||0)/maxQty*100)}%;background:${color};opacity:${isBig?1:0.4};"></div></div>
+        <span class="dw-big-qty" style="${isBig?'':'opacity:0.6;'}">
+          ${(l.quantity||0).toLocaleString('en-IN')} now
+          ${peak?`<span style="color:#bbb;font-size:10px;"> · peak ${peak.peak_qty.toLocaleString('en-IN')} (${peak.seen_count}s)</span>`:''}
+        </span>
+      </div>`;
+    }).join('')
+    : '<div class="dw-big-empty">No depth data</div>';
 
   const bb = document.getElementById('dw-big-bids');
   const ba = document.getElementById('dw-big-asks');
-  if (bb) bb.innerHTML = renderBigRows(big_bid_prices, maxBid, '#1D9E75');
-  if (ba) ba.innerHTML = renderBigRows(big_ask_prices, maxAsk, '#D85A30');
+  if (bb) bb.innerHTML = renderFinalLevels(finalBuyLvl,  maxBidQty, '#1D9E75', bigBidSet, bidPeakMap);
+  if (ba) ba.innerHTML = renderFinalLevels(finalSellLvl, maxAskQty, '#D85A30', bigAskSet, askPeakMap);
 
   // Final sparkline redraw with all samples
   dwDrawSparkline(samples.map(s => s.imbalance));
