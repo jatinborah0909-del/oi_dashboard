@@ -494,8 +494,9 @@ tr:last-child td{border-bottom:none;}
   <button class="tab-btn" id="tab-option-chain-btn" onclick="switchTab('option-chain')">Option Chain & OI Moves</button>
   <button class="tab-btn" id="tab-oi-movers-btn" onclick="switchTab('oi-movers')">📊 OI Movers</button>
   <button class="tab-btn" id="tab-oi-change-btn" onclick="switchTab('oi-change')">📈 Selected Strike ΔOI</button>
-  <button class="tab-btn" id="tab-nifty-chart-btn" onclick="switchTab('nifty-chart')">📊 Nifty Chart</button>
+
   <button class="tab-btn" id="tab-paper-trade-btn" onclick="switchTab('paper-trade')">🤖 Paper Trades</button>
+  <button class="tab-btn" id="tab-depth-watch-btn" onclick="switchTab('depth-watch')">🔬 Depth Watch</button>
   <span class="tab-hint">Move heavy tables away from the main trading view</span>
 </div>
 
@@ -574,38 +575,6 @@ tr:last-child td{border-bottom:none;}
     <div class="bar-wrap"><div class="bar" id="bull-bar" style="background:#1D9E75;width:50%;"></div></div>
     <div class="dom-label" id="bull-dom-label"></div>
   </div>
-    </div>
-  </div>
-</div>
-
-<!-- ── NIFTY INDEX CHART ── -->
-<div class="collapsible-section">
-  <div class="cs-header" onclick="toggleSection(this)" id="cs-nifty-chart">
-    <div class="cs-header-left">
-      <span class="cs-title">📈 Nifty Price Chart</span>
-    </div>
-    <span class="cs-chevron">▼</span>
-  </div>
-  <div class="cs-body">
-    <div class="index-chart-card" style="border-radius:0;margin-bottom:0;">
-  <div class="index-chart-title">Nifty 50 — price chart · candle colour = dominant OI move</div>
-  <div class="index-chart-sub" id="index-chart-sub">Colour = dominant OI move across both selected strikes (CE building / PE building / CE unwinding / PE unwinding)</div>
-  <div class="index-legend">
-    <span class="il-item"><span class="il-sq" style="background:#8B1A1A;"></span>CE building (strong bear)</span>
-    <span class="il-item"><span class="il-sq" style="background:#EF9F27;"></span>PE unwinding (weak bear)</span>
-    <span class="il-item"><span class="il-sq" style="background:#0F6E56;"></span>PE building (strong bull)</span>
-    <span class="il-item"><span class="il-sq" style="background:#97C459;"></span>CE unwinding (weak bull)</span>
-    <span class="il-item"><span class="il-sq" style="background:#888;"></span>Neutral</span>
-  </div>
-  <div class="conf-chart-wrap">
-    <div class="conf-chart-scroll" id="index-scroll">
-      <div class="conf-chart-area" id="index-chart-area">
-        <svg id="svgIndex" style="display:block;"></svg>
-      </div>
-    </div>
-    <svg id="svgIndexYAxis" class="yaxis-overlay" style="display:block;"></svg>
-  </div>
-  <div class="signal-strip" id="index-strip"></div>
     </div>
   </div>
 </div>
@@ -1188,40 +1157,6 @@ tr:last-child td{border-bottom:none;}
 </div><!-- end tab-oi-change-panel -->
 
 <!-- ── NIFTY CHART TAB ── -->
-<div class="tab-panel" id="tab-nifty-chart-panel">
-  <div class="index-chart-card" style="margin-bottom:12px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
-      <div>
-        <div class="index-chart-title">Nifty 50 — price chart · candle colour = dominant OI move</div>
-        <div class="index-chart-sub" id="nifty-tab-chart-sub">Colour = dominant OI move across both selected strikes</div>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;font-size:12px;color:#666;">
-        <label><input type="checkbox" id="nifty-tab-show-pivots" checked onchange="drawNiftyTabChart()"> Show R1/R2/S1/S2</label>
-        <span style="font-size:11px;color:#aaa;" id="nifty-tab-pivot-info"></span>
-      </div>
-    </div>
-    <div class="index-legend" style="margin-bottom:10px;">
-      <span class="il-item"><span class="il-sq" style="background:#8B1A1A;"></span>CE building (strong bear)</span>
-      <span class="il-item"><span class="il-sq" style="background:#EF9F27;"></span>PE unwinding (weak bear)</span>
-      <span class="il-item"><span class="il-sq" style="background:#0F6E56;"></span>PE building (strong bull)</span>
-      <span class="il-item"><span class="il-sq" style="background:#97C459;"></span>CE unwinding (weak bull)</span>
-      <span class="il-item"><span class="il-sq" style="background:#888;"></span>Neutral</span>
-      <span class="il-item"><span style="display:inline-block;width:22px;height:0;border-top:1.5px dashed #D85A30;vertical-align:middle;margin-right:4px;"></span>R1/R2 (resistance)</span>
-      <span class="il-item"><span style="display:inline-block;width:22px;height:0;border-top:1.5px dashed #1D9E75;vertical-align:middle;margin-right:4px;"></span>S1/S2 (support)</span>
-      <span class="il-item"><span style="display:inline-block;width:22px;height:0;border-top:1.5px dashed #534AB7;vertical-align:middle;margin-right:4px;"></span>Pivot (P)</span>
-    </div>
-    <div class="conf-chart-wrap">
-      <div class="conf-chart-scroll" id="nifty-tab-scroll" style="overflow-x:auto;overflow-y:hidden;width:100%;border-radius:4px;">
-        <div id="nifty-tab-chart-area" style="position:relative;display:inline-block;">
-          <svg id="svgNiftyTab" style="display:block;"></svg>
-        </div>
-      </div>
-      <svg id="svgNiftyTabYAxis" class="yaxis-overlay" style="display:block;"></svg>
-    </div>
-    <div class="signal-strip" id="nifty-tab-strip"></div>
-  </div>
-</div><!-- end tab-nifty-chart-panel -->
-
 <!-- ══════════════════════════════════════════════════════════════════
      PAPER TRADING TAB
 ════════════════════════════════════════════════════════════════════ -->
@@ -1292,10 +1227,527 @@ tr:last-child td{border-bottom:none;}
 
 </div><!-- end tab-paper-trade-panel -->
 
+<!-- ═══════════════════════════════════════════════════════════════
+     DEPTH WATCH TAB
+     On-demand market depth sampler for CE/PE unwinding detection.
+     Samples /depth/watch for a chosen strike + type + duration,
+     then renders a live table, imbalance sparkline, and big-order summary.
+═══════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-depth-watch-panel">
+<style>
+.dw-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;}
+.dw-title{font-size:14px;font-weight:500;margin-bottom:4px;}
+.dw-sub{font-size:11px;color:#888;margin-bottom:14px;}
+.dw-controls{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;}
+.dw-field{display:flex;flex-direction:column;gap:4px;}
+.dw-label{font-size:11px;color:#888;}
+.dw-input{font-size:13px;padding:6px 10px;border:0.5px solid #ccc;border-radius:7px;background:#fff;color:#1a1a1a;width:110px;}
+.dw-select{font-size:13px;padding:6px 10px;border:0.5px solid #ccc;border-radius:7px;background:#fff;color:#1a1a1a;cursor:pointer;}
+.dw-btn{font-size:13px;padding:7px 18px;border-radius:7px;cursor:pointer;border:0.5px solid #185FA5;background:#185FA5;color:#fff;font-weight:500;transition:all .15s;min-width:90px;}
+.dw-btn:hover{background:#1350a0;}
+.dw-btn:disabled{background:#aaa;border-color:#aaa;cursor:not-allowed;}
+.dw-btn-stop{background:#D85A30;border-color:#D85A30;}
+.dw-btn-stop:hover{background:#b84520;}
+
+.dw-status{font-size:12px;padding:8px 14px;border-radius:7px;background:#f8f8f5;border:0.5px solid #e0e0da;color:#555;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.dw-dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0;transition:background .3s;}
+.dw-dot.running{background:#1D9E75;animation:blink 1.2s infinite;}
+.dw-dot.done{background:#185FA5;}
+.dw-dot.error{background:#D85A30;}
+
+/* Summary boxes */
+.dw-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:14px;}
+.dw-sum-box{background:#f8f8f5;border:0.5px solid #e0e0da;border-radius:8px;padding:8px 12px;}
+.dw-sum-label{font-size:10px;color:#888;margin-bottom:3px;text-transform:uppercase;letter-spacing:.03em;}
+.dw-sum-val{font-size:16px;font-weight:500;font-variant-numeric:tabular-nums;}
+.dw-sum-val.pos{color:#1D9E75;} .dw-sum-val.neg{color:#D85A30;} .dw-sum-val.neu{color:#534AB7;}
+
+/* Interpretation banner */
+.dw-interp{padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+.dw-interp.cover{background:#E1F5EE;color:#085041;border:0.5px solid #a0dcc8;}
+.dw-interp.add{background:#FAECE7;color:#712B13;border:0.5px solid #f0c0b0;}
+.dw-interp.neutral{background:#f0f0ec;color:#555;border:0.5px solid #ddd;}
+
+/* Big order tables */
+.dw-big-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+.dw-big-card{background:#f8f8f5;border:0.5px solid #e0e0da;border-radius:8px;padding:10px 14px;}
+.dw-big-title{font-size:11px;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;}
+.dw-big-title.bid{color:#1D9E75;} .dw-big-title.ask{color:#D85A30;}
+.dw-big-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5px solid #e8e8e2;font-size:12px;}
+.dw-big-row:last-child{border-bottom:none;}
+.dw-big-price{font-weight:500;font-variant-numeric:tabular-nums;}
+.dw-big-qty{color:#555;font-variant-numeric:tabular-nums;}
+.dw-big-bar-wrap{width:60px;height:5px;background:#e0e0da;border-radius:3px;overflow:hidden;margin:0 6px;}
+.dw-big-bar{height:100%;border-radius:3px;}
+.dw-big-empty{font-size:11px;color:#aaa;padding:6px 0;}
+
+/* Imbalance sparkline */
+.dw-spark-wrap{margin-bottom:14px;}
+.dw-spark-title{font-size:11px;color:#888;margin-bottom:6px;}
+
+/* Sample table */
+.dw-table-wrap{overflow-x:auto;}
+.dw-table{width:100%;border-collapse:collapse;font-size:11px;}
+.dw-table th{text-align:right;padding:4px 8px;border-bottom:0.5px solid #ccc;color:#888;font-weight:400;white-space:nowrap;}
+.dw-table th:first-child{text-align:left;}
+.dw-table td{padding:4px 8px;border-bottom:0.5px solid #eee;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.dw-table td:first-child{text-align:left;color:#888;}
+.dw-table tr:last-child td{border-bottom:none;}
+.dw-table tr.highlight td{background:#FAFEE6;}
+.imb-pos{color:#1D9E75;font-weight:500;} .imb-neg{color:#D85A30;font-weight:500;}
+.oi-drop{color:#D85A30;} .oi-rise{color:#1D9E75;}
+
+/* Piggyback highlight */
+.dw-piggyback{background:#FAEEDA;border:0.5px solid #EF9F27;border-radius:8px;padding:10px 14px;font-size:12px;color:#854F0B;margin-bottom:14px;display:none;}
+.dw-piggyback strong{font-weight:600;}
+</style>
+
+<div class="dw-card">
+  <div class="dw-title">🔬 On-Demand Depth Watch</div>
+  <div class="dw-sub">Sample the live order book for a specific strike to confirm CE/PE unwinding. Works for both CE exits after breakouts and PE exits after support breaks.</div>
+
+  <!-- Controls -->
+  <div class="dw-controls">
+    <div class="dw-field">
+      <span class="dw-label">Strike</span>
+      <input class="dw-input" type="number" id="dw-strike" placeholder="e.g. 24000" step="50">
+    </div>
+    <div class="dw-field">
+      <span class="dw-label">Type</span>
+      <select class="dw-select" id="dw-type">
+        <option value="CE">CE — Call (breakout)</option>
+        <option value="PE">PE — Put (support break)</option>
+      </select>
+    </div>
+    <div class="dw-field">
+      <span class="dw-label">Watch duration</span>
+      <select class="dw-select" id="dw-seconds">
+        <option value="15">15s — quick</option>
+        <option value="30" selected>30s — standard</option>
+        <option value="60">1 min</option>
+        <option value="120">2 min</option>
+        <option value="180">3 min</option>
+        <option value="300">5 min</option>
+        <option value="600">10 min</option>
+      </select>
+    </div>
+    <div class="dw-field">
+      <span class="dw-label">Big order ≥ (lots)</span>
+      <input class="dw-input" type="number" id="dw-threshold" value="500" step="100" style="width:90px;">
+    </div>
+    <button class="dw-btn" id="dw-start-btn" onclick="dwStart()">▶ Start</button>
+    <button class="dw-btn dw-btn-stop" id="dw-stop-btn" onclick="dwStop()" style="display:none;">■ Cancel</button>
+  </div>
+
+  <!-- Quick-fill from tracked strikes -->
+  <div style="margin-bottom:14px;">
+    <span style="font-size:11px;color:#888;margin-right:8px;">Quick fill:</span>
+    <span id="dw-quick-chips" style="display:inline-flex;gap:5px;flex-wrap:wrap;"></span>
+  </div>
+
+  <!-- Status -->
+  <div class="dw-status" id="dw-status">
+    <div class="dw-dot" id="dw-dot"></div>
+    <span id="dw-status-text">Ready — enter a strike and press Start</span>
+  </div>
+
+  <!-- Piggyback suggestion -->
+  <div class="dw-piggyback" id="dw-piggyback">
+    <strong>💡 Piggyback suggestion:</strong> <span id="dw-piggyback-text"></span>
+  </div>
+
+  <!-- Summary boxes -->
+  <div class="dw-summary-grid" id="dw-summary" style="display:none;">
+    <div class="dw-sum-box">
+      <div class="dw-sum-label">OI Start</div>
+      <div class="dw-sum-val neu" id="dw-oi-start">—</div>
+    </div>
+    <div class="dw-sum-box">
+      <div class="dw-sum-label">OI End</div>
+      <div class="dw-sum-val neu" id="dw-oi-end">—</div>
+    </div>
+    <div class="dw-sum-box">
+      <div class="dw-sum-label">OI Δ</div>
+      <div class="dw-sum-val" id="dw-oi-delta">—</div>
+    </div>
+    <div class="dw-sum-box">
+      <div class="dw-sum-label">LTP Start → End</div>
+      <div class="dw-sum-val neu" id="dw-ltp-range">—</div>
+    </div>
+    <div class="dw-sum-box">
+      <div class="dw-sum-label">Avg Imbalance</div>
+      <div class="dw-sum-val" id="dw-avg-imb">—</div>
+    </div>
+    <div class="dw-sum-box">
+      <div class="dw-sum-label">Imb Range</div>
+      <div class="dw-sum-val neu" id="dw-imb-range">—</div>
+    </div>
+  </div>
+
+  <!-- Interpretation -->
+  <div class="dw-interp neutral" id="dw-interp" style="display:none;"></div>
+
+  <!-- Big orders side by side -->
+  <div class="dw-big-grid" id="dw-big-grid" style="display:none;">
+    <div class="dw-big-card">
+      <div class="dw-big-title bid">🟢 Big Bids (covering queue)</div>
+      <div id="dw-big-bids">—</div>
+    </div>
+    <div class="dw-big-card">
+      <div class="dw-big-title ask">🔴 Big Asks (sell wall)</div>
+      <div id="dw-big-asks">—</div>
+    </div>
+  </div>
+
+  <!-- Imbalance sparkline -->
+  <div class="dw-spark-wrap" id="dw-spark-wrap" style="display:none;">
+    <div class="dw-spark-title">Depth imbalance per second (green = bid-heavy, red = ask-heavy)</div>
+    <canvas id="dw-spark" height="60" style="width:100%;display:block;border-radius:6px;"></canvas>
+  </div>
+
+  <!-- Sample table -->
+  <div id="dw-table-section" style="display:none;">
+    <div style="font-size:11px;color:#888;margin-bottom:6px;">Second-by-second samples</div>
+    <div class="dw-table-wrap">
+      <table class="dw-table">
+        <thead>
+          <tr>
+            <th style="text-align:left;">Time</th>
+            <th>LTP</th>
+            <th>OI</th>
+            <th>Bid Qty</th>
+            <th>Ask Qty</th>
+            <th>Imbalance</th>
+            <th>Best Bid</th>
+            <th>Best Ask</th>
+          </tr>
+        </thead>
+        <tbody id="dw-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- end tab-depth-watch-panel -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DEPTH WATCH — JS  (SSE streaming, up to 10 min)
+// ═══════════════════════════════════════════════════════════════
+
+let dwWatchId    = null;   // current watch_id from server
+let dwEvtSource  = null;   // EventSource connection
+let dwRunning    = false;
+let dwSamples    = [];     // accumulated samples for sparkline
+let dwCountdown  = null;   // setInterval handle
+let dwSecondsLeft = 0;
+let dwDuration   = 0;
+
+// Populate quick-fill chips from tracked strikes whenever strikes arrive
+function dwRenderQuickChips() {
+  const box = document.getElementById('dw-quick-chips');
+  if (!box || !allStrikes || !allStrikes.length) return;
+  const atm    = atmStrike || allStrikes[Math.floor(allStrikes.length / 2)];
+  const atmIdx = allStrikes.indexOf(atm);
+  const lo     = Math.max(0, atmIdx - 3);
+  const hi     = Math.min(allStrikes.length - 1, atmIdx + 3);
+  box.innerHTML = allStrikes.slice(lo, hi + 1).map(st => {
+    const isAtm = st === atm;
+    return `<span style="font-size:11px;padding:3px 10px;border-radius:20px;
+            border:0.5px solid ${isAtm?'#534AB7':'#ddd'};
+            background:${isAtm?'#EEEDFE':'#f8f8f5'};
+            color:${isAtm?'#534AB7':'#666'};cursor:pointer;"
+            onclick="dwFill(${st})">${st.toLocaleString('en-IN')}${isAtm?' · ATM':''}</span>`;
+  }).join('');
+}
+
+function dwFill(strike) {
+  const inp = document.getElementById('dw-strike');
+  if (inp) inp.value = strike;
+}
+
+function dwSetStatus(msg, state) {
+  const dot = document.getElementById('dw-dot');
+  const txt = document.getElementById('dw-status-text');
+  if (!txt) return;
+  txt.textContent = msg;
+  if (dot) dot.className = 'dw-dot ' + (state || '');
+}
+
+function dwFmtOI(v) {
+  const a = Math.abs(v), s = v < 0 ? '-' : '';
+  if (a >= 1e7) return (v<0?'-':'+') + (a/1e7).toFixed(2) + ' Cr';
+  if (a >= 1e5) return (v<0?'-':'+') + (a/1e5).toFixed(2) + ' L';
+  if (a >= 1e3) return (v<0?'-':'+') + (a/1e3).toFixed(1) + 'K';
+  return (v>=0?'+':'') + v.toLocaleString('en-IN');
+}
+
+async function dwStart() {
+  if (dwRunning) return;
+
+  const strike    = parseInt(document.getElementById('dw-strike')?.value || '0');
+  const type      = document.getElementById('dw-type')?.value || 'CE';
+  const seconds   = parseInt(document.getElementById('dw-seconds')?.value || '30');
+  const threshold = parseInt(document.getElementById('dw-threshold')?.value || '500');
+
+  if (!strike || strike < 1000) { alert('Enter a valid strike (e.g. 24000)'); return; }
+
+  // ── Disable Start + show Stop IMMEDIATELY (before any network call) ──
+  dwRunning = true;
+  document.getElementById('dw-start-btn').disabled = true;
+  document.getElementById('dw-stop-btn').style.display = '';
+  dwSetStatus(`Connecting… starting watcher for ${strike} ${type}`, 'running');
+
+  // ── Reset UI ──────────────────────────────────────────────────
+  dwSamples = [];
+  ['dw-summary','dw-interp','dw-big-grid','dw-spark-wrap','dw-table-section']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  const pig = document.getElementById('dw-piggyback');
+  if (pig) pig.style.display = 'none';
+  document.getElementById('dw-tbody').innerHTML = '';
+
+  // ── POST /depth/watch/start ───────────────────────────────────
+  let resp;
+  try {
+    resp = await fetch('/depth/watch/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ strike, type, seconds, threshold }),
+    });
+  } catch (e) {
+    dwSetStatus('Network error: ' + e.message, 'error');
+    dwCleanup(); return;
+  }
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    dwSetStatus('Error: ' + (err.error || resp.statusText), 'error');
+    dwCleanup(); return;
+  }
+
+  const meta = await resp.json();
+  dwWatchId  = meta.watch_id;
+  dwDuration = seconds;
+
+  // Show countdown timer
+  dwSecondsLeft = seconds;
+  dwSetStatus(
+    `Watching ${strike} ${type} · ${meta.symbol || ''} · ${seconds}s window · 0 samples`, 'running'
+  );
+
+  // Countdown ticker
+  dwCountdown = setInterval(() => {
+    dwSecondsLeft = Math.max(0, dwSecondsLeft - 1);
+  }, 1000);
+
+  // ── Open SSE stream ───────────────────────────────────────────
+  dwEvtSource = new EventSource(`/depth/watch/stream/${dwWatchId}`);
+
+  dwEvtSource.onmessage = (e) => {
+    let msg;
+    try { msg = JSON.parse(e.data); } catch { return; }
+
+    if (msg.type === 'tick') {
+      dwSamples.push(msg.sample);
+      dwSetStatus(
+        `Watching ${strike} ${type} · ${dwSecondsLeft}s left · ${msg.seq} samples`, 'running'
+      );
+      // Live updates
+      dwUpdateLive(msg.sample, msg.rolling);
+    }
+
+    if (msg.type === 'done') {
+      dwEvtSource.close();
+      dwEvtSource = null;
+      clearInterval(dwCountdown);
+      dwRunning = false;
+      document.getElementById('dw-start-btn').disabled = false;
+      document.getElementById('dw-stop-btn').style.display = 'none';
+      dwSetStatus(
+        `Done — ${(msg.samples||dwSamples).length} samples for ${meta.symbol || strike+' '+type}`, 'done'
+      );
+      dwRenderFinal(msg.summary, msg.samples || dwSamples, type);
+    }
+  };
+
+  dwEvtSource.onerror = () => {
+    if (!dwRunning) return;  // already closed intentionally
+    dwSetStatus('Stream error — check server logs.', 'error');
+    dwCleanup();
+  };
+}
+
+function dwStop() {
+  if (!dwWatchId) return;
+  fetch(`/depth/watch/stop/${dwWatchId}`, { method: 'POST' }).catch(() => {});
+  dwCleanup();
+  dwSetStatus('Stopped early.', '');
+}
+
+function dwCleanup() {
+  if (dwEvtSource) { dwEvtSource.close(); dwEvtSource = null; }
+  clearInterval(dwCountdown);
+  dwRunning = false;
+  document.getElementById('dw-start-btn').disabled = false;
+  document.getElementById('dw-stop-btn').style.display = 'none';
+}
+
+// Called every tick — update live summary boxes + sparkline + table row
+function dwUpdateLive(sample, rolling) {
+  if (!rolling) return;
+
+  // Show summary grid while running
+  const sd = document.getElementById('dw-summary');
+  if (sd) sd.style.display = 'grid';
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const cls = (id, c)   => { const el = document.getElementById(id); if (el) el.className = 'dw-sum-val ' + c; };
+
+  set('dw-oi-start', dwFmtOI(rolling.oi_start).replace(/^[+-]/,''));
+  set('dw-oi-end',   dwFmtOI(rolling.oi_end).replace(/^[+-]/,''));
+
+  const delta = rolling.oi_delta;
+  set('dw-oi-delta', dwFmtOI(delta));
+  cls('dw-oi-delta', delta < 0 ? 'neg' : delta > 0 ? 'pos' : 'neu');
+
+  set('dw-ltp-range', rolling.ltp_start.toFixed(1) + ' → ' + rolling.ltp_end.toFixed(1));
+
+  const avgImb = rolling.avg_imbalance;
+  set('dw-avg-imb', (avgImb >= 0 ? '+' : '') + avgImb.toFixed(3));
+  cls('dw-avg-imb', avgImb > 0.05 ? 'pos' : avgImb < -0.05 ? 'neg' : 'neu');
+
+  set('dw-imb-range',
+    (rolling.min_imbalance >= 0 ? '+' : '') + rolling.min_imbalance.toFixed(2) +
+    ' / ' + (rolling.max_imbalance >= 0 ? '+' : '') + rolling.max_imbalance.toFixed(2));
+
+  // Live interpretation
+  const interp = document.getElementById('dw-interp');
+  if (interp) {
+    interp.style.display = '';
+    interp.textContent = '📊 ' + rolling.interpretation;
+    const covering = delta < 0 && avgImb > 0.05;
+    const adding   = delta > 0 && avgImb < -0.05;
+    interp.className = 'dw-interp ' + (covering ? 'cover' : adding ? 'add' : 'neutral');
+  }
+
+  // Live sparkline
+  dwDrawSparkline(dwSamples.map(s => s.imbalance));
+
+  // Append row to table
+  const tableSection = document.getElementById('dw-table-section');
+  if (tableSection) tableSection.style.display = '';
+  const tbody = document.getElementById('dw-tbody');
+  if (tbody) {
+    const firstOI = dwSamples[0]?.oi || sample.oi;
+    const imb     = sample.imbalance;
+    const imbCls  = imb > 0.05 ? 'imb-pos' : imb < -0.05 ? 'imb-neg' : '';
+    const oiDiff  = sample.oi - firstOI;
+    const oiCls   = oiDiff < 0 ? 'oi-drop' : oiDiff > 0 ? 'oi-rise' : '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${sample.t}</td>
+      <td>${sample.ltp.toFixed(1)}</td>
+      <td class="${oiCls}">${sample.oi.toLocaleString('en-IN')}</td>
+      <td>${sample.bid_qty.toLocaleString('en-IN')}</td>
+      <td>${sample.ask_qty.toLocaleString('en-IN')}</td>
+      <td class="${imbCls}">${(imb>=0?'+':'')+imb.toFixed(3)}</td>
+      <td>${sample.best_bid.toFixed(1)}</td>
+      <td>${sample.best_ask.toFixed(1)}</td>`;
+    tbody.appendChild(tr);
+    // Auto-scroll table to latest
+    tr.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function dwDrawSparkline(imbs) {
+  const sparkWrap = document.getElementById('dw-spark-wrap');
+  if (sparkWrap) sparkWrap.style.display = '';
+  const canvas = document.getElementById('dw-spark');
+  if (!canvas || !imbs.length) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W   = canvas.parentElement.offsetWidth || 600;
+  const H   = 60;
+  canvas.width  = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const midY = H / 2;
+  // zero line
+  ctx.strokeStyle = '#e0e0da'; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(W, midY); ctx.stroke();
+  const barW = Math.max(2, Math.floor(W / Math.max(imbs.length, 1)) - 1);
+  imbs.forEach((v, i) => {
+    const x    = i * (W / Math.max(imbs.length, 1));
+    const barH = Math.abs(v) * midY * 0.9;
+    ctx.fillStyle = v >= 0 ? '#1D9E75' : '#D85A30';
+    v >= 0 ? ctx.fillRect(x, midY - barH, barW, barH)
+           : ctx.fillRect(x, midY, barW, barH);
+  });
+}
+
+// Called once when "done" event arrives — render big orders + piggyback
+function dwRenderFinal(summary, samples, type) {
+  if (!summary) return;
+
+  const { big_bid_prices, big_ask_prices, oi_delta, avg_imbalance } = summary;
+
+  // Piggyback suggestion
+  const covering = oi_delta < 0 && avg_imbalance > 0.05 && big_bid_prices?.length;
+  const pig    = document.getElementById('dw-piggyback');
+  const pigtxt = document.getElementById('dw-piggyback-text');
+  if (covering && pig && pigtxt) {
+    const top = big_bid_prices[0];
+    pig.style.display = '';
+    pigtxt.innerHTML =
+      `${type} shorts covered via limit buys. Largest bid wall: <strong>₹${top.price}</strong> ` +
+      `(peak ${top.peak_qty.toLocaleString('en-IN')} lots, held for ${top.seen_count}s). ` +
+      `Place your buy at <strong>₹${top.price}</strong> or just above to join the queue.`;
+  }
+
+  // Big orders
+  const bigGrid = document.getElementById('dw-big-grid');
+  if (bigGrid) bigGrid.style.display = 'grid';
+
+  const maxBid = big_bid_prices?.length ? big_bid_prices[0].peak_qty : 1;
+  const maxAsk = big_ask_prices?.length ? big_ask_prices[0].peak_qty : 1;
+
+  const renderBigRows = (rows, maxQty, color) => rows?.length
+    ? rows.map(r => `
+        <div class="dw-big-row">
+          <span class="dw-big-price" style="color:${color};">₹${r.price}</span>
+          <div class="dw-big-bar-wrap">
+            <div class="dw-big-bar" style="width:${Math.round(r.peak_qty/maxQty*100)}%;background:${color};"></div>
+          </div>
+          <span class="dw-big-qty">${r.peak_qty.toLocaleString('en-IN')}
+            <span style="color:#bbb;font-size:10px;">(${r.seen_count}s)</span>
+          </span>
+        </div>`).join('')
+    : '<div class="dw-big-empty">None above threshold</div>';
+
+  const bb = document.getElementById('dw-big-bids');
+  const ba = document.getElementById('dw-big-asks');
+  if (bb) bb.innerHTML = renderBigRows(big_bid_prices, maxBid, '#1D9E75');
+  if (ba) ba.innerHTML = renderBigRows(big_ask_prices, maxAsk, '#D85A30');
+
+  // Final sparkline redraw with all samples
+  dwDrawSparkline(samples.map(s => s.imbalance));
+}
+
+// Hook into the SSE stream to keep quick-chips current
+document.addEventListener('DOMContentLoaded', () => {
+  const chipTimer = setInterval(() => {
+    if (typeof allStrikes !== 'undefined' && allStrikes?.length) {
+      dwRenderQuickChips();
+      clearInterval(chipTimer);
+    }
+  }, 500);
+});
+</script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 function switchTab(tabName) {
-  ['dashboard', 'option-chain', 'oi-movers', 'oi-change', 'nifty-chart', 'paper-trade'].forEach(name => {
+  ['dashboard', 'option-chain', 'oi-movers', 'oi-change', 'paper-trade', 'depth-watch'].forEach(name => {
     const panel = document.getElementById('tab-' + name + '-panel');
     const btn = document.getElementById('tab-' + name + '-btn');
     const active = name === tabName;
@@ -1318,11 +1770,11 @@ function switchTab(tabName) {
     renderOIChangeStrikeChips();
     renderOIChangeChart();
   }
-  if (tabName === 'nifty-chart') {
-    drawNiftyTabChart();
-  }
   if (tabName === 'paper-trade') {
     ptRenderAll();
+  }
+  if (tabName === 'depth-watch') {
+    dwRenderQuickChips();
   }
 }
 
@@ -2540,6 +2992,7 @@ function drawYAxisOverlay(yAxisSvgId, H, padL, padT, padB, yMin, yMax, ticks) {
 // ── INDEX CHART ───────────────────────────────────────────────────
 function drawIndexChart(candles) {
   const svgEl = document.getElementById('svgIndex');
+  if (!svgEl) return [];
   svgEl.innerHTML = '';
   if (!candles.length) { svgEl.setAttribute('height','60'); return []; }
   const scrollEl   = document.getElementById('index-scroll');
@@ -2665,237 +3118,6 @@ function drawIndexChart(candles) {
 
   return actSigs;
 }
-
-// ── NIFTY TAB CHART — bigger canvas + rolling intraday pivots ────
-function drawNiftyTabChart() {
-  const svgEl = document.getElementById('svgNiftyTab');
-  if (!svgEl) return;
-  svgEl.innerHTML = '';
-
-  // Build candles same way as dashboard index chart
-  const midIdx = Math.floor(numCharts / 2);
-  const s1 = selectedStrikes[0], s2 = selectedStrikes[midIdx], s3 = selectedStrikes[numCharts - 1];
-  const merged = buildMergedCandles(minuteRows, intervalMin, s1, s2, s3);
-  const candles = liveCandle ? [...merged, liveCandle] : merged;
-
-  if (!candles.length) { svgEl.setAttribute('height','80'); return; }
-
-  // Update subtitle
-  const sub = document.getElementById('nifty-tab-chart-sub');
-  if (sub) sub.textContent = `Nifty 50 · ${intervalMin}m candles · ${candles.length} bars · colour = dominant OI move (top+bottom strikes)`;
-
-  // Bigger canvas — 2× height, wider candles
-  const SLOT_W = Math.max(INDEX_CANDLE_W * 2 + 2, 18);
-  const CANDLE_W = SLOT_W - 2;
-  const H = Math.max(INDEX_H * 2, 440);
-  const scrollEl = document.getElementById('nifty-tab-scroll');
-  const containerW = scrollEl ? scrollEl.offsetWidth : window.innerWidth - 80;
-  const W = Math.max(candles.length * SLOT_W + 80, containerW);
-
-  svgEl.setAttribute('width', W);
-  svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svgEl.setAttribute('height', H);
-  document.getElementById('nifty-tab-chart-area').style.width = W + 'px';
-
-  const padL = 58, padR = 20, padT = 14, padB = 30;
-  const aW = W - padL - padR, aH = H - padT - padB;
-  const ns = 'http://www.w3.org/2000/svg';
-
-  // ── Rolling intraday pivot calculation ──────────────────────────
-  // For each candle, compute pivot from the session high/low/close
-  // accumulated UP TO (not including) that candle — so pivots are
-  // predictive (based on what market has done so far this session).
-  // After at least MIN_CANDLES_FOR_PIVOT candles, levels become meaningful.
-  const MIN_CANDLES_FOR_PIVOT = 5;
-  const showPivots = document.getElementById('nifty-tab-show-pivots')?.checked !== false;
-
-  // Compute rolling session H/L/C at each candle index
-  const pivotLevels = []; // { idx, P, R1, R2, S1, S2 }
-  let sessH = -Infinity, sessL = Infinity, sessC = 0;
-  candles.forEach((c, i) => {
-    if (!c.high || !c.low || !c.close) return;
-    if (i >= MIN_CANDLES_FOR_PIVOT) {
-      const P  = (sessH + sessL + sessC) / 3;
-      const R1 = 2 * P - sessL;
-      const S1 = 2 * P - sessH;
-      const R2 = P + (sessH - sessL);
-      const S2 = P - (sessH - sessL);
-      pivotLevels.push({ idx: i, P, R1, R2, S1, S2 });
-    }
-    // Update running session OHLC
-    if (c.high > sessH) sessH = c.high;
-    if (c.low  < sessL) sessL = c.low;
-    sessC = c.close;
-  });
-
-  // Y scale — include pivot levels in range so nothing gets clipped
-  const allP = candles.flatMap(c => [c.open, c.high, c.low, c.close]).filter(v => v > 0);
-  if (showPivots && pivotLevels.length) {
-    const last = pivotLevels[pivotLevels.length - 1];
-    allP.push(last.R2, last.S2);
-  }
-  const yMin = Math.min(...allP) - 15;
-  const yMax = Math.max(...allP) + 15;
-  const yS = v => padT + aH * (1 - (v - yMin) / (yMax - yMin));
-
-  // ── Grid lines ──────────────────────────────────────────────────
-  for (let i = 0; i <= 4; i++) {
-    const y = padT + i * aH / 4;
-    const price = Math.round(yMax - i * (yMax - yMin) / 4);
-    const gl = document.createElementNS(ns, 'line');
-    gl.setAttribute('x1', padL); gl.setAttribute('x2', padL + aW);
-    gl.setAttribute('y1', y);   gl.setAttribute('y2', y);
-    gl.setAttribute('stroke', 'rgba(136,135,128,0.12)'); gl.setAttribute('stroke-width', '0.5');
-    svgEl.appendChild(gl);
-  }
-
-  // ── Rolling pivot lines (drawn BEFORE candles so candles sit on top) ─
-  if (showPivots && pivotLevels.length) {
-    // Draw lines as segments: from candle idx to idx+1 (stepped)
-    const PIVOT_DEFS = [
-      { key: 'R2', color: '#D85A30', dash: '4,3', opacity: '0.55', label: 'R2' },
-      { key: 'R1', color: '#D85A30', dash: '6,3', opacity: '0.8',  label: 'R1' },
-      { key: 'P',  color: '#534AB7', dash: '5,3', opacity: '0.75', label: 'P'  },
-      { key: 'S1', color: '#1D9E75', dash: '6,3', opacity: '0.8',  label: 'S1' },
-      { key: 'S2', color: '#1D9E75', dash: '4,3', opacity: '0.55', label: 'S2' },
-    ];
-
-    PIVOT_DEFS.forEach(def => {
-      // Draw a polyline stepping through pivot values candle by candle
-      let pathD = '';
-      pivotLevels.forEach((pl, pi) => {
-        const x1 = padL + pl.idx * SLOT_W;
-        const x2 = pi + 1 < pivotLevels.length
-          ? padL + pivotLevels[pi + 1].idx * SLOT_W
-          : padL + aW;
-        const y  = yS(pl[def.key]);
-        pathD += (pathD === '' ? 'M' : ' L') + `${x1},${y} L${x2},${y}`;
-      });
-      if (!pathD) return;
-
-      const path = document.createElementNS(ns, 'path');
-      path.setAttribute('d', pathD);
-      path.setAttribute('stroke', def.color);
-      path.setAttribute('stroke-width', '1.2');
-      path.setAttribute('stroke-dasharray', def.dash);
-      path.setAttribute('opacity', def.opacity);
-      path.setAttribute('fill', 'none');
-      svgEl.appendChild(path);
-
-      // Label at the right edge
-      const lastPl = pivotLevels[pivotLevels.length - 1];
-      const labelY = yS(lastPl[def.key]);
-      const labelX = padL + aW + 3;
-      const lt = document.createElementNS(ns, 'text');
-      lt.setAttribute('x', labelX); lt.setAttribute('y', labelY + 3);
-      lt.setAttribute('font-size', '9'); lt.setAttribute('font-weight', '600');
-      lt.setAttribute('fill', def.color); lt.setAttribute('opacity', def.opacity);
-      lt.textContent = `${def.label} ${Math.round(lastPl[def.key])}`;
-      svgEl.appendChild(lt);
-    });
-
-    // Update info badge
-    const lastPl = pivotLevels[pivotLevels.length - 1];
-    const info = document.getElementById('nifty-tab-pivot-info');
-    if (info) info.textContent =
-      `P ${Math.round(lastPl.P)} · R1 ${Math.round(lastPl.R1)} · R2 ${Math.round(lastPl.R2)} · S1 ${Math.round(lastPl.S1)} · S2 ${Math.round(lastPl.S2)}`;
-  } else {
-    const info = document.getElementById('nifty-tab-pivot-info');
-    if (info) info.textContent = '';
-  }
-
-  // ── Candles ─────────────────────────────────────────────────────
-  const actSigs = [];
-  candles.forEach((c, i) => {
-    if (!c.open || !c.close) { actSigs.push('N'); return; }
-    const actKey = getIndexOISignal(c);
-    const act = SIG_COLOR[actKey];
-    actSigs.push(actKey);
-    const cx = padL + i * SLOT_W + SLOT_W / 2;
-    const bodyT = yS(Math.max(c.open, c.close));
-    const bodyB = yS(Math.min(c.open, c.close));
-    const bodyH = Math.max(bodyB - bodyT, 2);
-
-    const wick = document.createElementNS(ns, 'line');
-    wick.setAttribute('x1', cx); wick.setAttribute('x2', cx);
-    wick.setAttribute('y1', yS(c.high || c.close)); wick.setAttribute('y2', yS(c.low || c.close));
-    wick.setAttribute('stroke', act.wick); wick.setAttribute('stroke-width', '1.5');
-    if (c.isLive) wick.setAttribute('opacity', '0.6');
-    svgEl.appendChild(wick);
-
-    const body = document.createElementNS(ns, 'rect');
-    body.setAttribute('x', cx - CANDLE_W / 2); body.setAttribute('y', bodyT);
-    body.setAttribute('width', CANDLE_W); body.setAttribute('height', bodyH);
-    body.setAttribute('fill', act.body); body.setAttribute('rx', '2');
-    if (c.isLive) body.setAttribute('opacity', '0.45');
-    svgEl.appendChild(body);
-
-    if (c.isLive) {
-      const outline = document.createElementNS(ns, 'rect');
-      outline.setAttribute('x', cx - CANDLE_W / 2); outline.setAttribute('y', bodyT);
-      outline.setAttribute('width', CANDLE_W); outline.setAttribute('height', bodyH);
-      outline.setAttribute('fill', 'none');
-      outline.setAttribute('stroke', act.body); outline.setAttribute('stroke-width', '1.2');
-      outline.setAttribute('stroke-dasharray', '2,2'); outline.setAttribute('rx', '2');
-      svgEl.appendChild(outline);
-      const liveTxt = document.createElementNS(ns, 'text');
-      liveTxt.setAttribute('x', cx); liveTxt.setAttribute('y', bodyT - 5);
-      liveTxt.setAttribute('text-anchor', 'middle'); liveTxt.setAttribute('font-size', '9');
-      liveTxt.setAttribute('fill', act.body); liveTxt.setAttribute('font-weight', '600');
-      liveTxt.textContent = 'LIVE';
-      svgEl.appendChild(liveTxt);
-    }
-
-    // X-axis label — every 2nd candle (same rule as dashboard chart)
-    if (i % 2 === 0 || candles.length <= 8) {
-      const lbl = document.createElementNS(ns, 'text');
-      lbl.setAttribute('x', cx); lbl.setAttribute('y', H - 8);
-      lbl.setAttribute('text-anchor', 'middle'); lbl.setAttribute('font-size', '9');
-      lbl.setAttribute('fill', '#888780'); lbl.textContent = c.label;
-      svgEl.appendChild(lbl);
-    }
-  });
-
-  // ── Last-price dashed line ───────────────────────────────────────
-  const last = candles[candles.length - 1];
-  if (last && last.close) {
-    const curY = yS(last.close);
-    const dl = document.createElementNS(ns, 'line');
-    dl.setAttribute('x1', padL); dl.setAttribute('x2', padL + aW);
-    dl.setAttribute('y1', curY); dl.setAttribute('y2', curY);
-    dl.setAttribute('stroke', '#378ADD'); dl.setAttribute('stroke-width', '0.8');
-    dl.setAttribute('stroke-dasharray', '3,2');
-    svgEl.appendChild(dl);
-    const pt = document.createElementNS(ns, 'text');
-    pt.setAttribute('x', padL + aW - 2); pt.setAttribute('y', curY - 3);
-    pt.setAttribute('text-anchor', 'end'); pt.setAttribute('font-size', '10');
-    pt.setAttribute('fill', '#185FA5'); pt.textContent = fmt(last.close);
-    svgEl.appendChild(pt);
-  }
-
-  // ── Y-axis overlay ───────────────────────────────────────────────
-  const ticks = Array.from({ length: 5 }, (_, i) => Math.round(yMax - i * (yMax - yMin) / 4));
-  drawYAxisOverlay('svgNiftyTabYAxis', H, padL, padT, padB, yMin, yMax, ticks);
-  document.getElementById('svgNiftyTabYAxis').style.height = H + 'px';
-
-  // ── Signal strip ─────────────────────────────────────────────────
-  const strip = document.getElementById('nifty-tab-strip');
-  strip.innerHTML = '';
-  actSigs.forEach(k => {
-    const b = document.createElement('div');
-    b.className = 'sig-block';
-    b.style.background = SIG_COLOR[k].body;
-    strip.appendChild(b);
-  });
-  const slbl = document.createElement('span');
-  slbl.className = 'sig-strip-label';
-  slbl.textContent = '← signals';
-  strip.appendChild(slbl);
-
-  // Scroll to latest
-  if (scrollEl) scrollEl.scrollLeft = scrollEl.scrollWidth;
-}
-
 
 // Uses spot OHLC for candle shape (same as index chart — always available from history rows)
 // Uses OI delta for activity-type colour classification
@@ -4916,13 +5138,13 @@ function _doRebuild() {
     if (subEl) subEl.textContent = sub;
   }
 
-  document.getElementById('index-chart-sub').textContent = 'Nifty 50 · '+intervalMin+'m candles · colour = dominant OI move (top+bottom strikes)';
+  const icsEl = document.getElementById('index-chart-sub');
+  if (icsEl) icsEl.textContent = 'Nifty 50 · '+intervalMin+'m candles · colour = dominant OI move (top+bottom strikes)';
 
   drawCumOIChart(minuteRows);
   drawOIMovers(minuteRows, atmStrike);
   renderOIChangeStrikeChips();
   if (document.getElementById('tab-oi-change-panel')?.classList.contains('active')) renderOIChangeChart();
-  if (document.getElementById('tab-nifty-chart-panel')?.classList.contains('active')) drawNiftyTabChart();
 
   const mergedWithLive = liveCandle ? [...merged, liveCandle] : merged;
   drawIndexChart(mergedWithLive);
