@@ -24,6 +24,10 @@ Endpoints (unchanged):
     GET  /oi/history       → 1-min rows for today (all strikes + OHLC)
     GET  /oi/live-candle   → currently forming 1-min candle
     GET  /strikes          → strike list
+    POST /depth/watch/start            → create depth watcher (strike, type, seconds up to 600)
+    GET  /depth/watch/stream/<id>      → SSE: live tick-by-tick depth events
+    POST /depth/watch/stop/<id>        → cancel early
+    GET  /depth/watch/result/<id>      → full result after completion
     GET  /health           → status + OHLC buffer
     POST /reset-csv        → wipe today's rows, start fresh
 """
@@ -536,7 +540,14 @@ def build_ticker():
                     rk = state["tokens"][token]["role_key"]
                     print(f"[{now_ist().strftime('%H:%M:%S')}] Baseline — {rk}: OI={current_oi:,}")
 
-                state["oi"][token] = {"oi": current_oi, "ltp": current_ltp}
+                depth_raw   = tick.get("depth", {})
+                buy_levels  = depth_raw.get("buy",  [])
+                sell_levels = depth_raw.get("sell", [])
+                state["oi"][token] = {
+                    "oi":   current_oi,
+                    "ltp":  current_ltp,
+                    "depth": {"buy": buy_levels, "sell": sell_levels},
+                }
                 _update_ltp_ohlc(token, current_ltp)
 
             _append_history()
@@ -852,6 +863,315 @@ def stream_ticks():
         "X-Accel-Buffering": "no",
     })
 
+# ── DEPTH WATCHER — background tasks + SSE streaming ─────────────────────────
+#
+# Architecture:
+#   POST /depth/watch/start              → creates a watcher, returns watch_id
+#   GET  /depth/watch/stream/<watch_id>  → SSE: one event/sec while running,
+#                                          then a final "done" event with summary
+#   POST /depth/watch/stop/<watch_id>    → cancel early
+#   GET  /depth/watch/result/<watch_id>  → full result after completion
+#
+# This avoids the 120-s HTTP timeout: the SSE connection is a long-lived
+# streaming response (same pattern as /stream), not a blocking request.
+# Duration up to 600 s (10 min). Watchers auto-expire after 30 min.
+
+_dw_watchers = {}          # watch_id → watcher dict
+_dw_lock     = threading.Lock()
+
+
+def _dw_interpret(opt_type, oi_delta, avg_imb, samples_n):
+    if oi_delta < -5000 and avg_imb > 0.1:
+        return (f"{opt_type} shorts covering via limit buys — OI fell {oi_delta:,} "
+                f"over {samples_n}s, bid side heavier. Piggyback on big_bid_prices.")
+    if oi_delta < -5000 and avg_imb < -0.1:
+        return (f"{opt_type} OI falling but ask side heavy — likely market-order "
+                f"covering or mixed signals. Check LTP direction.")
+    if oi_delta < -1000 and abs(avg_imb) < 0.1:
+        return (f"{opt_type} OI declining ({oi_delta:,}), depth balanced — "
+                f"moderate unwinding, no strong limit-order signal.")
+    if oi_delta > 5000 and avg_imb < -0.1:
+        return (f"Fresh {opt_type} shorts being added — OI rising +{oi_delta:,}, "
+                f"ask side heavy. Sellers entering via limit orders.")
+    if oi_delta > 5000 and avg_imb > 0.1:
+        return (f"{opt_type} OI rising +{oi_delta:,} with bid-heavy book — "
+                f"possible long buildup or other-side short covering.")
+    return (f"No dominant signal yet. OI delta={oi_delta:,}, "
+            f"avg imbalance={avg_imb:+.3f} over {samples_n}s.")
+
+
+def _dw_build_summary(opt_type, samples, bid_tracker, ask_tracker, big):
+    if not samples:
+        return {}
+    oi_start  = samples[0]["oi"]
+    oi_end    = samples[-1]["oi"]
+    ltp_start = samples[0]["ltp"]
+    ltp_end   = samples[-1]["ltp"]
+    imb_vals  = [s["imbalance"] for s in samples]
+    avg_imb   = round(sum(imb_vals) / len(imb_vals), 3)
+    oi_delta  = oi_end - oi_start
+
+    big_bids = sorted(
+        [{"price": p, "peak_qty": v["peak"], "seen_count": v["count"]}
+         for p, v in bid_tracker.items() if v["peak"] >= big],
+        key=lambda x: -x["peak_qty"]
+    )
+    big_asks = sorted(
+        [{"price": p, "peak_qty": v["peak"], "seen_count": v["count"]}
+         for p, v in ask_tracker.items() if v["peak"] >= big],
+        key=lambda x: -x["peak_qty"]
+    )
+    return {
+        "oi_start":       oi_start,
+        "oi_end":         oi_end,
+        "oi_delta":       oi_delta,
+        "ltp_start":      ltp_start,
+        "ltp_end":        ltp_end,
+        "avg_imbalance":  avg_imb,
+        "min_imbalance":  min(imb_vals),
+        "max_imbalance":  max(imb_vals),
+        "big_bid_prices": big_bids,
+        "big_ask_prices": big_asks,
+        "interpretation": _dw_interpret(opt_type, oi_delta, avg_imb, len(samples)),
+    }
+
+
+def _dw_worker(watch_id):
+    """Background thread: samples depth every second, pushes to per-watcher queue."""
+    with _dw_lock:
+        w = _dw_watchers.get(watch_id)
+    if not w:
+        return
+
+    token    = w["token"]
+    opt_type = w["opt_type"]
+    duration = w["duration"]
+    big      = w["big"]
+    q        = w["queue"]
+
+    samples     = []
+    bid_tracker = {}
+    ask_tracker = {}
+
+    for i in range(duration):
+        # Check for stop signal
+        with _dw_lock:
+            if _dw_watchers.get(watch_id, {}).get("stopped"):
+                break
+
+        snap        = state["oi"].get(token, {})
+        depth       = snap.get("depth", {})
+        buy_levels  = depth.get("buy",  [])
+        sell_levels = depth.get("sell", [])
+
+        total_bid = sum(l.get("quantity", 0) for l in buy_levels)
+        total_ask = sum(l.get("quantity", 0) for l in sell_levels)
+        denom     = total_bid + total_ask
+
+        for lv in buy_levels:
+            p, qty = lv.get("price", 0), lv.get("quantity", 0)
+            if p:
+                if p not in bid_tracker:
+                    bid_tracker[p] = {"peak": qty, "count": 1}
+                else:
+                    bid_tracker[p]["peak"]   = max(bid_tracker[p]["peak"], qty)
+                    bid_tracker[p]["count"] += 1
+
+        for lv in sell_levels:
+            p, qty = lv.get("price", 0), lv.get("quantity", 0)
+            if p:
+                if p not in ask_tracker:
+                    ask_tracker[p] = {"peak": qty, "count": 1}
+                else:
+                    ask_tracker[p]["peak"]   = max(ask_tracker[p]["peak"], qty)
+                    ask_tracker[p]["count"] += 1
+
+        sample = {
+            "t":          now_ist().strftime("%H:%M:%S"),
+            "seq":        i + 1,
+            "ltp":        snap.get("ltp", 0),
+            "oi":         snap.get("oi", 0),
+            "bid_qty":    total_bid,
+            "ask_qty":    total_ask,
+            "imbalance":  round((total_bid - total_ask) / denom, 3) if denom else 0,
+            "best_bid":   buy_levels[0].get("price", 0)  if buy_levels  else 0,
+            "best_ask":   sell_levels[0].get("price", 0) if sell_levels else 0,
+            "bid_levels": buy_levels,
+            "ask_levels": sell_levels,
+        }
+        samples.append(sample)
+
+        # Rolling summary pushed with every tick so UI updates live
+        rolling = _dw_build_summary(opt_type, samples, bid_tracker, ask_tracker, big)
+
+        event = {
+            "type":       "tick",
+            "seq":        i + 1,
+            "remaining":  duration - i - 1,
+            "sample":     sample,
+            "rolling":    rolling,
+        }
+        try:
+            q.put_nowait(json.dumps(event))
+        except Exception:
+            pass
+
+        time.sleep(1)
+
+    # Final summary
+    final_summary = _dw_build_summary(opt_type, samples, bid_tracker, ask_tracker, big)
+    done_event = {
+        "type":    "done",
+        "samples": samples,
+        "summary": final_summary,
+    }
+    try:
+        q.put_nowait(json.dumps(done_event))
+    except Exception:
+        pass
+
+    # Store result for /result endpoint
+    with _dw_lock:
+        if watch_id in _dw_watchers:
+            _dw_watchers[watch_id]["result"]   = done_event
+            _dw_watchers[watch_id]["finished"] = True
+
+
+@app.route("/depth/watch/start", methods=["POST"])
+def dw_start():
+    """
+    Create a depth watcher background task.
+
+    JSON body (or query params):
+        strike     int    e.g. 24000
+        type       CE|PE
+        seconds    int    1–600  (up to 10 minutes)
+        threshold  int    big-order cutoff in lots, default 500
+
+    Returns: { watch_id, strike, type, symbol, duration }
+    """
+    data = request.get_json(silent=True) or {}
+
+    def _p(key, default):
+        return data.get(key) or request.args.get(key, default)
+
+    try:
+        strike   = int(_p("strike", 0))
+        opt_type = str(_p("type", "CE")).upper()
+        duration = min(max(int(_p("seconds", 30)), 1), 600)
+        big      = max(1, int(_p("threshold", 500)))
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid params"}), 400
+
+    if opt_type not in ("CE", "PE"):
+        return jsonify({"error": "type must be CE or PE"}), 400
+
+    role_key = f"s{strike}_{opt_type.lower()}"
+    with state_lock:
+        token  = next((t for t, m in state["tokens"].items()
+                       if m["role_key"] == role_key), None)
+        symbol = state["tokens"][token]["tradingsymbol"] if token else None
+
+    if token is None:
+        tracked = sorted(f"{m['strike']}{m['instrument_type']}"
+                         for m in state["tokens"].values())
+        return jsonify({"error": f"{role_key} not tracked. Available: {tracked}"}), 404
+
+    import uuid
+    watch_id = uuid.uuid4().hex[:8]
+
+    watcher = {
+        "watch_id":  watch_id,
+        "strike":    strike,
+        "opt_type":  opt_type,
+        "symbol":    symbol,
+        "duration":  duration,
+        "big":       big,
+        "token":     token,
+        "queue":     __import__("queue").Queue(maxsize=700),
+        "stopped":   False,
+        "finished":  False,
+        "result":    None,
+        "created_at": time.time(),
+    }
+
+    with _dw_lock:
+        # Prune stale watchers (> 30 min old)
+        cutoff = time.time() - 1800
+        stale  = [k for k, v in _dw_watchers.items() if v["created_at"] < cutoff]
+        for k in stale:
+            del _dw_watchers[k]
+        _dw_watchers[watch_id] = watcher
+
+    threading.Thread(target=_dw_worker, args=(watch_id,), daemon=True).start()
+    print(f"[{now_ist().strftime('%H:%M:%S')}] Depth watcher {watch_id} started: "
+          f"{strike}{opt_type} {duration}s threshold={big}")
+
+    return jsonify({
+        "watch_id": watch_id,
+        "strike":   strike,
+        "type":     opt_type,
+        "symbol":   symbol,
+        "duration": duration,
+    })
+
+
+@app.route("/depth/watch/stream/<watch_id>")
+def dw_stream(watch_id):
+    """SSE stream for a running depth watcher. Sends one event/sec."""
+    with _dw_lock:
+        w = _dw_watchers.get(watch_id)
+    if not w:
+        return Response("data: {\"error\":\"watch_id not found\"}\n\n",
+                        mimetype="text/event-stream", status=404)
+
+    q = w["queue"]
+
+    def gen():
+        while True:
+            try:
+                msg = q.get(timeout=20)
+                yield f"data: {msg}\n\n"
+                parsed = json.loads(msg)
+                if parsed.get("type") == "done":
+                    break
+            except __import__("queue").Empty:
+                yield ": keepalive\n\n"
+                # If worker finished but queue is empty, close
+                with _dw_lock:
+                    if _dw_watchers.get(watch_id, {}).get("finished"):
+                        break
+
+    return Response(gen(), mimetype="text/event-stream", headers={
+        "Cache-Control":    "no-cache",
+        "X-Accel-Buffering": "no",
+    })
+
+
+@app.route("/depth/watch/stop/<watch_id>", methods=["POST"])
+def dw_stop(watch_id):
+    """Signal a running watcher to stop after the current second."""
+    with _dw_lock:
+        w = _dw_watchers.get(watch_id)
+    if not w:
+        return jsonify({"error": "watch_id not found"}), 404
+    w["stopped"] = True
+    return jsonify({"status": "stop signal sent", "watch_id": watch_id})
+
+
+@app.route("/depth/watch/result/<watch_id>")
+def dw_result(watch_id):
+    """Return the full result of a completed watcher."""
+    with _dw_lock:
+        w = _dw_watchers.get(watch_id)
+    if not w:
+        return jsonify({"error": "watch_id not found"}), 404
+    if not w["finished"]:
+        return jsonify({"status": "still_running",
+                        "watch_id": watch_id}), 202
+    return jsonify(w["result"])
+
+
 @app.route("/health")
 def health():
     with state_lock:
@@ -951,7 +1271,10 @@ if __name__ == "__main__":
     print(f"  GET  /stream          browser SSE stream for tick-by-tick chart updates")
     print(f"  GET  /strikes         strike list")
     print(f"  GET  /oi/history      1-min rows + spot OHLC (today, or ?date=YYYY-MM-DD)")
-    print(f"  GET  /oi/dates        list of dates with data")
+    print(f"  POST /depth/watch/start   create depth watcher (?strike=N&type=CE|PE&seconds=N&threshold=N)")
+    print(f"  GET  /depth/watch/stream/<id>  SSE live depth events")
+    print(f"  POST /depth/watch/stop/<id>    cancel watcher early")
+    print(f"  GET  /depth/watch/result/<id>  full result after done")
     print(f"  GET  /health          status + OHLC buffer")
     print(f"  POST /reset-csv       wipe today's rows")
     print("\nPress Ctrl+C to stop.\n")
