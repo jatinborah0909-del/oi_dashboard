@@ -237,12 +237,65 @@ tr:last-child td{border-bottom:none;}
 .mover-4-delta{font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;min-width:64px;text-align:center;font-variant-numeric:tabular-nums;}
 .mover-4-oi{font-size:10px;color:#aaa;font-variant-numeric:tabular-nums;margin-left:auto;}
 
+
+/* ── SELECTED STRIKES OI CHANGE TAB ── */
+.oi-change-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;}
+.oi-change-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.oi-change-title{font-size:13px;font-weight:500;margin-bottom:2px;}
+.oi-change-sub{font-size:11px;color:#888;}
+.oi-change-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#f8f8f5;border:0.5px solid #eee;border-radius:8px;padding:8px 10px;margin-bottom:12px;}
+.oi-change-controls label{font-size:12px;color:#666;white-space:nowrap;}
+.oi-change-chip-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.oi-change-chip{font-size:11px;padding:4px 10px;border-radius:20px;border:0.5px solid #ddd;background:#fff;color:#666;cursor:pointer;transition:all .12s;white-space:nowrap;}
+.oi-change-chip:hover{border-color:#185FA5;color:#185FA5;}
+.oi-change-chip.active{background:#185FA5;color:#fff;border-color:#185FA5;font-weight:500;}
+.oi-change-chip.atm{border-color:#534AB7;}
+.oi-change-chart-wrap{position:relative;width:100%;min-height:360px;margin-top:12px;}
+.oi-change-chart-shell{display:flex;align-items:stretch;width:100%;position:relative;}
+.oi-change-yaxis{width:62px;min-width:62px;height:360px;position:sticky;left:0;z-index:12;background:#fff;border-right:0.5px solid #eee;}
+.oi-change-chart-scroll{overflow-x:auto;overflow-y:hidden;width:100%;border-radius:4px;}
+.oi-change-chart-inner{height:360px;min-width:100%;position:relative;}
+.oi-change-section-title{font-size:11px;font-weight:600;color:#444;text-transform:uppercase;letter-spacing:.04em;margin:14px 0 6px;}
+.oi-change-legend{display:flex;gap:18px;align-items:center;flex-wrap:wrap;justify-content:center;margin:6px 0 8px;font-size:11px;color:#555;}
+.oi-change-leg-item{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.oi-change-line-sample{width:28px;height:0;border-top:2px solid #185FA5;display:inline-block;}
+.oi-change-line-sample.pe{border-top-style:dashed;}
+.oi-change-selected-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;}
+.oi-change-selected-chip{font-size:11px;padding:5px 10px;border-radius:8px;border:0.5px solid #ddd;background:#f8f8f5;color:#555;font-weight:500;}
+.oi-change-selected-chip button{border:none;background:transparent;color:inherit;cursor:pointer;margin-left:6px;font-weight:700;}
+.oi-change-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:#666;}
+.oi-change-pill{background:#f8f8f5;border:0.5px solid #e0e0da;border-radius:20px;padding:4px 9px;}
+
 @media(max-width:700px){
   #tab-oi-movers-panel .grid-4{grid-template-columns:1fr!important;}
 }
 
 /* ── OPTION CHAIN ── */
 .oc-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;}
+/* ── EOD OI Summary ── */
+.eod-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;}
+.eod-title{font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:4px;display:flex;align-items:center;gap:8px;}
+.eod-sub{font-size:11px;color:#888;margin-bottom:12px;}
+.eod-table{width:100%;border-collapse:collapse;font-size:12px;}
+.eod-table th{padding:6px 10px;background:#f8f8f5;font-weight:600;font-size:11px;color:#555;border-bottom:1.5px solid #e0e0da;white-space:nowrap;}
+.eod-table td{padding:6px 10px;border-bottom:0.5px solid #f2f2ee;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.eod-table tr:last-child td{border-bottom:none;}
+.eod-table tr:hover td{background:#fafaf8;}
+.eod-strike-label{font-weight:600;color:#1a1a1a;}
+.eod-badge{display:inline-block;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;}
+.eod-add{color:#D85A30;background:#FAECE7;}
+.eod-rem{color:#185FA5;background:#E6F1FB;}
+.eod-add-pe{color:#1D9E75;background:#E1F5EE;}
+.eod-rem-pe{color:#8B4513;background:#FAEEDA;}
+.eod-net-bull{color:#1D9E75;font-weight:600;}
+.eod-net-bear{color:#D85A30;font-weight:600;}
+.eod-net-neutral{color:#888;font-weight:600;}
+.eod-sentiment-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.eod-sentiment-bull{background:#E1F5EE;color:#1D9E75;}
+.eod-sentiment-bear{background:#FAECE7;color:#D85A30;}
+.eod-sentiment-neutral{background:#f0f0ec;color:#666;}
+.eod-section-header{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px 4px;background:#f8f8f5;border-bottom:0.5px solid #e8e8e4;}
+.eod-rank{color:#aaa;font-size:10px;min-width:16px;display:inline-block;text-align:right;margin-right:4px;}
 .oc-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;}
 .oc-title{font-size:13px;font-weight:500;}
 .oc-meta{font-size:11px;color:#888;}
@@ -335,6 +388,68 @@ tr:last-child td{border-bottom:none;}
 /* ── TIME VALUE column ── */
 .oc-tv{color:#666;font-size:11px;font-variant-numeric:tabular-nums;}
 .oc-tv-high{color:#D85A30;}
+
+/* ── PAPER TRADING TAB ── */
+.pt-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;}
+.pt-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;}
+.pt-title{font-size:13px;font-weight:600;color:#1a1a1a;display:flex;align-items:center;gap:8px;}
+.pt-sub{font-size:11px;color:#888;margin-bottom:12px;}
+.pt-stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.pt-stat-box{background:#f8f8f5;border:0.5px solid #e0e0da;border-radius:8px;padding:8px 14px;min-width:100px;}
+.pt-stat-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;}
+.pt-stat-val{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;}
+.pt-table{width:100%;border-collapse:collapse;font-size:12px;}
+.pt-table th{padding:6px 10px;background:#f8f8f5;font-weight:600;font-size:10px;color:#555;border-bottom:1.5px solid #e0e0da;white-space:nowrap;text-transform:uppercase;letter-spacing:.04em;}
+.pt-table td{padding:7px 10px;border-bottom:0.5px solid #f2f2ee;font-variant-numeric:tabular-nums;white-space:nowrap;vertical-align:middle;}
+.pt-table tr:last-child td{border-bottom:none;}
+.pt-table tr:hover td{background:#fafaf8;}
+.pt-open tr:hover td{background:#f0f8ff;}
+.pt-badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600;white-space:nowrap;}
+.pt-sell{background:#FAECE7;color:#712B13;}
+.pt-buy{background:#E1F5EE;color:#085041;}
+.pt-win{background:#E1F5EE;color:#085041;}
+.pt-loss{background:#FAECE7;color:#712B13;}
+.pt-sl{background:#FAEEDA;color:#854F0B;}
+.pt-open-badge{background:#E6F1FB;color:#185FA5;}
+.pt-reason{font-size:12px;color:#555;max-width:420px;white-space:normal !important;line-height:1.7;word-break:break-word;}
+.pt-reason .reason-line{display:block;}
+.pt-pnl-pos{color:#1D9E75;font-weight:600;}
+.pt-pnl-neg{color:#D85A30;font-weight:600;}
+.pt-section-title{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px;display:flex;align-items:center;gap:8px;}
+.pt-section-title::after{content:'';flex:1;height:0.5px;background:#e0e0da;}
+.pt-empty{text-align:center;padding:24px;color:#aaa;font-size:12px;}
+.pt-rule-box{background:#f8f8f5;border:0.5px solid #e0e0da;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:11px;color:#555;line-height:1.7;}
+.pt-rule-box strong{color:#1a1a1a;}
+.pt-live-dot{width:7px;height:7px;border-radius:50%;background:#1D9E75;display:inline-block;animation:blink 1.5s infinite;margin-right:4px;}
+.pt-candle-label{font-size:10px;color:#aaa;margin-left:4px;}
+/* ── COLLAPSIBLE SECTIONS ── */
+.collapsible-section{background:#fff;border:0.5px solid #ddd;border-radius:10px;margin-bottom:12px;overflow:hidden;}
+.collapsible-section .index-chart-card,
+.collapsible-section .bias-block,
+.collapsible-section .grid2,
+.collapsible-section .dual-grid,
+.collapsible-section .conf-summary,
+.collapsible-section .three-charts-col,
+.collapsible-section .roll-log,
+.collapsible-section .chart-controls{border:none;border-radius:0;margin-bottom:0;}
+.cs-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;user-select:none;background:#fff;border-radius:10px;transition:background .15s;}
+.cs-header:hover{background:#f8f8f5;}
+.cs-header-left{display:flex;align-items:center;gap:8px;}
+.cs-title{font-size:13px;font-weight:500;color:#1a1a1a;}
+.cs-badge{font-size:10px;padding:2px 8px;border-radius:20px;background:#f0f0ec;color:#666;border:0.5px solid #ddd;}
+.cs-chevron{font-size:11px;color:#aaa;transition:transform .2s;display:inline-block;margin-left:6px;}
+.cs-header.open .cs-chevron{transform:rotate(180deg);}
+.cs-body{display:none;border-top:0.5px solid #eee;}
+.cs-body.open{display:block;}
+.cs-body > .index-chart-card,
+.cs-body > .chart-controls,
+.cs-body > .bias-block,
+.cs-body > .grid2,
+.cs-body > .dual-grid,
+.cs-body > .conf-summary,
+.cs-body > .roll-log{margin-bottom:0;}
+/* OI charts col lives directly in cs-body */
+.cs-body > #oi-charts-col{padding:0;}
 </style>
 </head>
 <body>
@@ -378,6 +493,10 @@ tr:last-child td{border-bottom:none;}
   <button class="tab-btn active" id="tab-dashboard-btn" onclick="switchTab('dashboard')">Dashboard</button>
   <button class="tab-btn" id="tab-option-chain-btn" onclick="switchTab('option-chain')">Option Chain & OI Moves</button>
   <button class="tab-btn" id="tab-oi-movers-btn" onclick="switchTab('oi-movers')">📊 OI Movers</button>
+  <button class="tab-btn" id="tab-oi-change-btn" onclick="switchTab('oi-change')">📈 Selected Strike ΔOI</button>
+
+  <button class="tab-btn" id="tab-paper-trade-btn" onclick="switchTab('paper-trade')">🤖 Paper Trades</button>
+  <button class="tab-btn" id="tab-depth-watch-btn" onclick="switchTab('depth-watch')">🔬 Depth Watch</button>
   <span class="tab-hint">Move heavy tables away from the main trading view</span>
 </div>
 
@@ -385,10 +504,10 @@ tr:last-child td{border-bottom:none;}
 
 <!-- Strike selector (legacy global panel kept for bear/bull OI card summary) -->
 <div class="strike-panel">
-  <div class="strike-panel-title">Strike chips — click to set chart strikes (1st = top chart, 2nd = middle, 3rd = bottom)</div>
+  <div class="strike-panel-title" id="strike-panel-title">Strike chips — click to set chart strikes (1st click = top chart, 2nd = middle, 3rd = bottom)</div>
   <div class="strike-row">
-    <button class="btn btn-primary" onclick="resetToDefault()">Reset to ATM ±1 step</button>
-    <span style="font-size:11px;color:#888;">
+    <button class="btn btn-primary" onclick="resetToDefault()">Reset to ATM ±2 step</button>
+    <span id="chip-labels-row" style="font-size:11px;color:#888;">
       Top: <strong id="chip-s1-label">—</strong> &nbsp;|&nbsp;
       Mid: <strong id="chip-s2-label">—</strong> &nbsp;|&nbsp;
       Bot: <strong id="chip-s3-label">—</strong>
@@ -402,18 +521,36 @@ tr:last-child td{border-bottom:none;}
 <div class="alert alert-roll"  id="alert-roll"></div>
 
 <!-- Bias -->
-<div class="bias-block">
-  <div class="bias-big neutral" id="bias-big">—</div>
-  <div class="bias-desc" id="bias-desc">Waiting for first reading...</div>
-  <div>
-    <div style="font-size:11px;color:#888;margin-bottom:4px;">Streak (last 12)</div>
-    <div class="streak" id="streak-dots"></div>
-    <div class="streak-label" id="streak-label"></div>
+<div class="collapsible-section">
+  <div class="cs-header" onclick="toggleSection(this)" id="cs-bias">
+    <div class="cs-header-left">
+      <span class="cs-title">📊 Bias &amp; Streak</span>
+    </div>
+    <span class="cs-chevron">▼</span>
+  </div>
+  <div class="cs-body">
+    <div class="bias-block" style="border-radius:0;margin-bottom:0;">
+      <div class="bias-big neutral" id="bias-big">—</div>
+      <div class="bias-desc" id="bias-desc">Waiting for first reading...</div>
+      <div>
+        <div style="font-size:11px;color:#888;margin-bottom:4px;">Streak (last 12)</div>
+        <div class="streak" id="streak-dots"></div>
+        <div class="streak-label" id="streak-label"></div>
+      </div>
+    </div>
   </div>
 </div>
 
 <!-- OI summary cards (uses s2 = ATM/middle chart strike) -->
-<div class="grid2">
+<div class="collapsible-section">
+  <div class="cs-header" onclick="toggleSection(this)" id="cs-oi-summary">
+    <div class="cs-header-left">
+      <span class="cs-title">📋 OI Summary Cards</span>
+    </div>
+    <span class="cs-chevron">▼</span>
+  </div>
+  <div class="cs-body">
+    <div class="grid2" style="border-radius:0;margin-bottom:0;padding:12px;">
   <div class="card">
     <div class="card-title" id="bear-card-title">Strike 1 (top)</div>
     <div class="oi-row"><span class="oi-muted" id="bc-lbl">— CE</span><span id="bc-oi" style="font-weight:500">—</span></div>
@@ -438,32 +575,20 @@ tr:last-child td{border-bottom:none;}
     <div class="bar-wrap"><div class="bar" id="bull-bar" style="background:#1D9E75;width:50%;"></div></div>
     <div class="dom-label" id="bull-dom-label"></div>
   </div>
-</div>
-
-<!-- ── NIFTY INDEX CHART ── -->
-<div class="index-chart-card">
-  <div class="index-chart-title">Nifty 50 — price chart · candle colour = dominant OI move</div>
-  <div class="index-chart-sub" id="index-chart-sub">Colour = dominant OI move across both selected strikes (CE building / PE building / CE unwinding / PE unwinding)</div>
-  <div class="index-legend">
-    <span class="il-item"><span class="il-sq" style="background:#8B1A1A;"></span>CE building (strong bear)</span>
-    <span class="il-item"><span class="il-sq" style="background:#EF9F27;"></span>PE unwinding (weak bear)</span>
-    <span class="il-item"><span class="il-sq" style="background:#0F6E56;"></span>PE building (strong bull)</span>
-    <span class="il-item"><span class="il-sq" style="background:#97C459;"></span>CE unwinding (weak bull)</span>
-    <span class="il-item"><span class="il-sq" style="background:#888;"></span>Neutral</span>
-  </div>
-  <div class="conf-chart-wrap">
-    <div class="conf-chart-scroll" id="index-scroll">
-      <div class="conf-chart-area" id="index-chart-area">
-        <svg id="svgIndex" style="display:block;"></svg>
-      </div>
     </div>
-    <svg id="svgIndexYAxis" class="yaxis-overlay" style="display:block;"></svg>
   </div>
-  <div class="signal-strip" id="index-strip"></div>
 </div>
 
 <!-- ── CUMULATIVE OI CHANGE CHART ── -->
-<div class="index-chart-card" id="cumoi-card">
+<div class="collapsible-section">
+  <div class="cs-header" onclick="toggleSection(this)" id="cs-cumoi">
+    <div class="cs-header-left">
+      <span class="cs-title">📊 Cumulative OI Change</span>
+    </div>
+    <span class="cs-chevron">▼</span>
+  </div>
+  <div class="cs-body">
+    <div class="index-chart-card" id="cumoi-card" style="border-radius:0;margin-bottom:0;">
   <div class="index-chart-title">Cumulative OI Change — All Strikes</div>
   <div class="index-chart-sub" id="cumoi-sub">Aggregate CE and PE OI change from session start across all tracked strikes</div>
   <div class="index-legend">
@@ -483,10 +608,29 @@ tr:last-child td{border-bottom:none;}
     <span>Total PE Δ: <span id="cumoi-pe-total" style="font-weight:500;">—</span></span>
     <span>PCR (OI): <span id="cumoi-pcr" style="font-weight:500;">—</span></span>
   </div>
+    </div>
+  </div>
 </div>
 
 <!-- ── CHART SIZE CONTROLS ── -->
-<div class="chart-controls">
+<div class="collapsible-section">
+  <div class="cs-header" onclick="toggleSection(this)" id="cs-chart-controls">
+    <div class="cs-header-left">
+      <span class="cs-title">⚙️ Chart Size Controls</span>
+    </div>
+    <span class="cs-chevron">▼</span>
+  </div>
+  <div class="cs-body">
+    <div class="chart-controls" style="border-radius:0;margin-bottom:0;">
+  <label>Charts:</label>
+  <select id="ctrl-ncharts" onchange="onNumChartsChange(this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;">
+    <option value="1">1 — ATM only</option>
+    <option value="3">3 — ATM ±1</option>
+    <option value="5" selected>5 — ATM ±2</option>
+    <option value="7">7 — ATM ±3</option>
+    <option value="9">9 — ATM ±4</option>
+  </select>
+  <span style="color:#aaa;margin:0 4px;">|</span>
   <label>OI bar width:</label>
   <input type="range" id="ctrl-bw" min="8" max="120" value="32" oninput="onCtrlChange()">
   <span id="ctrl-bw-val">32</span>px
@@ -499,10 +643,21 @@ tr:last-child td{border-bottom:none;}
   <label style="margin-left:10px;">Index height:</label>
   <input type="range" id="ctrl-ih" min="100" max="400" value="200" step="10" oninput="onCtrlChange()">
   <span id="ctrl-ih-val">200</span>px
+    </div>
+  </div>
 </div>
 
 <!-- ── DUAL CONFLUENCE CHARTS (kept for bear/bull CE/PE activity) ── -->
-<div class="dual-grid">
+<div class="collapsible-section">
+  <div class="cs-header" onclick="toggleSection(this)" id="cs-confluence">
+    <div class="cs-header-left">
+      <span class="cs-title">🔍 Confluence Charts &amp; Summary</span>
+    </div>
+    <span class="cs-chevron">▼</span>
+  </div>
+  <div class="cs-body">
+    <div style="padding:12px;">
+<div class="dual-grid" style="margin-bottom:12px;">
   <div class="conf-card bear-card">
     <div class="conf-title bear" id="bear-conf-title">Top strike lens</div>
     <div class="conf-sub" id="bear-conf-sub">CE option LTP price · colour = activity type</div>
@@ -561,7 +716,7 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 <!-- Confluence summary -->
-<div class="conf-summary">
+<div class="conf-summary" style="margin-bottom:0;">
   <div class="conf-sum-title" id="conf-sum-title">Confluence reading — latest interval</div>
   <div class="conf-sum-row">
     <span class="conf-sum-label" id="bear-sum-label">Strike 1 —</span>
@@ -575,21 +730,35 @@ tr:last-child td{border-bottom:none;}
   </div>
   <div class="conf-interp" id="conf-interp">Waiting for first candle...</div>
 </div>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════════════════════════════
-     THREE STRIKE OI DELTA CHARTS (stacked vertically)
-     S1 = top (ATM + step by default)
-     S2 = middle (ATM by default)
-     S3 = bottom (ATM - step by default)
+     STRIKE OI DELTA CHARTS (stacked vertically)
+     Count controlled by "Charts" dropdown. ATM is always centred.
+     S1 = top (ATM+N), S2 = middle (ATM), S3 = bottom (ATM-N)
+     Extra cards are injected/removed dynamically.
 ════════════════════════════════════════════════════════════════ -->
-<div class="three-charts-col">
+<div class="collapsible-section">
+  <div class="cs-header open" onclick="toggleSection(this)" id="cs-oi-charts">
+    <div class="cs-header-left">
+      <span class="cs-title">📉 CE vs PE OI Delta Charts</span>
+    </div>
+    <span class="cs-chevron">▼</span>
+  </div>
+  <div class="cs-body open">
+<div class="three-charts-col" id="oi-charts-col">
 
-  <!-- ── CHART 1 (top, ATM+1 by default) ── -->
-  <div class="chart-card strike-s1">
+  <!-- ── Extra charts ABOVE s1 (prepended by JS for 5/7/9 mode) ── -->
+  <div id="extra-charts-above"></div>
+
+  <!-- ── CHART 1 (top of the base 3, ATM+1 by default) ── -->
+  <div class="chart-card strike-s1" id="card-s1">
     <div class="chart-header">
       <div class="chart-header-left">
         <div class="chart-title" id="s1-chart-title">Strike — CE vs PE OI delta</div>
-        <span class="chart-label-top label-s1">▲ Higher</span>
+        <span class="chart-label-top label-s1" id="s1-label-tag">▲ Higher</span>
         <span class="spot-badge s1-badge" id="s1-spot-badge">Nifty —</span>
       </div>
       <div class="chart-header-right">
@@ -625,7 +794,7 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <!-- ── CHART 2 (middle, ATM by default) ── -->
-  <div class="chart-card strike-s2">
+  <div class="chart-card strike-s2" id="card-s2">
     <div class="chart-header">
       <div class="chart-header-left">
         <div class="chart-title" id="s2-chart-title">Strike — CE vs PE OI delta</div>
@@ -665,11 +834,11 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <!-- ── CHART 3 (bottom, ATM-1 by default) ── -->
-  <div class="chart-card strike-s3">
+  <div class="chart-card strike-s3" id="card-s3">
     <div class="chart-header">
       <div class="chart-header-left">
         <div class="chart-title" id="s3-chart-title">Strike — CE vs PE OI delta</div>
-        <span class="chart-label-top label-s3">▼ Lower</span>
+        <span class="chart-label-top label-s3" id="s3-label-tag">▼ Lower</span>
         <span class="spot-badge s3-badge" id="s3-spot-badge">Nifty —</span>
       </div>
       <div class="chart-header-right">
@@ -704,12 +873,26 @@ tr:last-child td{border-bottom:none;}
     </div>
   </div>
 
-</div><!-- end three-charts-col -->
+  <!-- ── Extra charts BELOW s3 (appended by JS for 5/7/9 mode) ── -->
+  <div id="extra-charts-below"></div>
+
+</div><!-- end oi-charts-col -->
+  </div><!-- end cs-body -->
+</div><!-- end collapsible-section oi-charts -->
 
 <!-- Roll log -->
-<div class="roll-log">
-  <div class="card-title" style="margin-bottom:8px;">Strike roll history</div>
-  <div id="roll-log-body" style="font-size:12px;color:#888;">No rolls today.</div>
+<div class="collapsible-section">
+  <div class="cs-header" onclick="toggleSection(this)" id="cs-roll-log">
+    <div class="cs-header-left">
+      <span class="cs-title">🔁 Strike Roll History</span>
+    </div>
+    <span class="cs-chevron">▼</span>
+  </div>
+  <div class="cs-body">
+    <div class="roll-log" style="border-radius:0;margin-bottom:0;">
+      <div id="roll-log-body" style="font-size:12px;color:#888;">No rolls today.</div>
+    </div>
+  </div>
 </div>
 
 </div><!-- end tab-dashboard-panel -->
@@ -765,7 +948,9 @@ tr:last-child td{border-bottom:none;}
             <span style="font-size:11px;color:#888;">DTE: <span id="oc-ticker-dte">—</span> days</span>
             <span style="font-size:11px;color:#aaa;margin-left:2px;" id="oc-ticker-time"></span>
             <span style="width:0.5px;height:14px;background:#ddd;display:inline-block;margin:0 4px;"></span>
-            <span style="font-size:11px;color:#888;">Top Pain: <span id="oc-ticker-top-pain" style="color:#534AB7;font-weight:600;">—</span></span>
+            <span style="font-size:11px;color:#888;">Top Pain <span style="font-size:9px;color:#aaa;font-weight:400;">(OI)</span>: <span id="oc-ticker-top-pain" style="color:#534AB7;font-weight:600;">—</span></span>
+            <span style="width:0.5px;height:14px;background:#ddd;display:inline-block;margin:0 4px;"></span>
+            <span style="font-size:11px;color:#888;">Top Chg <span style="font-size:9px;color:#aaa;font-weight:400;">(ΔOI)</span>: <span id="oc-ticker-top-chg" style="font-weight:600;">—</span></span>
           </span>
         </div>
         <div class="oc-meta" id="oc-meta">Waiting for data…</div>
@@ -810,6 +995,34 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 
+<!-- ── EOD OI SUMMARY TABLE ── -->
+<div class="eod-card" id="eod-summary-card">
+  <div class="eod-title">
+    📊 End-of-Day OI Summary
+    <span class="eod-sentiment-pill eod-sentiment-neutral" id="eod-sentiment-pill">—</span>
+    <span style="font-size:11px;color:#aaa;font-weight:400;margin-left:4px;" id="eod-summary-meta"></span>
+  </div>
+  <div class="eod-sub">Cumulative OI change across the whole day — which strikes saw the biggest addition/removal</div>
+  <div style="overflow-x:auto;">
+    <table class="eod-table" id="eod-table">
+      <thead>
+        <tr>
+          <th style="text-align:left;">Category</th>
+          <th style="text-align:left;">#1 Strike</th>
+          <th style="text-align:right;">OI Change</th>
+          <th style="text-align:left;">#2 Strike</th>
+          <th style="text-align:right;">OI Change</th>
+          <th style="text-align:left;">#3 Strike</th>
+          <th style="text-align:right;">OI Change</th>
+        </tr>
+      </thead>
+      <tbody id="eod-body">
+        <tr><td colspan="7" style="text-align:center;padding:20px;color:#aaa;font-size:12px;">Waiting for history data…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
 </div><!-- end tab-option-chain-panel -->
 
 <!-- ══════════════════════════════════════════════════════════════════
@@ -821,21 +1034,12 @@ tr:last-child td{border-bottom:none;}
 
 <!-- Header bar -->
 <div class="index-chart-card" id="oi-movers-card" style="margin-bottom:12px;">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;">
     <div>
       <div class="index-chart-title">Top OI Movers — All Strikes</div>
       <div class="index-chart-sub" id="movers-sub">Dominant OI added/decreased for every selected interval · latest —</div>
     </div>
-    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:11px;color:#888;">
-      <span style="display:flex;align-items:center;gap:6px;">
-        <label for="movers-topn" style="white-space:nowrap;">Top strikes:</label>
-        <select id="movers-topn" onchange="drawOIMovers(minuteRows,atmStrike)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;">
-          <option value="1">Top 1</option>
-          <option value="2">Top 2</option>
-          <option value="3">Top 3</option>
-          <option value="4" selected>Top 4</option>
-        </select>
-      </span>
+    <div style="display:flex;gap:8px;align-items:center;font-size:11px;color:#888;">
       <span>Total CE Δ: <span id="movers-ce-total" style="font-weight:500;color:#1a1a1a;">—</span></span>
       <span>Total PE Δ: <span id="movers-pe-total" style="font-weight:500;color:#1a1a1a;">—</span></span>
       <span>PCR: <span id="movers-pcr" style="font-weight:500;color:#1a1a1a;">—</span></span>
@@ -843,42 +1047,778 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div>
 
-<!-- ── CE SECTION ── -->
-<div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;margin-bottom:12px;overflow:hidden;border-top:2px solid #D85A30;">
-  <!-- CE column headers -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #f0ece8;">
-    <div style="padding:10px 16px;font-size:11px;font-weight:600;color:#712B13;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:6px;border-right:1px solid #f0ece8;">
+<!-- 4-section grid: 2 columns × 2 rows -->
+<div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:12px;">
+
+  <!-- ── TOP-LEFT: Call OI ADDED ── -->
+  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #D85A30;display:flex;flex-direction:column;">
+    <div style="font-size:11px;font-weight:600;color:#712B13;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #D85A30;display:flex;align-items:center;gap:6px;flex-shrink:0;">
       <span>📞</span> CE Calls — OI Added <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Resistance building)</span>
     </div>
-    <div style="padding:10px 16px;font-size:11px;font-weight:600;color:#185FA5;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:6px;">
+    <div id="ce-added-list" style="overflow-y:auto;max-height:420px;"></div>
+  </div>
+
+  <!-- ── TOP-RIGHT: Call OI REMOVED ── -->
+  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #93c5e8;display:flex;flex-direction:column;">
+    <div style="font-size:11px;font-weight:600;color:#185FA5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #93c5e8;display:flex;align-items:center;gap:6px;flex-shrink:0;">
       <span>📞</span> CE Calls — OI Removed <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Shorts unwinding)</span>
     </div>
+    <div id="ce-removed-list" style="overflow-y:auto;max-height:420px;"></div>
   </div>
-  <!-- CE unified scrollable body -->
-  <div id="ce-unified-list" style="overflow-y:auto;max-height:380px;"></div>
-</div>
 
-<!-- ── PE SECTION ── -->
-<div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;margin-bottom:0;overflow:hidden;border-top:2px solid #1D9E75;">
-  <!-- PE column headers -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #eaf5ef;">
-    <div style="padding:10px 16px;font-size:11px;font-weight:600;color:#085041;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:6px;border-right:1px solid #eaf5ef;">
+  <!-- ── BOTTOM-LEFT: Put OI ADDED ── -->
+  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #1D9E75;display:flex;flex-direction:column;">
+    <div style="font-size:11px;font-weight:600;color:#085041;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #1D9E75;display:flex;align-items:center;gap:6px;flex-shrink:0;">
       <span>📤</span> PE Puts — OI Added <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Support building)</span>
     </div>
-    <div style="padding:10px 16px;font-size:11px;font-weight:600;color:#993C1D;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:6px;">
+    <div id="pe-added-list" style="overflow-y:auto;max-height:420px;"></div>
+  </div>
+
+  <!-- ── BOTTOM-RIGHT: Put OI REMOVED ── -->
+  <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;border-top:2px solid #f0a080;display:flex;flex-direction:column;">
+    <div style="font-size:11px;font-weight:600;color:#993C1D;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid #f0a080;display:flex;align-items:center;gap:6px;flex-shrink:0;">
       <span>📤</span> PE Puts — OI Removed <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:auto;">(Longs unwinding)</span>
     </div>
+    <div id="pe-removed-list" style="overflow-y:auto;max-height:420px;"></div>
   </div>
-  <!-- PE unified scrollable body -->
-  <div id="pe-unified-list" style="overflow-y:auto;max-height:380px;"></div>
+
+</div><!-- end 4-section grid -->
+</div><!-- end tab-oi-movers-panel -->
+
+
+<div class="tab-panel" id="tab-oi-change-panel">
+  <div class="oi-change-card">
+    <div class="oi-change-header">
+      <div>
+        <div class="oi-change-title">Selected strikes — Change of OI</div>
+        <div class="oi-change-sub" id="oi-change-sub">Select one or more strikes from the visible range. CE and PE are plotted separately.</div>
+      </div>
+      <div class="oi-change-controls">
+        <label>Range around ATM:</label>
+        <select id="oi-change-depth" onchange="renderOIChangeStrikeChips(); renderOIChangeChart();">
+          <option value="3">±3</option>
+          <option value="5" selected>±5</option>
+          <option value="8">±8</option>
+          <option value="12">±12</option>
+          <option value="0">All</option>
+        </select>
+        <label>Time labels:</label>
+        <select id="oi-change-time-label-step" onchange="renderOIChangeChart();">
+          <option value="auto" selected>Auto</option>
+          <option value="3">Every 3 min</option>
+          <option value="5">Every 5 min</option>
+          <option value="10">Every 10 min</option>
+          <option value="15">Every 15 min</option>
+        </select>
+        <button class="btn btn-primary" onclick="selectOIChangeDefaultStrikes()">ATM ±1</button>
+        <button class="btn" onclick="selectAllOIChangeVisibleStrikes()">Select visible</button>
+        <button class="btn" onclick="clearOIChangeStrikes()">Clear</button>
+      </div>
+    </div>
+
+    <div class="strike-panel-title">Visible strike range</div>
+    <div class="oi-change-chip-row" id="oi-change-strike-chips">Waiting for strikes…</div>
+
+    <div class="strike-panel-title" style="margin-top:12px;">Selected strikes</div>
+    <div class="oi-change-selected-row" id="oi-change-selected-chips">—</div>
+
+    <div class="oi-change-legend">
+      <span class="oi-change-leg-item"><span class="oi-change-line-sample"></span>CE / Call OI</span>
+      <span class="oi-change-leg-item"><span class="oi-change-line-sample pe"></span>PE / Put OI</span>
+      <span style="color:#888;">Colour = strike</span>
+    </div>
+
+    <div class="oi-change-section-title">Change of OI (ΔOI)</div>
+    <div class="oi-change-chart-wrap">
+      <div class="oi-change-chart-shell">
+        <canvas id="oiChangeYAxis" class="oi-change-yaxis"></canvas>
+        <div class="oi-change-chart-scroll" id="oi-change-scroll">
+          <div class="oi-change-chart-inner" id="oiChangeChartWrap">
+            <canvas id="oiChangeChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="oi-change-section-title">Absolute OI</div>
+    <div class="oi-change-chart-wrap">
+      <div class="oi-change-chart-shell">
+        <canvas id="oiAbsYAxis" class="oi-change-yaxis"></canvas>
+        <div class="oi-change-chart-scroll" id="oi-abs-scroll">
+          <div class="oi-change-chart-inner" id="oiAbsChartWrap">
+            <canvas id="oiAbsChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="oi-change-summary" id="oi-change-summary"></div>
+  </div>
+</div><!-- end tab-oi-change-panel -->
+
+<!-- ── NIFTY CHART TAB ── -->
+<!-- ══════════════════════════════════════════════════════════════════
+     PAPER TRADING TAB
+════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-paper-trade-panel">
+
+<div class="pt-card">
+  <div class="pt-header">
+    <div class="pt-title">
+      🤖 Automated Paper Trades
+      <span id="pt-mode-badge" class="eod-sentiment-pill eod-sentiment-neutral" style="font-size:10px;">—</span>
+    </div>
+    <button class="btn btn-danger" onclick="ptClearAll()" style="font-size:11px;">Clear All</button>
+  </div>
+  <!-- Strategy rules -->
+  <div class="pt-rule-box">
+    <strong>SELL Setup B (post-cross):</strong> Spot crosses below a strike. If PE unwind ≥ 3L at the moment of crossing → SELL immediately. Otherwise wait for a retracement (bullish candle), then PE unwind ≥ 3L on the next falling candle → SELL, only if spot ≥ 40 pts above the next lower strike. SL = entry + 20 pts.<br>
+    <strong>SELL Setup C (reversal candle breakdown):</strong> After a falling candle, if the next candle is bullish (bounce) <em>and</em> ATM put OI unwinds ≥ 2L on that bounce candle → the bounce is just short-covering. Arm a SELL. Entry when any subsequent candle breaks <em>below</em> the reversal candle's low. Target = next lower 50-pt strike. SL = reversal candle's high + 30 pts.<br>
+    <strong>BUY Setup B (post-cross):</strong> Spot crosses above a strike. CE unwind ≥ 3L at cross → BUY immediately. Otherwise wait for a retracement (bearish candle), then CE unwind ≥ 3L on the next rising candle → BUY, ≥ 40 pts gap to next higher strike. SL = entry − 20 pts.<br>
+    <strong>BUY Setup C (reversal candle breakout):</strong> After a rising candle, bearish reversal candle with ATM CE unwind ≥ 2L → arm a BUY. Entry when price breaks <em>above</em> the reversal candle's high. Target = next higher strike. SL = reversal candle's low − 30 pts.
+  </div>
+  <!-- Stats bar -->
+  <div class="pt-stats" id="pt-stats">
+    <div class="pt-stat-box"><div class="pt-stat-label">Total Trades</div><div class="pt-stat-val" id="pt-total">0</div></div>
+    <div class="pt-stat-box"><div class="pt-stat-label">Open</div><div class="pt-stat-val" style="color:#185FA5;" id="pt-open-count">0</div></div>
+    <div class="pt-stat-box"><div class="pt-stat-label">Winners</div><div class="pt-stat-val" style="color:#1D9E75;" id="pt-wins">0</div></div>
+    <div class="pt-stat-box"><div class="pt-stat-label">Losers</div><div class="pt-stat-val" style="color:#D85A30;" id="pt-losses">0</div></div>
+    <div class="pt-stat-box"><div class="pt-stat-label">SL Hit</div><div class="pt-stat-val" style="color:#854F0B;" id="pt-sl-count">0</div></div>
+    <div class="pt-stat-box"><div class="pt-stat-label">Net P&L (pts)</div><div class="pt-stat-val" id="pt-net-pnl">0</div></div>
+    <div class="pt-stat-box"><div class="pt-stat-label">Win Rate</div><div class="pt-stat-val" id="pt-winrate">—</div></div>
+  </div>
 </div>
 
-</div><!-- end tab-oi-movers-panel -->
+<!-- Open Trades -->
+<div class="pt-card" id="pt-open-card">
+  <div class="pt-section-title">🟢 Open Positions</div>
+  <div style="overflow-x:auto;">
+    <table class="pt-table pt-open" id="pt-open-table">
+      <thead>
+        <tr>
+          <th>Time</th><th>Dir</th><th>Entry</th><th>Target</th><th>SL</th>
+          <th>Setup</th><th>Reason</th><th>Curr Spot</th><th>Unreal P&L</th>
+        </tr>
+      </thead>
+      <tbody id="pt-open-body">
+        <tr><td colspan="9" class="pt-empty">No open positions</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Closed Trades -->
+<div class="pt-card">
+  <div class="pt-section-title">📋 Closed Trades</div>
+  <div style="overflow-x:auto;">
+    <table class="pt-table" id="pt-closed-table">
+      <thead>
+        <tr>
+          <th>Entry Time</th><th>Exit Time</th><th>Dir</th><th>Entry</th>
+          <th>Exit</th><th>SL</th><th>Target</th><th>P&L (pts)</th><th>Result</th><th>Reason / Setup</th>
+        </tr>
+      </thead>
+      <tbody id="pt-closed-body">
+        <tr><td colspan="10" class="pt-empty">No closed trades yet</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- end tab-paper-trade-panel -->
+
+<!-- ═══════════════════════════════════════════════════════════════
+     DEPTH WATCH TAB
+     On-demand market depth sampler for CE/PE unwinding detection.
+     Samples /depth/watch for a chosen strike + type + duration,
+     then renders a live table, imbalance sparkline, and big-order summary.
+═══════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-depth-watch-panel">
+<style>
+.dw-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;}
+.dw-title{font-size:14px;font-weight:500;margin-bottom:4px;}
+.dw-sub{font-size:11px;color:#888;margin-bottom:14px;}
+.dw-controls{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;}
+.dw-field{display:flex;flex-direction:column;gap:4px;}
+.dw-label{font-size:11px;color:#888;}
+.dw-input{font-size:13px;padding:6px 10px;border:0.5px solid #ccc;border-radius:7px;background:#fff;color:#1a1a1a;width:110px;}
+.dw-select{font-size:13px;padding:6px 10px;border:0.5px solid #ccc;border-radius:7px;background:#fff;color:#1a1a1a;cursor:pointer;}
+.dw-btn{font-size:13px;padding:7px 18px;border-radius:7px;cursor:pointer;border:0.5px solid #185FA5;background:#185FA5;color:#fff;font-weight:500;transition:all .15s;min-width:90px;}
+.dw-btn:hover{background:#1350a0;}
+.dw-btn:disabled{background:#aaa;border-color:#aaa;cursor:not-allowed;}
+.dw-btn-stop{background:#D85A30;border-color:#D85A30;}
+.dw-btn-stop:hover{background:#b84520;}
+
+.dw-status{font-size:12px;padding:8px 14px;border-radius:7px;background:#f8f8f5;border:0.5px solid #e0e0da;color:#555;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.dw-dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0;transition:background .3s;}
+.dw-dot.running{background:#1D9E75;animation:blink 1.2s infinite;}
+.dw-dot.done{background:#185FA5;}
+.dw-dot.error{background:#D85A30;}
+
+/* Summary boxes */
+.dw-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:14px;}
+.dw-sum-box{background:#f8f8f5;border:0.5px solid #e0e0da;border-radius:8px;padding:8px 12px;}
+.dw-sum-label{font-size:10px;color:#888;margin-bottom:3px;text-transform:uppercase;letter-spacing:.03em;}
+.dw-sum-val{font-size:16px;font-weight:500;font-variant-numeric:tabular-nums;}
+.dw-sum-val.pos{color:#1D9E75;} .dw-sum-val.neg{color:#D85A30;} .dw-sum-val.neu{color:#534AB7;}
+
+/* Interpretation banner */
+.dw-interp{padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:14px;line-height:1.5;}
+.dw-interp.cover{background:#E1F5EE;color:#085041;border:0.5px solid #a0dcc8;}
+.dw-interp.add{background:#FAECE7;color:#712B13;border:0.5px solid #f0c0b0;}
+.dw-interp.neutral{background:#f0f0ec;color:#555;border:0.5px solid #ddd;}
+
+/* Big order tables */
+.dw-big-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+.dw-big-card{background:#f8f8f5;border:0.5px solid #e0e0da;border-radius:8px;padding:10px 14px;}
+.dw-big-title{font-size:11px;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;}
+.dw-big-title.bid{color:#1D9E75;} .dw-big-title.ask{color:#D85A30;}
+.dw-big-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5px solid #e8e8e2;font-size:12px;}
+.dw-big-row:last-child{border-bottom:none;}
+.dw-big-price{font-weight:500;font-variant-numeric:tabular-nums;}
+.dw-big-qty{color:#555;font-variant-numeric:tabular-nums;}
+.dw-big-bar-wrap{width:60px;height:5px;background:#e0e0da;border-radius:3px;overflow:hidden;margin:0 6px;}
+.dw-big-bar{height:100%;border-radius:3px;}
+.dw-big-empty{font-size:11px;color:#aaa;padding:6px 0;}
+
+/* Imbalance sparkline */
+.dw-spark-wrap{margin-bottom:14px;}
+.dw-spark-title{font-size:11px;color:#888;margin-bottom:6px;}
+
+/* Sample table */
+.dw-table-wrap{overflow-x:auto;}
+.dw-table{width:100%;border-collapse:collapse;font-size:11px;}
+.dw-table th{text-align:right;padding:4px 8px;border-bottom:0.5px solid #ccc;color:#888;font-weight:400;white-space:nowrap;}
+.dw-table th:first-child{text-align:left;}
+.dw-table td{padding:4px 8px;border-bottom:0.5px solid #eee;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
+.dw-table td:first-child{text-align:left;color:#888;}
+.dw-table tr:last-child td{border-bottom:none;}
+.dw-table tr.highlight td{background:#FAFEE6;}
+.imb-pos{color:#1D9E75;font-weight:500;} .imb-neg{color:#D85A30;font-weight:500;}
+.oi-drop{color:#D85A30;} .oi-rise{color:#1D9E75;}
+
+/* Max qty live banner */
+.dw-maxqty{display:none;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+.dw-maxqty-box{flex:1;min-width:160px;border-radius:9px;padding:10px 16px;display:flex;flex-direction:column;gap:3px;}
+.dw-maxqty-box.bid{background:#E1F5EE;border:1px solid #a0dcc8;}
+.dw-maxqty-box.ask{background:#FAECE7;border:1px solid #f0c0b0;}
+.dw-maxqty-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
+.dw-maxqty-label.bid{color:#085041;} .dw-maxqty-label.ask{color:#712B13;}
+.dw-maxqty-price{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.5px;}
+.dw-maxqty-price.bid{color:#1D9E75;} .dw-maxqty-price.ask{color:#D85A30;}
+.dw-maxqty-meta{font-size:11px;color:#666;}
+
+/* Piggyback highlight */
+.dw-piggyback{background:#FAEEDA;border:0.5px solid #EF9F27;border-radius:8px;padding:10px 14px;font-size:12px;color:#854F0B;margin-bottom:14px;display:none;}
+.dw-piggyback strong{font-weight:600;}
+</style>
+
+<div class="dw-card">
+  <div class="dw-title">🔬 On-Demand Depth Watch</div>
+  <div class="dw-sub">Sample the live order book for a specific strike to confirm CE/PE unwinding. Works for both CE exits after breakouts and PE exits after support breaks.</div>
+
+  <!-- Controls -->
+  <div class="dw-controls">
+    <div class="dw-field">
+      <span class="dw-label">Strike</span>
+      <input class="dw-input" type="number" id="dw-strike" placeholder="e.g. 24000" step="50">
+    </div>
+    <div class="dw-field">
+      <span class="dw-label">Type</span>
+      <select class="dw-select" id="dw-type">
+        <option value="CE">CE — Call (breakout)</option>
+        <option value="PE">PE — Put (support break)</option>
+      </select>
+    </div>
+    <div class="dw-field">
+      <span class="dw-label">Watch duration</span>
+      <select class="dw-select" id="dw-seconds">
+        <option value="15">15s — quick</option>
+        <option value="30" selected>30s — standard</option>
+        <option value="60">1 min</option>
+        <option value="120">2 min</option>
+        <option value="180">3 min</option>
+        <option value="300">5 min</option>
+        <option value="600">10 min</option>
+      </select>
+    </div>
+    <div class="dw-field">
+      <span class="dw-label">Big order ≥ (lots)</span>
+      <input class="dw-input" type="number" id="dw-threshold" value="500" step="100" style="width:90px;">
+    </div>
+    <button class="dw-btn" id="dw-start-btn" onclick="dwStart()">▶ Start</button>
+    <button class="dw-btn dw-btn-stop" id="dw-stop-btn" onclick="dwStop()" style="display:none;">■ Cancel</button>
+  </div>
+
+  <!-- Quick-fill from tracked strikes -->
+  <div style="margin-bottom:14px;">
+    <span style="font-size:11px;color:#888;margin-right:8px;">Quick fill:</span>
+    <span id="dw-quick-chips" style="display:inline-flex;gap:5px;flex-wrap:wrap;"></span>
+  </div>
+
+  <!-- Status -->
+  <div class="dw-status" id="dw-status">
+    <div class="dw-dot" id="dw-dot"></div>
+    <span id="dw-status-text">Ready — enter a strike and press Start</span>
+  </div>
+
+  <!-- Max qty price — live during recording -->
+  <div class="dw-maxqty" id="dw-maxqty">
+    <div class="dw-maxqty-box bid">
+      <div class="dw-maxqty-label bid">🟢 Max bid qty at price</div>
+      <div class="dw-maxqty-price bid" id="dw-maxqty-bid-price">—</div>
+      <div class="dw-maxqty-meta" id="dw-maxqty-bid-meta">—</div>
+    </div>
+    <div class="dw-maxqty-box ask">
+      <div class="dw-maxqty-label ask">🔴 Max ask qty at price</div>
+      <div class="dw-maxqty-price ask" id="dw-maxqty-ask-price">—</div>
+      <div class="dw-maxqty-meta" id="dw-maxqty-ask-meta">—</div>
+    </div>
+  </div>
+
+  <!-- Piggyback suggestion -->
+  <div class="dw-piggyback" id="dw-piggyback">
+    <strong>💡 Piggyback suggestion:</strong> <span id="dw-piggyback-text"></span>
+  </div>
+
+  <!-- Summary boxes -->
+  <div class="dw-summary-grid" id="dw-summary" style="display:none;">
+    <div class="dw-sum-box">
+      <div class="dw-sum-label">OI Start</div>
+      <div class="dw-sum-val neu" id="dw-oi-start">—</div>
+    </div>
+    <div class="dw-sum-box">
+      <div class="dw-sum-label">OI End</div>
+      <div class="dw-sum-val neu" id="dw-oi-end">—</div>
+    </div>
+    <div class="dw-sum-box">
+      <div class="dw-sum-label">OI Δ</div>
+      <div class="dw-sum-val" id="dw-oi-delta">—</div>
+    </div>
+    <div class="dw-sum-box">
+      <div class="dw-sum-label">LTP Start → End</div>
+      <div class="dw-sum-val neu" id="dw-ltp-range">—</div>
+    </div>
+    <div class="dw-sum-box">
+      <div class="dw-sum-label">Avg Imbalance</div>
+      <div class="dw-sum-val" id="dw-avg-imb">—</div>
+    </div>
+    <div class="dw-sum-box">
+      <div class="dw-sum-label">Imb Range</div>
+      <div class="dw-sum-val neu" id="dw-imb-range">—</div>
+    </div>
+  </div>
+
+  <!-- Interpretation -->
+  <div class="dw-interp neutral" id="dw-interp" style="display:none;"></div>
+
+  <!-- Big orders side by side -->
+  <div class="dw-big-grid" id="dw-big-grid" style="display:none;">
+    <div class="dw-big-card">
+      <div class="dw-big-title bid">🟢 Big Bids (covering queue)</div>
+      <div id="dw-big-bids">—</div>
+    </div>
+    <div class="dw-big-card">
+      <div class="dw-big-title ask">🔴 Big Asks (sell wall)</div>
+      <div id="dw-big-asks">—</div>
+    </div>
+  </div>
+
+  <!-- Imbalance sparkline -->
+  <div class="dw-spark-wrap" id="dw-spark-wrap" style="display:none;">
+    <div class="dw-spark-title">Depth imbalance per second (green = bid-heavy, red = ask-heavy)</div>
+    <canvas id="dw-spark" height="60" style="width:100%;display:block;border-radius:6px;"></canvas>
+  </div>
+
+  <!-- Sample table -->
+  <div id="dw-table-section" style="display:none;">
+    <div style="font-size:11px;color:#888;margin-bottom:6px;">Second-by-second samples</div>
+    <div class="dw-table-wrap">
+      <table class="dw-table">
+        <thead>
+          <tr>
+            <th style="text-align:left;">Time</th>
+            <th>LTP</th>
+            <th>OI</th>
+            <th>Bid Qty</th>
+            <th>Ask Qty</th>
+            <th>Imbalance</th>
+            <th>Best Bid</th>
+            <th>Best Ask</th>
+          </tr>
+        </thead>
+        <tbody id="dw-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- end tab-depth-watch-panel -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DEPTH WATCH — JS  (SSE streaming, up to 10 min)
+// ═══════════════════════════════════════════════════════════════
+
+let dwWatchId    = null;   // current watch_id from server
+let dwEvtSource  = null;   // EventSource connection
+let dwRunning    = false;
+let dwSamples    = [];     // accumulated samples for sparkline
+let dwCountdown  = null;   // setInterval handle
+let dwSecondsLeft = 0;
+let dwDuration   = 0;
+
+// Populate quick-fill chips from tracked strikes whenever strikes arrive
+function dwRenderQuickChips() {
+  const box = document.getElementById('dw-quick-chips');
+  if (!box || !allStrikes || !allStrikes.length) return;
+  const atm    = atmStrike || allStrikes[Math.floor(allStrikes.length / 2)];
+  const atmIdx = allStrikes.indexOf(atm);
+  const lo     = Math.max(0, atmIdx - 3);
+  const hi     = Math.min(allStrikes.length - 1, atmIdx + 3);
+  box.innerHTML = allStrikes.slice(lo, hi + 1).map(st => {
+    const isAtm = st === atm;
+    return `<span style="font-size:11px;padding:3px 10px;border-radius:20px;
+            border:0.5px solid ${isAtm?'#534AB7':'#ddd'};
+            background:${isAtm?'#EEEDFE':'#f8f8f5'};
+            color:${isAtm?'#534AB7':'#666'};cursor:pointer;"
+            onclick="dwFill(${st})">${st.toLocaleString('en-IN')}${isAtm?' · ATM':''}</span>`;
+  }).join('');
+}
+
+function dwFill(strike) {
+  const inp = document.getElementById('dw-strike');
+  if (inp) inp.value = strike;
+}
+
+function dwSetStatus(msg, state) {
+  const dot = document.getElementById('dw-dot');
+  const txt = document.getElementById('dw-status-text');
+  if (!txt) return;
+  txt.textContent = msg;
+  if (dot) dot.className = 'dw-dot ' + (state || '');
+}
+
+function dwFmtOI(v) {
+  const a = Math.abs(v), s = v < 0 ? '-' : '';
+  if (a >= 1e7) return (v<0?'-':'+') + (a/1e7).toFixed(2) + ' Cr';
+  if (a >= 1e5) return (v<0?'-':'+') + (a/1e5).toFixed(2) + ' L';
+  if (a >= 1e3) return (v<0?'-':'+') + (a/1e3).toFixed(1) + 'K';
+  return (v>=0?'+':'') + v.toLocaleString('en-IN');
+}
+
+async function dwStart() {
+  if (dwRunning) return;
+
+  const strike    = parseInt(document.getElementById('dw-strike')?.value || '0');
+  const type      = document.getElementById('dw-type')?.value || 'CE';
+  const seconds   = parseInt(document.getElementById('dw-seconds')?.value || '30');
+  const threshold = parseInt(document.getElementById('dw-threshold')?.value || '500');
+
+  if (!strike || strike < 1000) { alert('Enter a valid strike (e.g. 24000)'); return; }
+
+  // ── Disable Start + show Stop IMMEDIATELY (before any network call) ──
+  dwRunning = true;
+  document.getElementById('dw-start-btn').disabled = true;
+  document.getElementById('dw-stop-btn').style.display = '';
+  dwSetStatus(`Connecting… starting watcher for ${strike} ${type}`, 'running');
+
+  // ── Reset UI ──────────────────────────────────────────────────
+  dwSamples = [];
+  ['dw-summary','dw-interp','dw-maxqty','dw-big-grid','dw-spark-wrap','dw-table-section']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  const pig = document.getElementById('dw-piggyback');
+  if (pig) pig.style.display = 'none';
+  document.getElementById('dw-tbody').innerHTML = '';
+
+  // ── POST /depth/watch/start ───────────────────────────────────
+  let resp;
+  try {
+    resp = await fetch('/depth/watch/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ strike, type, seconds, threshold }),
+    });
+  } catch (e) {
+    dwSetStatus('Network error: ' + e.message, 'error');
+    dwCleanup(); return;
+  }
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    dwSetStatus('Error: ' + (err.error || resp.statusText), 'error');
+    dwCleanup(); return;
+  }
+
+  const meta = await resp.json();
+  dwWatchId  = meta.watch_id;
+  dwDuration = seconds;
+
+  // Show countdown timer
+  dwSecondsLeft = seconds;
+  dwSetStatus(
+    `Watching ${strike} ${type} · ${meta.symbol || ''} · ${seconds}s window · 0 samples`, 'running'
+  );
+
+  // Countdown ticker
+  dwCountdown = setInterval(() => {
+    dwSecondsLeft = Math.max(0, dwSecondsLeft - 1);
+  }, 1000);
+
+  // ── Open SSE stream ───────────────────────────────────────────
+  dwEvtSource = new EventSource(`/depth/watch/stream/${dwWatchId}`);
+
+  dwEvtSource.onmessage = (e) => {
+    let msg;
+    try { msg = JSON.parse(e.data); } catch { return; }
+
+    if (msg.type === 'tick') {
+      dwSamples.push(msg.sample);
+      dwSetStatus(
+        `Watching ${strike} ${type} · ${dwSecondsLeft}s left · ${msg.seq} samples`, 'running'
+      );
+      // Live updates
+      dwUpdateLive(msg.sample, msg.rolling);
+    }
+
+    if (msg.type === 'done') {
+      dwEvtSource.close();
+      dwEvtSource = null;
+      clearInterval(dwCountdown);
+      dwRunning = false;
+      document.getElementById('dw-start-btn').disabled = false;
+      document.getElementById('dw-stop-btn').style.display = 'none';
+      dwSetStatus(
+        `Done — ${(msg.samples||dwSamples).length} samples for ${meta.symbol || strike+' '+type}`, 'done'
+      );
+      dwRenderFinal(msg.summary, msg.samples || dwSamples, type);
+    }
+  };
+
+  dwEvtSource.onerror = () => {
+    if (!dwRunning) return;  // already closed intentionally
+    dwSetStatus('Stream error — check server logs.', 'error');
+    dwCleanup();
+  };
+}
+
+function dwStop() {
+  if (!dwWatchId) return;
+  fetch(`/depth/watch/stop/${dwWatchId}`, { method: 'POST' }).catch(() => {});
+  dwCleanup();
+  dwSetStatus('Stopped early.', '');
+}
+
+function dwCleanup() {
+  if (dwEvtSource) { dwEvtSource.close(); dwEvtSource = null; }
+  clearInterval(dwCountdown);
+  dwRunning = false;
+  document.getElementById('dw-start-btn').disabled = false;
+  document.getElementById('dw-stop-btn').style.display = 'none';
+}
+
+// Called every tick — update live summary boxes + sparkline + table row
+function dwUpdateLive(sample, rolling) {
+  if (!rolling) return;
+
+  // Show summary grid while running
+  const sd = document.getElementById('dw-summary');
+  if (sd) sd.style.display = 'grid';
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const cls = (id, c)   => { const el = document.getElementById(id); if (el) el.className = 'dw-sum-val ' + c; };
+
+  set('dw-oi-start', dwFmtOI(rolling.oi_start).replace(/^[+-]/,''));
+  set('dw-oi-end',   dwFmtOI(rolling.oi_end).replace(/^[+-]/,''));
+
+  const delta = rolling.oi_delta;
+  set('dw-oi-delta', dwFmtOI(delta));
+  cls('dw-oi-delta', delta < 0 ? 'neg' : delta > 0 ? 'pos' : 'neu');
+
+  set('dw-ltp-range', rolling.ltp_start.toFixed(1) + ' → ' + rolling.ltp_end.toFixed(1));
+
+  const avgImb = rolling.avg_imbalance;
+  set('dw-avg-imb', (avgImb >= 0 ? '+' : '') + avgImb.toFixed(3));
+  cls('dw-avg-imb', avgImb > 0.05 ? 'pos' : avgImb < -0.05 ? 'neg' : 'neu');
+
+  set('dw-imb-range',
+    (rolling.min_imbalance >= 0 ? '+' : '') + rolling.min_imbalance.toFixed(2) +
+    ' / ' + (rolling.max_imbalance >= 0 ? '+' : '') + rolling.max_imbalance.toFixed(2));
+
+  // Live interpretation
+  const interp = document.getElementById('dw-interp');
+  if (interp) {
+    interp.style.display = '';
+    interp.textContent = '📊 ' + rolling.interpretation;
+    const covering = delta < 0 && avgImb > 0.05;
+    const adding   = delta > 0 && avgImb < -0.05;
+    interp.className = 'dw-interp ' + (covering ? 'cover' : adding ? 'add' : 'neutral');
+  }
+
+  // ── Max qty price banner (live) ───────────────────────────────
+  const mqBox = document.getElementById('dw-maxqty');
+  if (mqBox) {
+    mqBox.style.display = 'flex';
+    const topBid = rolling.big_bid_prices?.[0];
+    const topAsk = rolling.big_ask_prices?.[0];
+    const bpEl = document.getElementById('dw-maxqty-bid-price');
+    const bmEl = document.getElementById('dw-maxqty-bid-meta');
+    const apEl = document.getElementById('dw-maxqty-ask-price');
+    const amEl = document.getElementById('dw-maxqty-ask-meta');
+    if (topBid) {
+      if (bpEl) bpEl.textContent = '₹' + topBid.price;
+      if (bmEl) bmEl.textContent = topBid.peak_qty.toLocaleString('en-IN') + ' lots peak · seen ' + topBid.seen_count + 's';
+    } else {
+      if (bpEl) bpEl.textContent = '—';
+      if (bmEl) bmEl.textContent = 'No bid above threshold yet';
+    }
+    if (topAsk) {
+      if (apEl) apEl.textContent = '₹' + topAsk.price;
+      if (amEl) amEl.textContent = topAsk.peak_qty.toLocaleString('en-IN') + ' lots peak · seen ' + topAsk.seen_count + 's';
+    } else {
+      if (apEl) apEl.textContent = '—';
+      if (amEl) amEl.textContent = 'No ask above threshold yet';
+    }
+  }
+
+  // ── Big orders panel — update live (not just on done) ─────────
+  const bigGrid = document.getElementById('dw-big-grid');
+  if (bigGrid && (rolling.big_bid_prices?.length || rolling.big_ask_prices?.length)) {
+    bigGrid.style.display = 'grid';
+    const maxBid = rolling.big_bid_prices?.[0]?.peak_qty || 1;
+    const maxAsk = rolling.big_ask_prices?.[0]?.peak_qty || 1;
+    const renderBigRows = (rows, maxQty, color) => rows?.length
+      ? rows.map((r, i) => `
+          <div class="dw-big-row"${i === 0 ? ' style="background:#f0faf5;border-radius:5px;"' : ''}>
+            <span class="dw-big-price" style="color:${color}${i===0?';font-weight:700;':''}">${i===0?'★ ':''}₹${r.price}</span>
+            <div class="dw-big-bar-wrap"><div class="dw-big-bar" style="width:${Math.round(r.peak_qty/maxQty*100)}%;background:${color};"></div></div>
+            <span class="dw-big-qty">${r.peak_qty.toLocaleString('en-IN')} <span style="color:#bbb;font-size:10px;">(${r.seen_count}s)</span></span>
+          </div>`).join('')
+      : '<div class="dw-big-empty">None above threshold yet</div>';
+    const bb = document.getElementById('dw-big-bids');
+    const ba = document.getElementById('dw-big-asks');
+    if (bb) bb.innerHTML = renderBigRows(rolling.big_bid_prices, maxBid, '#1D9E75');
+    if (ba) ba.innerHTML = renderBigRows(rolling.big_ask_prices, maxAsk, '#D85A30');
+  }
+
+  // Live sparkline
+  dwDrawSparkline(dwSamples.map(s => s.imbalance));
+
+  // Append row to table
+  const tableSection = document.getElementById('dw-table-section');
+  if (tableSection) tableSection.style.display = '';
+  const tbody = document.getElementById('dw-tbody');
+  if (tbody) {
+    const firstOI = dwSamples[0]?.oi || sample.oi;
+    const imb     = sample.imbalance;
+    const imbCls  = imb > 0.05 ? 'imb-pos' : imb < -0.05 ? 'imb-neg' : '';
+    const oiDiff  = sample.oi - firstOI;
+    const oiCls   = oiDiff < 0 ? 'oi-drop' : oiDiff > 0 ? 'oi-rise' : '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${sample.t}</td>
+      <td>${sample.ltp.toFixed(1)}</td>
+      <td class="${oiCls}">${sample.oi.toLocaleString('en-IN')}</td>
+      <td>${sample.bid_qty.toLocaleString('en-IN')}</td>
+      <td>${sample.ask_qty.toLocaleString('en-IN')}</td>
+      <td class="${imbCls}">${(imb>=0?'+':'')+imb.toFixed(3)}</td>
+      <td>${sample.best_bid.toFixed(1)}</td>
+      <td>${sample.best_ask.toFixed(1)}</td>`;
+    tbody.appendChild(tr);
+    // Auto-scroll table to latest
+    tr.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function dwDrawSparkline(imbs) {
+  const sparkWrap = document.getElementById('dw-spark-wrap');
+  if (sparkWrap) sparkWrap.style.display = '';
+  const canvas = document.getElementById('dw-spark');
+  if (!canvas || !imbs.length) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W   = canvas.parentElement.offsetWidth || 600;
+  const H   = 60;
+  canvas.width  = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const midY = H / 2;
+  // zero line
+  ctx.strokeStyle = '#e0e0da'; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(W, midY); ctx.stroke();
+  const barW = Math.max(2, Math.floor(W / Math.max(imbs.length, 1)) - 1);
+  imbs.forEach((v, i) => {
+    const x    = i * (W / Math.max(imbs.length, 1));
+    const barH = Math.abs(v) * midY * 0.9;
+    ctx.fillStyle = v >= 0 ? '#1D9E75' : '#D85A30';
+    v >= 0 ? ctx.fillRect(x, midY - barH, barW, barH)
+           : ctx.fillRect(x, midY, barW, barH);
+  });
+}
+
+// Called once when "done" event arrives — render big orders + piggyback
+function dwRenderFinal(summary, samples, type) {
+  if (!summary) return;
+
+  const { big_bid_prices, big_ask_prices, oi_delta, avg_imbalance } = summary;
+
+  // Piggyback suggestion
+  const covering = oi_delta < 0 && avg_imbalance > 0.05 && big_bid_prices?.length;
+  const pig    = document.getElementById('dw-piggyback');
+  const pigtxt = document.getElementById('dw-piggyback-text');
+  if (covering && pig && pigtxt) {
+    const top = big_bid_prices[0];
+    pig.style.display = '';
+    pigtxt.innerHTML =
+      `${type} shorts covered via limit buys. Largest bid wall: <strong>₹${top.price}</strong> ` +
+      `(peak ${top.peak_qty.toLocaleString('en-IN')} lots, held for ${top.seen_count}s). ` +
+      `Place your buy at <strong>₹${top.price}</strong> or just above to join the queue.`;
+  }
+
+  // Big orders
+  const bigGrid = document.getElementById('dw-big-grid');
+  if (bigGrid) bigGrid.style.display = 'grid';
+
+  const maxBid = big_bid_prices?.length ? big_bid_prices[0].peak_qty : 1;
+  const maxAsk = big_ask_prices?.length ? big_ask_prices[0].peak_qty : 1;
+
+  const renderBigRows = (rows, maxQty, color) => rows?.length
+    ? rows.map(r => `
+        <div class="dw-big-row">
+          <span class="dw-big-price" style="color:${color};">₹${r.price}</span>
+          <div class="dw-big-bar-wrap">
+            <div class="dw-big-bar" style="width:${Math.round(r.peak_qty/maxQty*100)}%;background:${color};"></div>
+          </div>
+          <span class="dw-big-qty">${r.peak_qty.toLocaleString('en-IN')}
+            <span style="color:#bbb;font-size:10px;">(${r.seen_count}s)</span>
+          </span>
+        </div>`).join('')
+    : '<div class="dw-big-empty">None above threshold</div>';
+
+  const bb = document.getElementById('dw-big-bids');
+  const ba = document.getElementById('dw-big-asks');
+  if (bb) bb.innerHTML = renderBigRows(big_bid_prices, maxBid, '#1D9E75');
+  if (ba) ba.innerHTML = renderBigRows(big_ask_prices, maxAsk, '#D85A30');
+
+  // Final sparkline redraw with all samples
+  dwDrawSparkline(samples.map(s => s.imbalance));
+}
+
+// Hook into the SSE stream to keep quick-chips current
+document.addEventListener('DOMContentLoaded', () => {
+  const chipTimer = setInterval(() => {
+    if (typeof allStrikes !== 'undefined' && allStrikes?.length) {
+      dwRenderQuickChips();
+      clearInterval(chipTimer);
+    }
+  }, 500);
+});
+</script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 function switchTab(tabName) {
-  ['dashboard', 'option-chain', 'oi-movers'].forEach(name => {
+  ['dashboard', 'option-chain', 'oi-movers', 'oi-change', 'paper-trade', 'depth-watch'].forEach(name => {
     const panel = document.getElementById('tab-' + name + '-panel');
     const btn = document.getElementById('tab-' + name + '-btn');
     const active = name === tabName;
@@ -887,6 +1827,7 @@ function switchTab(tabName) {
   });
   if (tabName === 'option-chain') {
     renderOptionChain();
+    renderEODSummary(minuteRows);
     setTimeout(scrollOCtoATM, 80);
     // Refresh ticker + max pain when switching to this tab
     updateOCTicker(currentSpot, ocExpiryDate);
@@ -895,9 +1836,28 @@ function switchTab(tabName) {
   if (tabName === 'oi-movers') {
     drawOIMovers(minuteRows, atmStrike);
   }
+  if (tabName === 'oi-change') {
+    ensureOIChangeSelection();
+    renderOIChangeStrikeChips();
+    renderOIChangeChart();
+  }
+  if (tabName === 'paper-trade') {
+    ptRenderAll();
+  }
+  if (tabName === 'depth-watch') {
+    dwRenderQuickChips();
+  }
 }
 
-// ── CONFIG ────────────────────────────────────────────────────────
+// ── COLLAPSIBLE SECTIONS ──────────────────────────────────────────
+function toggleSection(headerEl) {
+  const body = headerEl.nextElementSibling;
+  const isOpen = headerEl.classList.contains('open');
+  headerEl.classList.toggle('open', !isOpen);
+  body.classList.toggle('open', !isOpen);
+}
+
+
 const BRIDGE       = '';
 const POLL_OI_SEC  = 30;
 const POLL_HX_SEC  = 60;
@@ -1005,8 +1965,14 @@ async function loadHistoricalData(date) {
     }
 
     rebuildCharts();
-
-    // Seed ticker open price from first history row
+    // Update EOD summary
+    if (document.getElementById('tab-option-chain-panel')?.classList.contains('active')) {
+      renderEODSummary(minuteRows);
+    }
+    // Update paper trades
+    if (document.getElementById('tab-paper-trade-panel')?.classList.contains('active')) {
+      ptRenderAll();
+    }
     if (minuteRows.length) {
       const firstRow = minuteRows[0];
       const openSpot = parseFloat(firstRow.spot_open || firstRow.spot_close || 0);
@@ -1042,10 +2008,7 @@ function _deriveStrikesFromRows(rows) {
   }
 
   const atmIdx = allStrikes.indexOf(atmStrike);
-  const s2 = atmStrike;
-  const s1 = atmIdx + 1 < allStrikes.length ? allStrikes[atmIdx+1] : allStrikes[Math.min(atmIdx, allStrikes.length-1)];
-  const s3 = atmIdx - 1 >= 0 ? allStrikes[atmIdx-1] : allStrikes[Math.max(0, atmIdx)];
-  defaultStrikes  = [s1, s2, s3];
+  _computeDefaultStrikes();
   selectedStrikes = [...defaultStrikes];
   populateStrikeSelectors(allStrikes);
 }
@@ -1148,16 +2111,25 @@ let atmStrike      = null;
 let STRIKE_STEP    = 50;  // default, overridden from data
 
 // Three independent strikes: [s1=top, s2=mid/ATM, s3=bottom]
+// In N-chart mode, selectedStrikes expands: [sN_top, ..., s1, s2, s3, ..., sN_bot]
+// The array is always ordered top-to-bottom (highest strike first).
 let selectedStrikes = [null, null, null];
-let defaultStrikes  = [null, null, null];
+let defaultStrikes  = [null, null, null, null, null];
+let oiChangeSelectedStrikes = [];
+let oiChangeChartInstance = null;
+let oiAbsChartInstance = null;
+let numCharts       = 5;   // current chart count (1, 3, 5, 7, or 9)
 
-// Chart.js instances for each of the 3 charts
+// Chart.js instances — index matches selectedStrikes order
 let chartInstances = [null, null, null];
+
+// Extra chart IDs currently injected into the DOM (for cleanup on change)
+let extraChartIds = [];  // e.g. ['s4','s5','s6','s7'] for 7-chart mode
 
 let lastOIData     = null;
 let liveCandle     = null;
-let latestCandles  = [[], [], []]; // per-strike candle arrays
-let chipClickIdx   = 0;  // 0=s1, 1=s2, 2=s3 (cycles through on chip click)
+let latestCandles  = [[], [], [], [], []]; // per-strike candle arrays, length = numCharts
+let chipClickIdx   = 0;  // cycles 0..numCharts-1 on chip click
 const prevLtp      = {};
 let currentSpot    = null;
 
@@ -1178,9 +2150,52 @@ function setIv(el) {
 }
 
 // ── STRIKE SELECTOR ───────────────────────────────────────────────
+
+// Slot-to-DOM-prefix mapping.
+// Base 3 cards always use IDs s1/s2/s3 in the HTML.
+// Their slot positions shift as numCharts grows:
+//   1 chart : [s2]
+//   3 charts: [s1, s2, s3]
+//   5 charts: [sE1, s1, s2, s3, sE2]
+//   7 charts: [sE1, sE2, s1, s2, s3, sE3, sE4]
+//   9 charts: [sE1, sE2, sE3, s1, s2, s3, sE4, sE5, sE6]
+// Extra cards get IDs sE1, sE2, sE3, ... (injected dynamically)
+function slotPfx(idx) {
+  const midIdx = Math.floor(numCharts / 2);
+  // Base 3 slots
+  if (numCharts === 1) return 's2';
+  if (idx === midIdx - 1) return 's1';
+  if (idx === midIdx)     return 's2';
+  if (idx === midIdx + 1) return 's3';
+  // Extra slots: number them from top-to-bottom excluding base 3 positions
+  // Above midIdx-1: slots 0..midIdx-2  → sE1, sE2, ...
+  // Below midIdx+1: slots midIdx+2..N-1 → sE{above_count+1}, ...
+  const aboveCount = midIdx - 1; // number of extra slots above s1
+  if (idx < midIdx - 1) {
+    return 'sE' + (idx + 1);
+  } else {
+    return 'sE' + (aboveCount + (idx - (midIdx + 1)) + 1);
+  }
+}
+
 function populateStrikeSelectors(strikes) {
-  [{id:'s1-select',idx:0},{id:'s2-select',idx:1},{id:'s3-select',idx:2},{id:'bear-conf-select',idx:0},{id:'bull-conf-select',idx:2}].forEach(({id, idx}) => {
-    const sel = document.getElementById(id);
+  // The base 3 selects are always in the DOM; extras are injected by buildExtraChartCards
+  for (let i = 0; i < numCharts; i++) {
+    const sel = document.getElementById(slotPfx(i) + '-select');
+    if (!sel) continue;
+    sel.innerHTML = '';
+    strikes.forEach(st => {
+      const o = document.createElement('option');
+      o.value = st; o.textContent = st;
+      if (st === selectedStrikes[i]) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+
+  // Confluence selects: bear = slot 0 (topmost), bull = slot numCharts-1 (bottommost)
+  const bearSel = document.getElementById('bear-conf-select');
+  const bullSel = document.getElementById('bull-conf-select');
+  [{ sel: bearSel, idx: 0 }, { sel: bullSel, idx: numCharts - 1 }].forEach(({ sel, idx }) => {
     if (!sel) return;
     sel.innerHTML = '';
     strikes.forEach(st => {
@@ -1191,26 +2206,231 @@ function populateStrikeSelectors(strikes) {
     });
   });
 
-  // Update chip display
+  // Chip display
   const chipsEl = document.getElementById('strike-chips');
   chipsEl.innerHTML = strikes.map(st => {
     let cls = 'strike-chip';
-    if (st === atmStrike)          cls += ' atm';
-    if (st === selectedStrikes[0]) cls += ' s1-active';
-    if (st === selectedStrikes[1]) cls += ' s2-active';
-    if (st === selectedStrikes[2]) cls += ' s3-active';
-    return `<span class="${cls}" onclick="onChipClick(${st})" title="Click cycles: top→mid→bottom">${st}</span>`;
+    if (st === atmStrike) cls += ' atm';
+    const si = selectedStrikes.indexOf(st);
+    if (si === 0)                  cls += ' s1-active';
+    else if (si === Math.floor(numCharts / 2)) cls += ' s2-active';
+    else if (si === numCharts - 1) cls += ' s3-active';
+    return `<span class="${cls}" onclick="onChipClick(${st})" title="Click cycles through chart slots">${st}</span>`;
   }).join('');
 
-  // Update chip labels
+  // Chip labels — show top / mid / bot
+  const midIdx = Math.floor(numCharts / 2);
   document.getElementById('chip-s1-label').textContent = selectedStrikes[0] || '—';
-  document.getElementById('chip-s2-label').textContent = selectedStrikes[1] || '—';
-  document.getElementById('chip-s3-label').textContent = selectedStrikes[2] || '—';
+  document.getElementById('chip-s2-label').textContent = selectedStrikes[midIdx] || '—';
+  document.getElementById('chip-s3-label').textContent = selectedStrikes[numCharts - 1] || '—';
+
+  // Update static label tags on s1 / s3 cards based on their ATM offset
+  _updateStaticCardLabels();
+}
+
+// Updates the ▲/◆/▼ label tags and card visibility for the base 3 cards
+function _updateStaticCardLabels() {
+  if (!atmStrike) return;
+  const midIdx = Math.floor(numCharts / 2);
+  // s1 card = slot 0, s2 card = slot midIdx, s3 card = slot numCharts-1
+  // In 1-chart mode the s1 card is hidden, s2 shows ATM, s3 hidden
+  const card1 = document.getElementById('card-s1');
+  const card2 = document.getElementById('card-s2');
+  const card3 = document.getElementById('card-s3');
+  if (numCharts === 1) {
+    if (card1) card1.style.display = 'none';
+    if (card3) card3.style.display = 'none';
+    if (card2) card2.style.display = '';
+  } else {
+    if (card1) card1.style.display = '';
+    if (card2) card2.style.display = '';
+    if (card3) card3.style.display = '';
+  }
+  const tag1 = document.getElementById('s1-label-tag');
+  const tag3 = document.getElementById('s3-label-tag');
+  if (numCharts === 3) {
+    if (tag1) tag1.textContent = '▲ ATM+1';
+    if (tag3) tag3.textContent = '▼ ATM−1';
+  } else if (numCharts === 5) {
+    if (tag1) tag1.textContent = '▲ ATM+2';
+    if (tag3) tag3.textContent = '▼ ATM−2';
+  } else if (numCharts === 7) {
+    if (tag1) tag1.textContent = '▲ ATM+3';
+    if (tag3) tag3.textContent = '▼ ATM−3';
+  } else if (numCharts === 9) {
+    if (tag1) tag1.textContent = '▲ ATM+4';
+    if (tag3) tag3.textContent = '▼ ATM−4';
+  }
+}
+
+// ── N-CHART MANAGEMENT ────────────────────────────────────────────
+
+// Build the HTML for one extra chart card (slot index i, 0-based in selectedStrikes)
+function _extraCardHTML(i) {
+  const pfx = slotPfx(i);
+  const midIdx = Math.floor(numCharts / 2);
+  const offset = midIdx - i;  // positive = above ATM (higher strike), negative = below ATM
+  const aboveBelow = offset > 0 ? `▲ ATM+${offset}` : `▼ ATM${offset}`;
+  const borderCol  = offset > 0 ? '#D85A30' : '#1D9E75';
+  const labelBg    = offset > 0 ? '#FAECE7' : '#E1F5EE';
+  const labelColor = offset > 0 ? '#712B13' : '#085041';
+  const labelBorder= offset > 0 ? '#f0c0b0' : '#a0dcc8';
+  const badgeBg    = offset > 0 ? '#FAECE7' : '#E1F5EE';
+  const badgeColor = offset > 0 ? '#712B13' : '#085041';
+  const badgeBorder= offset > 0 ? '#f0c0b0' : '#a0dcc8';
+  return `
+  <div class="chart-card" id="card-${pfx}" style="border-top:2px solid ${borderCol};margin-bottom:0;">
+    <div class="chart-header">
+      <div class="chart-header-left">
+        <div class="chart-title" id="${pfx}-chart-title">Strike — CE vs PE OI delta</div>
+        <span class="chart-label-top" style="background:${labelBg};color:${labelColor};border:0.5px solid ${labelBorder};">${aboveBelow}</span>
+        <span class="spot-badge" style="background:${badgeBg};color:${badgeColor};border:0.5px solid ${badgeBorder};" id="${pfx}-spot-badge">Nifty —</span>
+      </div>
+      <div class="chart-header-right">
+        <label style="color:#888;white-space:nowrap;">Strike:</label>
+        <select id="${pfx}-select" onchange="onStrikeSelectChange(${i}, this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;"></select>
+        <button class="btn" style="font-size:11px;padding:3px 8px;" onclick="resetToDefault()">Reset ATM</button>
+      </div>
+    </div>
+    <div class="chart-sub" id="${pfx}-chart-sub">Waiting...</div>
+    <div class="ltp-bar">
+      <div class="ltp-box"><span class="ltp-label" id="${pfx}-ce-sym">— CE</span><span class="ltp-val" id="${pfx}-ce-ltp">—</span><span class="ltp-tag">LTP</span></div>
+      <div class="ltp-divider"></div>
+      <div class="ltp-box"><span class="ltp-label" id="${pfx}-pe-sym">— PE</span><span class="ltp-val" id="${pfx}-pe-ltp">—</span><span class="ltp-tag">LTP</span></div>
+      <div class="ltp-pulse" id="${pfx}-pulse"></div>
+    </div>
+    <div class="legend">
+      <span class="leg-item"><span class="leg-sq" style="background:#D85A30;"></span>CE building (bearish)</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#93c5e8;"></span>CE unwinding</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#1D9E75;"></span>PE building (bullish)</span>
+      <span class="leg-item"><span class="leg-sq" style="background:#f0a080;"></span>PE unwinding</span>
+    </div>
+    <div style="position:relative;display:flex;">
+      <canvas id="${pfx}YAxis" style="flex-shrink:0;position:sticky;left:0;z-index:10;background:#fff;border-right:0.5px solid #eee;"></canvas>
+      <div class="chart-scroll-outer" id="${pfx}-scroll" style="flex:1;min-width:0;">
+        <div class="chart-scroll-inner" id="${pfx}ChartWrap"><canvas id="${pfx}Chart"></canvas></div>
+      </div>
+    </div>
+    <div class="net-row">
+      <div class="net-box"><div class="net-label">Net CE Δ</div><div class="net-val" id="${pfx}-net-ce">—</div></div>
+      <div class="net-box"><div class="net-label">Net PE Δ</div><div class="net-val" id="${pfx}-net-pe">—</div></div>
+      <div class="net-box"><div class="net-label">Bias</div><div class="net-val" id="${pfx}-score">—</div></div>
+    </div>
+  </div>`;
+}
+
+// Inject or remove extra chart cards based on numCharts.
+// Base 3 cards (s1/s2/s3) always exist in the DOM.
+// Extra slots are injected as sE1, sE2, ... cards.
+function syncExtraChartCards() {
+  // Destroy Chart.js instances for extra slots before removing DOM
+  extraChartIds.forEach(pfx => {
+    // Find which slot this pfx belongs to — search chartInstances by rebuilding pfx list
+    for (let i = 0; i < chartInstances.length; i++) {
+      // We'll just destroy all non-base instances; rebuild on next rebuildCharts
+    }
+  });
+  // Destroy ALL instances (will be recreated in _doRebuild)
+  chartInstances.forEach((c, i) => { if (c) { c.destroy(); chartInstances[i] = null; } });
+
+  document.getElementById('extra-charts-above').innerHTML = '';
+  document.getElementById('extra-charts-below').innerHTML = '';
+  extraChartIds = [];
+
+  // Resize chartInstances array to numCharts
+  chartInstances = new Array(numCharts).fill(null);
+
+  if (numCharts === 1) {
+    // Hide s1 and s3 base cards; s2 shows ATM
+    const c1 = document.getElementById('card-s1');
+    const c3 = document.getElementById('card-s3');
+    if (c1) c1.style.display = 'none';
+    if (c3) c3.style.display = 'none';
+    // Remap s2 select to slot 0
+    const s2sel = document.getElementById('s2-select');
+    if (s2sel) s2sel.setAttribute('onchange', 'onStrikeSelectChange(0, this.value)');
+    return;
+  }
+
+  // Show all base cards
+  ['card-s1','card-s2','card-s3'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = '';
+  });
+
+  const midIdx = Math.floor(numCharts / 2);
+
+  // Extra slots ABOVE (slot indices 0 .. midIdx-2, i.e. more-above than s1)
+  // Inject in reverse so highest strike appears at top
+  for (let i = midIdx - 2; i >= 0; i--) {
+    const html = _extraCardHTML(i);
+    document.getElementById('extra-charts-above').insertAdjacentHTML('afterbegin', html);
+    extraChartIds.push(slotPfx(i));
+  }
+
+  // Extra slots BELOW (slot indices midIdx+2 .. numCharts-1, more-below than s3)
+  for (let i = midIdx + 2; i < numCharts; i++) {
+    const html = _extraCardHTML(i);
+    document.getElementById('extra-charts-below').insertAdjacentHTML('beforeend', html);
+    extraChartIds.push(slotPfx(i));
+  }
+
+  // Remap base 3 card selects to their correct slot indices
+  const s1sel = document.getElementById('s1-select');
+  const s2sel = document.getElementById('s2-select');
+  const s3sel = document.getElementById('s3-select');
+  if (s1sel) s1sel.setAttribute('onchange', `onStrikeSelectChange(${midIdx-1}, this.value)`);
+  if (s2sel) s2sel.setAttribute('onchange', `onStrikeSelectChange(${midIdx}, this.value)`);
+  if (s3sel) s3sel.setAttribute('onchange', `onStrikeSelectChange(${midIdx+1}, this.value)`);
+
+  // Confluence selects: bear = slot 0 (topmost), bull = slot numCharts-1 (bottommost)
+  const bearSel = document.getElementById('bear-conf-select');
+  const bullSel = document.getElementById('bull-conf-select');
+  if (bearSel) bearSel.setAttribute('onchange', 'onStrikeSelectChange(0, this.value)');
+  if (bullSel) bullSel.setAttribute('onchange', `onStrikeSelectChange(${numCharts-1}, this.value)`);
+}
+
+// Compute default strikes centred on ATM for current numCharts
+function _computeDefaultStrikes() {
+  if (!atmStrike || !allStrikes.length) return;
+  const atmIdx = allStrikes.indexOf(atmStrike);
+  if (atmIdx < 0) return;
+  const midIdx = Math.floor(numCharts / 2);
+  defaultStrikes = [];
+  for (let i = 0; i < numCharts; i++) {
+    const offset = midIdx - i;  // positive = above ATM (higher strike idx), negative = below
+    const raw = atmIdx + offset;
+    const clamped = Math.max(0, Math.min(allStrikes.length - 1, raw));
+    defaultStrikes.push(allStrikes[clamped]);
+  }
+}
+
+// Called when the user changes the "Charts" dropdown
+function onNumChartsChange(val) {
+  numCharts = parseInt(val);
+  _computeDefaultStrikes();
+  selectedStrikes = [...defaultStrikes];
+  chipClickIdx = 0;
+  syncExtraChartCards();
+  populateStrikeSelectors(allStrikes);
+  rebuildCharts();
+  // Update strike panel hint
+  const hint = document.getElementById('strike-panel-title');
+  if (hint) hint.textContent = `Strike chips — click to set chart strikes (cycles through ${numCharts} slots, top → bottom)`;
+  // Update chip labels row
+  const labelsRow = document.getElementById('chip-labels-row');
+  if (labelsRow) {
+    const midIdx = Math.floor(numCharts / 2);
+    labelsRow.innerHTML =
+      `Top: <strong id="chip-s1-label">${selectedStrikes[0]||'—'}</strong> &nbsp;|&nbsp;` +
+      (numCharts > 1 ? `Mid: <strong id="chip-s2-label">${selectedStrikes[midIdx]||'—'}</strong> &nbsp;|&nbsp;` : '') +
+      (numCharts > 1 ? `Bot: <strong id="chip-s3-label">${selectedStrikes[numCharts-1]||'—'}</strong>` : '');
+  }
 }
 
 function onChipClick(strike) {
   selectedStrikes[chipClickIdx] = strike;
-  chipClickIdx = (chipClickIdx + 1) % 3;
+  chipClickIdx = (chipClickIdx + 1) % numCharts;
   refreshDisplay();
 }
 
@@ -1220,6 +2440,7 @@ function onStrikeSelectChange(idx, value) {
 }
 
 function resetToDefault() {
+  _computeDefaultStrikes();
   selectedStrikes = [...defaultStrikes];
   chipClickIdx = 0;
   refreshDisplay();
@@ -1227,6 +2448,7 @@ function resetToDefault() {
 
 function refreshDisplay() {
   populateStrikeSelectors(allStrikes);
+  renderOIChangeStrikeChips();
   if (lastOIData) processSnapshot(lastOIData);
   rebuildCharts();
 }
@@ -1234,10 +2456,10 @@ function refreshDisplay() {
 // ── UPDATE SPOT BADGES ────────────────────────────────────────────
 function updateSpotBadges() {
   const spotTxt = currentSpot ? fmt(currentSpot) : '—';
-  ['s1','s2','s3'].forEach(id => {
-    const el = document.getElementById(id + '-spot-badge');
+  for (let i = 0; i < numCharts; i++) {
+    const el = document.getElementById(slotPfx(i) + '-spot-badge');
     if (el) el.textContent = 'Nifty ' + spotTxt;
-  });
+  }
 }
 
 // ── LTP ───────────────────────────────────────────────────────────
@@ -1251,54 +2473,75 @@ function updateLTP(data) {
     document.getElementById('spot-val').textContent = fmt(data.spot);
     updateSpotBadges();
 
-    // ── Update ATM display from live spot (display-only — fetchOI owns defaultStrikes) ──
-    // We only update the visual ATM indicator and chip highlight here.
-    // defaultStrikes / selectedStrikes are managed exclusively by fetchOI so the
-    // header and dropdown never drift out of sync between the two pollers.
+    // ── Recalculate ATM from live spot ──────────────────────────────
+    // Round spot to nearest STRIKE_STEP — don't wait for /oi poll to update ATM
     if (allStrikes.length && STRIKE_STEP) {
       const newAtm = Math.round(data.spot / STRIKE_STEP) * STRIKE_STEP;
+      // Clamp to available strikes
       const closest = allStrikes.reduce((a, b) => Math.abs(b - data.spot) < Math.abs(a - data.spot) ? b : a);
       const calcAtm = allStrikes.includes(newAtm) ? newAtm : closest;
 
       if (calcAtm !== atmStrike) {
+        const prevDefaults = [...defaultStrikes];
         atmStrike = calcAtm;
         document.getElementById('atm-val').textContent = atmStrike;
-        // Refresh chip ATM highlight only — does NOT touch selectedStrikes or defaultStrikes
-        populateStrikeSelectors(allStrikes);
+
+        const atmIdx = allStrikes.indexOf(atmStrike);
+        if (atmIdx >= 0) {
+          _computeDefaultStrikes();
+
+          const wasOnDefault = selectedStrikes.length === prevDefaults.length &&
+            selectedStrikes.every((s, i) => s === prevDefaults[i]);
+          if (wasOnDefault) {
+            selectedStrikes = [...defaultStrikes];
+          }
+          populateStrikeSelectors(allStrikes);
+        }
+
+        // Update option chain ATM row highlight
         renderOptionChain();
       }
     }
   }
 
   const opts = data.options || {};
-  // Update LTP for all 3 charts
-  [0,1,2].forEach(idx => {
+  // Update LTP for all N charts
+  for (let idx = 0; idx < numCharts; idx++) {
     const st = selectedStrikes[idx];
-    if (!st) return;
-    const pfx = ['s1','s2','s3'][idx];
+    if (!st) continue;
+    const pfx = slotPfx(idx);
 
     const ceKey = rk(st,'ce'), peKey = rk(st,'pe');
     const ceD = opts[ceKey], peD = opts[peKey];
 
     if (ceD) {
-      document.getElementById(pfx+'-ce-sym').textContent = ceD.strike + ' CE';
+      const symEl = document.getElementById(pfx+'-ce-sym');
+      if (symEl) symEl.textContent = ceD.strike + ' CE';
       const ltp = ceD.ltp, prev = prevLtp[ceKey]||0;
       const el = document.getElementById(pfx+'-ce-ltp');
-      el.textContent = ltp ? fmt(ltp) : '—';
-      if (prev && ltp !== prev) { const cls = ltp>prev?'flash-up':'flash-down'; el.classList.add(cls); setTimeout(()=>el.classList.remove(cls),600); }
+      if (el) {
+        el.textContent = ltp ? fmt(ltp) : '—';
+        if (prev && ltp !== prev) { const cls = ltp>prev?'flash-up':'flash-down'; el.classList.add(cls); setTimeout(()=>el.classList.remove(cls),600); }
+      }
       prevLtp[ceKey] = ltp;
+      // Keep chart header title in sync with CE LTP
+      const titleEl = document.getElementById(pfx+'-chart-title');
+      if (titleEl) titleEl.textContent = st + ' CE ' + (ltp ? fmt(ltp) : '—') + ' LTP — CE vs PE OI delta';
     }
     if (peD) {
-      document.getElementById(pfx+'-pe-sym').textContent = peD.strike + ' PE';
+      const symEl = document.getElementById(pfx+'-pe-sym');
+      if (symEl) symEl.textContent = peD.strike + ' PE';
       const ltp = peD.ltp, prev = prevLtp[peKey]||0;
       const el = document.getElementById(pfx+'-pe-ltp');
-      el.textContent = ltp ? fmt(ltp) : '—';
-      if (prev && ltp !== prev) { const cls = ltp>prev?'flash-up':'flash-down'; el.classList.add(cls); setTimeout(()=>el.classList.remove(cls),600); }
+      if (el) {
+        el.textContent = ltp ? fmt(ltp) : '—';
+        if (prev && ltp !== prev) { const cls = ltp>prev?'flash-up':'flash-down'; el.classList.add(cls); setTimeout(()=>el.classList.remove(cls),600); }
+      }
       prevLtp[peKey] = ltp;
     }
     const pulse = document.getElementById(pfx+'-pulse');
     if (pulse && (ceD || peD)) { pulse.classList.add('live'); setTimeout(()=>pulse.classList.remove('live'),1500); }
-  });
+  }
 
   // ── Option Chain: tick-by-tick LTP update
   updateOptionChainLTP(data);
@@ -1328,13 +2571,9 @@ async function fetchOI() {
       // Detect step size from strikes array
       if (allStrikes.length >= 2) STRIKE_STEP = allStrikes[1] - allStrikes[0];
 
-      // Default: s1=ATM+step (higher), s2=ATM, s3=ATM-step (lower)
-      const atmIdx = allStrikes.indexOf(atmStrike);
-      const s2 = atmStrike;
-      const s1 = atmIdx + 1 < allStrikes.length ? allStrikes[atmIdx + 1] : allStrikes[Math.min(atmIdx, allStrikes.length-1)];
-      const s3 = atmIdx - 1 >= 0 ? allStrikes[atmIdx - 1] : allStrikes[Math.max(0, atmIdx)];
-
-      defaultStrikes  = [s1, s2, s3];
+      // Default: centred on ATM for current numCharts
+      _computeDefaultStrikes();
+      defaultStrikes  = [...defaultStrikes];
       selectedStrikes = [...defaultStrikes];
 
       populateStrikeSelectors(allStrikes);
@@ -1347,21 +2586,16 @@ async function fetchOI() {
       atmStrike = newAtm;
       const atmIdx = allStrikes.indexOf(atmStrike);
       if (atmIdx >= 0) {
-        const s2 = atmStrike;
-        const s1 = atmIdx + 1 < allStrikes.length ? allStrikes[atmIdx + 1] : allStrikes[Math.min(atmIdx, allStrikes.length-1)];
-        const s3 = atmIdx - 1 >= 0 ? allStrikes[atmIdx - 1] : allStrikes[Math.max(0, atmIdx)];
         const prevDefaults = [...defaultStrikes];
-        defaultStrikes = [s1, s2, s3];
+        _computeDefaultStrikes();
 
-        // Auto-follow ATM: if selected strikes still match the old defaults (user hasn't customised),
-        // update them to track the new ATM.
         if (atmChanged) {
-          const wasOnDefault = selectedStrikes.every((s, i) => s === prevDefaults[i]);
+          const wasOnDefault = selectedStrikes.length === prevDefaults.length &&
+            selectedStrikes.every((s, i) => s === prevDefaults[i]);
           if (wasOnDefault) {
             selectedStrikes = [...defaultStrikes];
             populateStrikeSelectors(allStrikes);
           } else {
-            // Just refresh chips so ATM highlight moves even if user has custom strikes
             populateStrikeSelectors(allStrikes);
           }
         }
@@ -1390,6 +2624,14 @@ async function fetchHistory() {
     document.getElementById('rows-info').textContent = minuteRows.length+' 1-min rows (market hours)';
     // Pre-seed OI deltas from history so CHG OI shows immediately in option chain
     _seedAllOIDeltasFromHistory();
+    // Update EOD summary if option chain tab is visible
+    if (document.getElementById('tab-option-chain-panel')?.classList.contains('active')) {
+      renderEODSummary(minuteRows);
+    }
+    // Update paper trades if that tab is visible
+    if (document.getElementById('tab-paper-trade-panel')?.classList.contains('active')) {
+      ptRenderAll();
+    }
     rebuildCharts();
   } catch(e) {}
 }
@@ -1438,18 +2680,13 @@ async function fetchLiveCandle() {
       isLive:  true,
     };
 
-    // Attach OI deltas for each of the 3 strikes
-    [0,1,2].forEach(idx => {
+    // Attach OI deltas for each of the N selected strikes
+    for (let idx = 0; idx < numCharts; idx++) {
       const st = selectedStrikes[idx];
-      const pfx = ['s1','s2','s3'][idx];
+      const pfx = slotPfx(idx);
       const ceK = rk(st,'ce'), peK = rk(st,'pe');
       liveCandle[pfx+'_dce'] = data.deltas[ceK]?.delta || 0;
       liveCandle[pfx+'_dpe'] = data.deltas[peK]?.delta || 0;
-      // For index OI signal compat
-      liveCandle['s1ce'] = liveCandle['s1_dce'] || 0;
-      liveCandle['s3ce'] = liveCandle['s3_dce'] || 0;
-      liveCandle['s1pe'] = liveCandle['s1_dpe'] || 0;
-      liveCandle['s3pe'] = liveCandle['s3_dpe'] || 0;
       // LTP from cache
       liveCandle[pfx+'_bce_ltp_open']  = prevLtp[ceK]||0;
       liveCandle[pfx+'_bce_ltp_close'] = prevLtp[ceK]||0;
@@ -1461,22 +2698,25 @@ async function fetchLiveCandle() {
       liveCandle[pfx+'_upe_ltp_high']  = prevLtp[peK]||0;
       liveCandle[pfx+'_upe_ltp_low']   = prevLtp[peK]||0;
       liveCandle[pfx+'_upe_oi_delta']  = liveCandle[pfx+'_dpe'];
-      // Un-prefixed aliases so historical-candle accessors work on liveCandle too
-      if (idx === 0) {
-        liveCandle.bce_ltp_open  = prevLtp[ceK]||0;
-        liveCandle.bce_ltp_close = prevLtp[ceK]||0;
-        liveCandle.bce_ltp_high  = prevLtp[ceK]||0;
-        liveCandle.bce_ltp_low   = prevLtp[ceK]||0;
-        liveCandle.bce_oi_delta  = liveCandle[pfx+'_dce'];
-      }
-      if (idx === 2) {
-        liveCandle.upe_ltp_open  = prevLtp[peK]||0;
-        liveCandle.upe_ltp_close = prevLtp[peK]||0;
-        liveCandle.upe_ltp_high  = prevLtp[peK]||0;
-        liveCandle.upe_ltp_low   = prevLtp[peK]||0;
-        liveCandle.upe_oi_delta  = liveCandle[pfx+'_dpe'];
-      }
-    });
+    }
+    // Index OI signal uses slot 0 (top) and slot numCharts-1 (bottom)
+    const topPfx = slotPfx(0), botPfx = slotPfx(numCharts - 1);
+    liveCandle['s1ce'] = liveCandle[topPfx+'_dce'] || 0;
+    liveCandle['s1pe'] = liveCandle[topPfx+'_dpe'] || 0;
+    liveCandle['s3ce'] = liveCandle[botPfx+'_dce'] || 0;
+    liveCandle['s3pe'] = liveCandle[botPfx+'_dpe'] || 0;
+    // Un-prefixed aliases for confluence SVG (top slot = bear lens, bottom = bull lens)
+    const topCeK = rk(selectedStrikes[0],'ce'), botPeK = rk(selectedStrikes[numCharts-1],'pe');
+    liveCandle.bce_ltp_open  = prevLtp[topCeK]||0;
+    liveCandle.bce_ltp_close = prevLtp[topCeK]||0;
+    liveCandle.bce_ltp_high  = prevLtp[topCeK]||0;
+    liveCandle.bce_ltp_low   = prevLtp[topCeK]||0;
+    liveCandle.bce_oi_delta  = liveCandle[topPfx+'_dce'];
+    liveCandle.upe_ltp_open  = prevLtp[botPeK]||0;
+    liveCandle.upe_ltp_close = prevLtp[botPeK]||0;
+    liveCandle.upe_ltp_high  = prevLtp[botPeK]||0;
+    liveCandle.upe_ltp_low   = prevLtp[botPeK]||0;
+    liveCandle.upe_oi_delta  = liveCandle[botPfx+'_dpe'];
 
     document.getElementById('live-candle-status').style.display='inline';
     document.getElementById('live-elapsed').textContent = data.elapsed_sec;
@@ -1486,23 +2726,30 @@ async function fetchLiveCandle() {
 
 function _redrawSVGOnly() {
   // Redraws SVG charts using the same getters as _doRebuild to stay in sync
-  const s1Candles = latestCandles[0];
-  const s3Candles = latestCandles[2];
-  const allWithLive0 = liveCandle ? [...s1Candles, liveCandle] : s1Candles;
-  const allWithLive2 = liveCandle ? [...s3Candles, liveCandle] : s3Candles;
-  drawIndexChart(liveCandle ? [...latestCandles[1], liveCandle] : latestCandles[1]);
-  // Use identical getters to _doRebuild — fall back through both prefixed and un-prefixed field names
-  const bearSigs = drawStrikeActivityChart('svgBear', allWithLive0,
-    c=>c.s1_bce_ltp_open||c.bce_ltp_open||0, c=>c.s1_bce_ltp_high||c.bce_ltp_high||0,
-    c=>c.s1_bce_ltp_low||c.bce_ltp_low||0,   c=>c.s1_bce_ltp_close||c.bce_ltp_close||0,
-    c=>c.s1_bce_oi_delta||c.bce_oi_delta||0, 'bear-activity-badge');
-  const bullSigs = drawStrikeActivityChart('svgBull', allWithLive2,
-    c=>c.s3_upe_ltp_open||c.upe_ltp_open||0, c=>c.s3_upe_ltp_high||c.upe_ltp_high||0,
-    c=>c.s3_upe_ltp_low||c.upe_ltp_low||0,   c=>c.s3_upe_ltp_close||c.upe_ltp_close||0,
-    c=>c.s3_upe_oi_delta||c.upe_oi_delta||0, 'bull-activity-badge');
+  const topCandles = latestCandles[0] || [];
+  const botCandles = latestCandles[numCharts - 1] || [];
+  const midIdx = Math.floor(numCharts / 2);
+  const midCandles = latestCandles[midIdx] || [];
+  const topWithLive = liveCandle ? [...topCandles, liveCandle] : topCandles;
+  const botWithLive = liveCandle ? [...botCandles, liveCandle] : botCandles;
+  drawIndexChart(liveCandle ? [...midCandles, liveCandle] : midCandles);
+  // Confluence getters: top slot uses bce fields, bottom slot uses upe fields
+  const topPfx = slotPfx(0), botPfx = slotPfx(numCharts - 1);
+  const bearSigs = drawStrikeActivityChart('svgBear', topWithLive,
+    c=>c[topPfx+'_bce_ltp_open']||c.s1_bce_ltp_open||c.bce_ltp_open||0,
+    c=>c[topPfx+'_bce_ltp_high']||c.s1_bce_ltp_high||c.bce_ltp_high||0,
+    c=>c[topPfx+'_bce_ltp_low'] ||c.s1_bce_ltp_low ||c.bce_ltp_low ||0,
+    c=>c[topPfx+'_bce_ltp_close']||c.s1_bce_ltp_close||c.bce_ltp_close||0,
+    c=>c[topPfx+'_bce_oi_delta']||c.s1_bce_oi_delta||c.bce_oi_delta||0, 'bear-activity-badge');
+  const bullSigs = drawStrikeActivityChart('svgBull', botWithLive,
+    c=>c[botPfx+'_upe_ltp_open']||c.s3_upe_ltp_open||c.upe_ltp_open||0,
+    c=>c[botPfx+'_upe_ltp_high']||c.s3_upe_ltp_high||c.upe_ltp_high||0,
+    c=>c[botPfx+'_upe_ltp_low'] ||c.s3_upe_ltp_low ||c.upe_ltp_low ||0,
+    c=>c[botPfx+'_upe_ltp_close']||c.s3_upe_ltp_close||c.upe_ltp_close||0,
+    c=>c[botPfx+'_upe_oi_delta']||c.s3_upe_oi_delta||c.upe_oi_delta||0, 'bull-activity-badge');
   buildStrip('bear-strip', bearSigs);
   buildStrip('bull-strip', bullSigs);
-  if (s1Candles.length) updateConfluenceSummary(s1Candles, s3Candles, bearSigs, bullSigs);
+  if (topCandles.length) updateConfluenceSummary(topCandles, botCandles, bearSigs, bullSigs);
 }
 
 async function resetCSV() {
@@ -1522,8 +2769,8 @@ function processSnapshot(data) {
   if (selectedStrikes.some(s=>!s)) return;
   const opts = data.options || {};
 
-  // Update OI summary cards using s1 (top) and s3 (bottom) as the bear/bull pair
-  const s1 = selectedStrikes[0], s3 = selectedStrikes[2];
+  // Update OI summary cards using slot 0 (top) and slot numCharts-1 (bottom) as bear/bull pair
+  const s1 = selectedStrikes[0], s3 = selectedStrikes[numCharts - 1];
   const bc = opts[rk(s1,'ce')], bp = opts[rk(s1,'pe')];
   const uc = opts[rk(s3,'ce')], up = opts[rk(s3,'pe')];
 
@@ -1563,16 +2810,21 @@ function processSnapshot(data) {
   updateRollLog(data.roll_log||[]);
   populateStrikeSelectors(allStrikes);
 
-  // Update chart titles
-  [0,1,2].forEach(idx => {
+  // Update chart titles for all N charts
+  for (let idx = 0; idx < numCharts; idx++) {
     const st = selectedStrikes[idx];
-    const pfx = ['s1','s2','s3'][idx];
-    document.getElementById(pfx+'-chart-title').textContent = st + ' — CE vs PE OI delta';
-  });
+    const pfx = slotPfx(idx);
+    const el = document.getElementById(pfx+'-chart-title');
+    if (el) {
+      const ltpEl = document.getElementById(pfx+'-ce-ltp');
+      const ltpVal = ltpEl ? ltpEl.textContent : '—';
+      el.textContent = st + ' CE ' + ltpVal + ' LTP — CE vs PE OI delta';
+    }
+  }
 
-  // Update confluence titles
-  document.getElementById('bear-conf-title').textContent = 'Strike 1 lens — ' + s1;
-  document.getElementById('bull-conf-title').textContent = 'Strike 3 lens — ' + s3;
+  // Update confluence titles (top slot = bear lens, bottom slot = bull lens)
+  document.getElementById('bear-conf-title').textContent = 'Top strike lens — ' + s1;
+  document.getElementById('bull-conf-title').textContent = 'Bottom strike lens — ' + s3;
   document.getElementById('bear-conf-sub').textContent   = s1 + ' CE option LTP · activity type';
   document.getElementById('bull-conf-sub').textContent   = s3 + ' PE option LTP · activity type';
   document.getElementById('bear-sum-label').textContent  = 'Strike 1 ' + s1 + ' CE';
@@ -1741,6 +2993,8 @@ function buildCandlesForStrike(rows, mins, strike) {
       upe_ltp_low:   peOHLC.low,
       upe_ltp_close: peOHLC.close,
       upe_oi_delta:  peOiEnd - peOiStart,
+      ce_oi: ceOiEnd,
+      pe_oi: peOiEnd,
     });
   }
   return candles;
@@ -1809,6 +3063,7 @@ function drawYAxisOverlay(yAxisSvgId, H, padL, padT, padB, yMin, yMax, ticks) {
 // ── INDEX CHART ───────────────────────────────────────────────────
 function drawIndexChart(candles) {
   const svgEl = document.getElementById('svgIndex');
+  if (!svgEl) return [];
   svgEl.innerHTML = '';
   if (!candles.length) { svgEl.setAttribute('height','60'); return []; }
   const scrollEl   = document.getElementById('index-scroll');
@@ -1935,7 +3190,6 @@ function drawIndexChart(candles) {
   return actSigs;
 }
 
-// ── STRIKE ACTIVITY CHART (confluence) ───────────────────────────
 // Uses spot OHLC for candle shape (same as index chart — always available from history rows)
 // Uses OI delta for activity-type colour classification
 // getLtpClose is kept for the last-price dashed line label; getOiDelta drives colour
@@ -2246,7 +3500,7 @@ function setCanvas(id,w,h){
 }
 
 function scrollToLatest() {
-  ['index-scroll','bear-conf-scroll','bull-conf-scroll','s1-scroll','s2-scroll','s3-scroll'].forEach(id=>{
+  ['index-scroll','bear-conf-scroll','bull-conf-scroll','s1-scroll','s2-scroll','s3-scroll','oi-change-scroll'].forEach(id=>{
     const el=document.getElementById(id);
     if (el) el.scrollLeft=el.scrollWidth;
   });
@@ -2408,127 +3662,100 @@ function drawCumOIChart(rows) {
 
 // ── OI MOVERS PANEL ──────────────────────────────────────────────
 function drawOIMovers(rows, atmStr) {
-  const subEl = document.getElementById('movers-sub');
-  const topN = parseInt(document.getElementById('movers-topn')?.value || '4');
+  // Only render when the OI Movers tab is active (avoid rendering hidden DOM)
+  const subEl=document.getElementById('movers-sub');
+  const noData=id=>{const el=document.getElementById(id);if(el)el.innerHTML='<div style="color:#aaa;font-size:12px;padding:16px 0;text-align:center;">No data yet</div>';};
 
-  function setEmpty(id) {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = '<div style="color:#aaa;font-size:12px;padding:20px;text-align:center;">No data yet</div>';
-  }
-
-  if (!rows || !rows.length) {
-    setEmpty('ce-unified-list'); setEmpty('pe-unified-list');
+  if (!rows||!rows.length){
+    ['ce-added-list','ce-removed-list','pe-added-list','pe-removed-list'].forEach(noData);
     ['movers-ce-total','movers-pe-total','movers-pcr'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
     return;
   }
 
-  const cleanRows = [...rows].filter(r=>r&&(parseFloat(r.ts)||0)>0).sort((a,b)=>(parseFloat(a.ts)||0)-(parseFloat(b.ts)||0));
-  if (!cleanRows.length) { setEmpty('ce-unified-list'); setEmpty('pe-unified-list'); return; }
+  const cleanRows=[...rows].filter(r=>r&&(parseFloat(r.ts)||0)>0).sort((a,b)=>(parseFloat(a.ts)||0)-(parseFloat(b.ts)||0));
+  if (!cleanRows.length){
+    ['ce-added-list','ce-removed-list','pe-added-list','pe-removed-list'].forEach(noData);
+    return;
+  }
 
   // ── Build interval buckets ──
-  const buckets = [];
-  cleanRows.forEach(r => {
-    const ts = parseFloat(r.ts) || 0;
-    const bucket = Math.floor(ts / (intervalMin * 60)) * (intervalMin * 60);
-    if (!buckets.length || buckets[buckets.length-1].bucket !== bucket) {
-      buckets.push({bucket, label: r.time_label, rows: [r]});
+  const buckets=[];
+  cleanRows.forEach(r=>{
+    const ts=parseFloat(r.ts)||0;
+    const bucket=Math.floor(ts/(intervalMin*60))*(intervalMin*60);
+    if(!buckets.length||buckets[buckets.length-1].bucket!==bucket){
+      buckets.push({bucket,label:r.time_label,rows:[r]});
     } else { buckets[buckets.length-1].rows.push(r); }
-    buckets[buckets.length-1].label = r.time_label;
+    buckets[buckets.length-1].label=r.time_label;
   });
 
   function fmtOIShort(v){const n=Number(v)||0;const a=Math.abs(n);if(a>=1e7)return(n/1e7).toFixed(2)+' Cr';if(a>=1e5)return(n/1e5).toFixed(1)+' L';if(a>=1e3)return(n/1e3).toFixed(1)+' K';return Math.round(n).toLocaleString('en-IN');}
   function fmtDeltaShort(v){const n=Number(v)||0;return(n>0?'+':'')+fmtOIShort(n);}
 
-  function collectSide(rowsInBucket, side) {
-    const sl = side.toLowerCase();
-    const strikes = {};
-    rowsInBucket.forEach(r => {
-      Object.keys(r).forEach(k => {
-        const dm = k.match(new RegExp('^s(\\d+)_'+sl+'_delta$'));
-        const om = k.match(new RegExp('^s(\\d+)_'+sl+'_oi$'));
-        if (dm) { const s=Number(dm[1]); if(!strikes[s])strikes[s]={strike:s,delta:0,oi:0}; strikes[s].delta+=parseFloat(r[k])||0; }
-        if (om) { const s=Number(om[1]); if(!strikes[s])strikes[s]={strike:s,delta:0,oi:0}; strikes[s].oi=parseFloat(r[k])||0; }
+  // Collect all strikes for a side in a bucket, returning sorted arrays
+  function collectSideFull(rowsInBucket, side){
+    const sideLower=side.toLowerCase();
+    const strikes={};
+    rowsInBucket.forEach(r=>{
+      Object.keys(r).forEach(k=>{
+        const deltaM=k.match(new RegExp('^s(\\d+)_'+sideLower+'_delta$'));
+        const oiM=k.match(new RegExp('^s(\\d+)_'+sideLower+'_oi$'));
+        if(deltaM){const strike=Number(deltaM[1]);if(!strikes[strike])strikes[strike]={strike,delta:0,oi:0};strikes[strike].delta+=parseFloat(r[k])||0;}
+        if(oiM){const strike=Number(oiM[1]);if(!strikes[strike])strikes[strike]={strike,delta:0,oi:0};strikes[strike].oi=parseFloat(r[k])||0;}
       });
     });
-    const arr = Object.values(strikes);
-    return {
-      added:   arr.filter(x=>x.delta>0).sort((a,b)=>b.delta-a.delta).slice(0,topN),
-      removed: arr.filter(x=>x.delta<0).sort((a,b)=>a.delta-b.delta).slice(0,topN),
-      all:     arr
-    };
+    const arr=Object.values(strikes);
+    const added   = arr.filter(x=>x.delta>0).sort((a,b)=>b.delta-a.delta).slice(0,4);
+    const removed = arr.filter(x=>x.delta<0).sort((a,b)=>a.delta-b.delta).slice(0,4);
+    return{added,removed,all:arr};
   }
 
-  const results = buckets.map(b => {
-    const lastRow = b.rows[b.rows.length-1];
-    const spot = parseFloat(lastRow?.spot_close) || parseFloat(lastRow?.spot) || 0;
-    return { label: b.label, spot, ce: collectSide(b.rows,'CE'), pe: collectSide(b.rows,'PE') };
+  const results=buckets.map(b=>{
+    const ce=collectSideFull(b.rows,'CE');
+    const pe=collectSideFull(b.rows,'PE');
+    const lastRow=b.rows[b.rows.length-1];
+    const spot=parseFloat(lastRow?.spot_close)||parseFloat(lastRow?.spot)||0;
+    return{bucket:b.bucket,label:b.label,spot,ce,pe};
   });
 
-  // ── Render a single strike item row ──
-  function strikeRow(rank, item, addColor, addBg, remColor, remBg, isAdded) {
-    if (!item) return `<div class="mover-4-row" style="opacity:0;pointer-events:none;">
-      <span class="mover-4-rank">—</span><span class="mover-4-strike">—</span>
-      <span class="mover-4-delta">—</span><span class="mover-4-oi">—</span></div>`;
-    const color = isAdded ? addColor : remColor;
-    const bg    = isAdded ? addBg    : remBg;
-    return `<div class="mover-4-row">
-      <span class="mover-4-rank">${rank+1}</span>
-      <span class="mover-4-strike">${item.strike.toLocaleString('en-IN')}</span>
-      <span class="mover-4-delta" style="color:${color};background:${bg};">${fmtDeltaShort(item.delta)}</span>
-      <span class="mover-4-oi">${fmtOIShort(item.oi)} OI</span>
+  // ── Render one timestamp block with up to 4 strike rows ──
+  function tsBlockHtml(result, items, colorFn, emptyMsg){
+    if(!items.length){
+      return`<div class="mover-ts-block" style="margin-bottom:12px;">
+        <div class="mover-ts-header">${result.label}${result.spot?` <span class="mover-spot-pill">Spot ${fmt(result.spot)}</span>`:''}</div>
+        <div style="color:#bbb;font-size:11px;padding:6px 0 0 0;">${emptyMsg}</div>
+      </div>`;
+    }
+    const rows=items.map((item,rank)=>{
+      const {color,bg}=colorFn(item);
+      return`<div class="mover-4-row">
+        <span class="mover-4-rank">${rank+1}</span>
+        <span class="mover-4-strike">${item.strike.toLocaleString('en-IN')}</span>
+        <span class="mover-4-delta" style="color:${color};background:${bg};">${fmtDeltaShort(item.delta)}</span>
+        <span class="mover-4-oi">${fmtOIShort(item.oi)} OI</span>
+      </div>`;
+    }).join('');
+    return`<div class="mover-ts-block">
+      <div class="mover-ts-header">${result.label}${result.spot?` <span class="mover-spot-pill">Spot ${fmt(result.spot)}</span>`:''}</div>
+      ${rows}
     </div>`;
   }
 
-  // ── Build unified HTML for CE or PE — timestamps aligned horizontally ──
-  function buildUnified(side) {
-    return results.map(r => {
-      const data   = side === 'CE' ? r.ce : r.pe;
-      const addClr = side === 'CE' ? '#D85A30' : '#1D9E75';
-      const addBg  = side === 'CE' ? '#FAECE7' : '#E1F5EE';
-      const remClr = side === 'CE' ? '#185FA5' : '#993C1D';
-      const remBg  = side === 'CE' ? '#E6F1FB' : '#FAEEDA';
+  const ceAddHtml  = results.map(r=>tsBlockHtml(r, r.ce.added,   ()=>({color:'#D85A30',bg:'#FAECE7'}), 'No CE added'  )).join('');
+  const ceRemHtml  = results.map(r=>tsBlockHtml(r, r.ce.removed, ()=>({color:'#185FA5',bg:'#E6F1FB'}), 'No CE removed')).join('');
+  const peAddHtml  = results.map(r=>tsBlockHtml(r, r.pe.added,   ()=>({color:'#1D9E75',bg:'#E1F5EE'}), 'No PE added'  )).join('');
+  const peRemHtml  = results.map(r=>tsBlockHtml(r, r.pe.removed, ()=>({color:'#993C1D',bg:'#FAEEDA'}), 'No PE removed')).join('');
 
-      // Timestamp header row — full width
-      const tsHeader = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;background:#f8f8f5;border-bottom:0.5px solid #eee;border-top:0.5px solid #eee;">
-          <div style="padding:5px 12px;font-size:11px;font-weight:600;color:#444;display:flex;align-items:center;gap:6px;border-right:0.5px solid #eee;">
-            ${r.label}${r.spot ? `<span class="mover-spot-pill">Spot ${fmt(r.spot)}</span>` : ''}
-          </div>
-          <div style="padding:5px 12px;font-size:11px;font-weight:600;color:#444;display:flex;align-items:center;gap:6px;">
-            ${r.label}${r.spot ? `<span class="mover-spot-pill">Spot ${fmt(r.spot)}</span>` : ''}
-          </div>
-        </div>`;
+  const setEl=(id,html)=>{const el=document.getElementById(id);if(el)el.innerHTML=html||'<div style="color:#aaa;font-size:12px;padding:8px 0;">No OI moves yet</div>';};
+  setEl('ce-added-list',   ceAddHtml);
+  setEl('ce-removed-list', ceRemHtml);
+  setEl('pe-added-list',   peAddHtml);
+  setEl('pe-removed-list', peRemHtml);
 
-      // Strike rows — left=added, right=removed, aligned by rank index
-      const maxLen = Math.max(data.added.length, data.removed.length, 1);
-      const strikeRows = Array.from({length: maxLen}, (_, i) => {
-        const addItem = data.added[i]   || null;
-        const remItem = data.removed[i] || null;
-        const leftHtml  = addItem
-          ? `<div class="mover-4-row"><span class="mover-4-rank">${i+1}</span><span class="mover-4-strike">${addItem.strike.toLocaleString('en-IN')}</span><span class="mover-4-delta" style="color:${addClr};background:${addBg};">${fmtDeltaShort(addItem.delta)}</span><span class="mover-4-oi">${fmtOIShort(addItem.oi)} OI</span></div>`
-          : `<div class="mover-4-row" style="color:#ccc;font-size:11px;padding:4px 8px;">—</div>`;
-        const rightHtml = remItem
-          ? `<div class="mover-4-row"><span class="mover-4-rank">${i+1}</span><span class="mover-4-strike">${remItem.strike.toLocaleString('en-IN')}</span><span class="mover-4-delta" style="color:${remClr};background:${remBg};">${fmtDeltaShort(remItem.delta)}</span><span class="mover-4-oi">${fmtOIShort(remItem.oi)} OI</span></div>`
-          : `<div class="mover-4-row" style="color:#ccc;font-size:11px;padding:4px 8px;">—</div>`;
-        return `<div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:0.5px solid #f5f5f2;">
-          <div style="padding:2px 8px;border-right:0.5px solid #eee;">${leftHtml}</div>
-          <div style="padding:2px 8px;">${rightHtml}</div>
-        </div>`;
-      }).join('');
-
-      return tsHeader + strikeRows;
-    }).join('') || '<div style="color:#aaa;font-size:12px;padding:20px;text-align:center;">No OI moves yet</div>';
-  }
-
-  const ceEl = document.getElementById('ce-unified-list');
-  const peEl = document.getElementById('pe-unified-list');
-  if (ceEl) ceEl.innerHTML = buildUnified('CE');
-  if (peEl) peEl.innerHTML = buildUnified('PE');
-
-  // Totals
-  const latest = results[results.length-1];
+  // Totals from latest bucket
+  const latest=results[results.length-1];
   let tCeDelta=0,tPeDelta=0,tCeOI=0,tPeOI=0;
-  if (latest) {
+  if(latest){
     latest.ce.all.forEach(v=>{tCeDelta+=v.delta;tCeOI+=v.oi;});
     latest.pe.all.forEach(v=>{tPeDelta+=v.delta;tPeOI+=v.oi;});
   }
@@ -2575,6 +3802,638 @@ function fmtDeltaOI(v) {
   if (Math.abs(v) < 1) return '—';
   const sign = v > 0 ? '+' : '-';
   return sign + fmtOI(Math.abs(v));
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PAPER TRADING ENGINE  (3-min candles, OI-confirmed entries)
+// ══════════════════════════════════════════════════════════════════
+//
+// CORRECTED LOGIC:
+//   SELL (bearish) — spot falling:
+//     Look for PE UNWINDING (put writers covering shorts = they expect further fall = bearish)
+//     at the strike spot is approaching / just crossed.
+//     Setup B (post-cross): spot crossed below strike → PE unwind ≥ 3L at cross
+//       → SELL immediately. Or wait for retracement then PE unwind → SELL,
+//       only if spot ≥ 40 pts above next lower strike, SL = entry + 20 pts.
+//     Setup C (reversal candle): falling candle → bullish bounce + ATM PE unwind ≥ 2L
+//       → arm. Next candle breaks below bounce-low → SELL. SL = bounce-high + 30 pts.
+//
+//   BUY (bullish) — spot rising:
+//     Look for CE UNWINDING (call writers covering shorts = they expect further rise = bullish)
+//     at the strike spot just crossed.
+//     Setup B (post-cross): spot crossed above strike → CE unwind ≥ 3L at cross
+//       → BUY immediately. Or wait for retracement then CE unwind → BUY,
+//       only if spot ≥ 40 pts below next higher strike, SL = entry − 20 pts.
+//     Setup C (reversal candle): rising candle → bearish dip + ATM CE unwind ≥ 2L
+//       → arm. Next candle breaks above dip-high → BUY. SL = dip-low − 30 pts.
+//
+// One trade at a time. Engine reruns on every history/data refresh.
+// ══════════════════════════════════════════════════════════════════
+
+const PT_MIN_UNWIND   = 300000;   // 3 lakh OI threshold
+const PT_POST_SL_PTS  = 20;       // post-cross SL distance in pts
+const PT_MIN_GAP_PTS  = 40;       // min pts to next strike for post-cross entry
+
+// Setup C — ATM PE unwind swing-low breakdown
+const PT_C_MIN_UNWIND = 200000;   // 2 lakh PE OI unwind triggers the watch
+const PT_C_SL_PTS     = 30;       // fixed 30-pt SL above swing-low's high
+
+let ptTrades = [];  // filled by ptRunEngine
+
+// ── Tiny formatters ───────────────────────────────────────────────
+function ptFmtOI(v) {
+  const n = Math.abs(Number(v) || 0);
+  if (n >= 1e7) return (v / 1e7).toFixed(2) + ' Cr';
+  if (n >= 1e5) return (v / 1e5).toFixed(1) + ' L';
+  if (n >= 1e3) return (v / 1e3).toFixed(0) + ' K';
+  return Math.round(v).toLocaleString('en-IN');
+}
+function ptFmt(v) {
+  return v == null ? '—' : Number(v).toLocaleString('en-IN', { maximumFractionDigits: 1 });
+}
+function ptFmtPnl(pnl) {
+  if (pnl == null) return '—';
+  const n = Number(pnl);
+  const cls = n > 0 ? 'pt-pnl-pos' : n < 0 ? 'pt-pnl-neg' : '';
+  return `<span class="${cls}">${n > 0 ? '+' : ''}${n.toFixed(1)}</span>`;
+}
+
+// ── Strike helpers ────────────────────────────────────────────────
+function ptNextLower(spot, strikes) {
+  return [...strikes].filter(s => s < spot).sort((a, b) => b - a)[0] ?? null;
+}
+function ptNextHigher(spot, strikes) {
+  return [...strikes].filter(s => s > spot).sort((a, b) => a - b)[0] ?? null;
+}
+// Is spot within `margin` pts of `strike` but on the correct side?
+function ptNear(spot, strike, margin) {
+  return Math.abs(spot - strike) <= margin;
+}
+
+// ── Build 3-min candles from 1-min rows ──────────────────────────
+// Each candle carries per-strike CE/PE net OI change (sum of 1-min deltas)
+function ptBuild3MinCandles(rows1min) {
+  const step = STRIKE_STEP || 50;
+  const out  = [];
+  for (let i = 0; i < rows1min.length; i += 3) {
+    const slice = rows1min.slice(i, i + 3);
+    const first = slice[0];
+    const last  = slice[slice.length - 1];
+    const highs  = slice.map(r => parseFloat(r.spot_high)  || 0).filter(v => v > 0);
+    const lows   = slice.map(r => parseFloat(r.spot_low)   || 0).filter(v => v > 0);
+    const opens  = slice.map(r => parseFloat(r.spot_open)  || 0).filter(v => v > 0);
+    const closes = slice.map(r => parseFloat(r.spot_close) || 0).filter(v => v > 0);
+    if (!closes.length) continue;
+
+    const c = {
+      label : first.time_label,
+      ts    : parseFloat(first.ts) * 1000,
+      open  : opens[0]  || closes[0],
+      high  : highs.length ? Math.max(...highs) : closes[0],
+      low   : lows.length  ? Math.min(...lows)  : closes[0],
+      close : closes[closes.length - 1],
+      oi    : {},  // { strike: { ce, pe } }  — net OI change this candle
+    };
+
+    // Collect all strikes mentioned in this slice
+    const strikeSet = new Set();
+    slice.forEach(r => {
+      Object.keys(r).forEach(k => {
+        const m = k.match(/^s(\d+)_(ce|pe)_oi$/);
+        if (m) strikeSet.add(Number(m[1]));
+      });
+    });
+
+    strikeSet.forEach(st => {
+      const ck = `s${st}_ce`, pk = `s${st}_pe`;
+      // Net OI change = last minute OI − first minute OI (most accurate)
+      const ceFirst = parseFloat(first[ck + '_oi']) || 0;
+      const ceLast  = parseFloat(last[ck  + '_oi']) || 0;
+      const peFirst = parseFloat(first[pk + '_oi']) || 0;
+      const peLast  = parseFloat(last[pk  + '_oi']) || 0;
+      // Fall back to summed deltas if raw OI missing
+      const ceDelta = slice.reduce((s, r) => s + (parseFloat(r[ck + '_delta']) || 0), 0);
+      const peDelta = slice.reduce((s, r) => s + (parseFloat(r[pk + '_delta']) || 0), 0);
+      const ce = (ceFirst > 0 && ceLast > 0) ? (ceLast - ceFirst) : ceDelta;
+      const pe = (peFirst > 0 && peLast > 0) ? (peLast - peFirst) : peDelta;
+      if (ce !== 0 || pe !== 0) c.oi[st] = { ce, pe };
+    });
+
+    out.push(c);
+  }
+  return out;
+}
+
+// OI unwind helpers: returns magnitude (always positive) if unwind detected, else 0
+function ptPeUnwind(candle, strike) {   // PE OI decreased → bearish confirmation
+  const s = candle.oi[strike];
+  return (s && s.pe < 0) ? Math.abs(s.pe) : 0;
+}
+function ptCeUnwind(candle, strike) {   // CE OI decreased → bullish confirmation
+  const s = candle.oi[strike];
+  return (s && s.ce < 0) ? Math.abs(s.ce) : 0;
+}
+
+// Return the ATM strike (nearest 50-pt multiple to spot) for a given candle
+function ptAtmStrike(spot, step) {
+  return Math.round(spot / step) * step;
+}
+
+// ── Main engine ───────────────────────────────────────────────────
+function ptRunEngine(rows) {
+  ptTrades = [];
+  if (!rows || rows.length < 6) return;   // need ≥ 2 candles (2×3 = 6 rows)
+
+  const step    = STRIKE_STEP || 50;
+  const strikes = allStrikes.length ? [...allStrikes].sort((a, b) => a - b)
+                                    : ptDeriveStrikes(rows, step);
+  if (!strikes.length) return;
+
+  const candles = ptBuild3MinCandles(rows);
+  if (candles.length < 2) return;
+
+  let openTrade       = null;
+  let waitSell        = null;   // { crossedStrike, retraced: bool }
+  let waitBuy         = null;   // { crossedStrike, retraced: bool }
+
+  // Setup C state — reversal candle + ATM OI unwind → breakout entry
+  // SELL: after a prior fall, a bullish (up) candle appears with ATM PE unwind ≥ 2L
+  //   → arm. Next candle that breaks BELOW the reversal candle's low → SELL.
+  //   SL = reversal candle's high + 30 pts.
+  // BUY: after a prior rise, a bearish (down) candle appears with ATM CE unwind ≥ 2L
+  //   → arm. Next candle that breaks ABOVE the reversal candle's high → BUY.
+  //   SL = reversal candle's low - 30 pts.
+  let waitRevSell = null;  // { revLow, revHigh, atmStrike, label }
+  let waitRevBuy  = null;  // { revLow, revHigh, atmStrike, label }
+
+
+  for (let i = 1; i < candles.length; i++) {
+    const c     = candles[i];
+    const p1    = candles[i - 1];
+    const p2    = i >= 2 ? candles[i - 2] : p1;
+
+    if (!c.close) continue;
+    const falling = c.close < c.open - 1;
+    const rising  = c.close > c.open + 1;
+
+    // ── Check exit on open trade ──────────────────────────────────
+    if (openTrade) {
+      const { dir, sl, target } = openTrade;
+      let exitPrice = null, exitReason = null, exitStatus = null;
+
+      if (dir === 'SELL') {
+        if (c.high >= sl)      { exitPrice = sl;     exitReason = 'SL Hit';     exitStatus = 'sl';     }
+        else if (c.low <= target){ exitPrice = target; exitReason = 'Target Hit'; exitStatus = 'target'; }
+      } else {  // BUY
+        if (c.low <= sl)       { exitPrice = sl;     exitReason = 'SL Hit';     exitStatus = 'sl';     }
+        else if (c.high >= target){ exitPrice = target; exitReason = 'Target Hit'; exitStatus = 'target'; }
+      }
+
+      if (exitPrice != null) {
+        openTrade.exitTime   = c.label;
+        openTrade.exitPrice  = exitPrice;
+        openTrade.exitReason = exitReason;
+        openTrade.status     = exitStatus;
+        openTrade.pnl        = dir === 'SELL' ? openTrade.entryPrice - exitPrice
+                                              : exitPrice - openTrade.entryPrice;
+        ptTrades.push({ ...openTrade });
+        openTrade = null;
+        waitSell  = null;
+        waitBuy   = null;
+        waitRevSell = null;
+        waitRevBuy  = null;
+        continue;
+      }
+    }
+
+    if (openTrade) continue;  // one trade at a time — skip signal detection
+
+    // ═══ SETUP C — REVERSAL CANDLE + ATM OI UNWIND ════════════════
+    // After a sustained move, a counter-direction candle appears.
+    // If that counter candle shows ATM OI unwinding ≥ 2L it is weak
+    // (just covering), not a genuine reversal.  Arm a breakout entry.
+    //
+    // SELL: prior candle falling → current candle bullish + ATM PE unwind ≥ 2L
+    //        → arm.  Next candle breaks below reversal-candle's low → SELL.
+    //          SL = reversal-candle high + 30 pts.
+    //
+    // BUY:  prior candle rising → current candle bearish + ATM CE unwind ≥ 2L
+    //        → arm.  Next candle breaks above reversal-candle's high → BUY.
+    //          SL = reversal-candle low − 30 pts.
+
+    // ── Arm SELL: bullish reversal candle after a falling candle ──
+    if (!waitRevSell && !waitRevBuy) {
+      const prevFalling = p1.close < p1.open - 1;
+      const currBullish = c.close > c.open + 1;
+      if (prevFalling && currBullish) {
+        const atmNow = ptAtmStrike(c.close, step);
+        const peUW_C = ptPeUnwind(c, atmNow);
+        if (peUW_C >= PT_C_MIN_UNWIND) {
+          waitRevSell = { revLow: c.low, revHigh: c.high, atmStrike: atmNow, label: c.label, oiStr: ptFmtOI(peUW_C),
+                          revOpen: c.open, revClose: c.close, priorLabel: p1.label, priorClose: p1.close };
+        }
+      }
+    }
+
+    // ── Arm BUY: bearish reversal candle after a rising candle ────
+    if (!waitRevSell && !waitRevBuy) {
+      const prevRising  = p1.close > p1.open + 1;
+      const currBearish = c.close < c.open - 1;
+      if (prevRising && currBearish) {
+        const atmNow = ptAtmStrike(c.close, step);
+        const ceUW_C = ptCeUnwind(c, atmNow);
+        if (ceUW_C >= PT_C_MIN_UNWIND) {
+          waitRevBuy = { revLow: c.low, revHigh: c.high, atmStrike: atmNow, label: c.label, oiStr: ptFmtOI(ceUW_C),
+                         revOpen: c.open, revClose: c.close, priorLabel: p1.label, priorClose: p1.close };
+        }
+      }
+    }
+
+    // ── Fire SELL: break below reversal candle's low ───────────────
+    if (!openTrade && waitRevSell) {
+      const { revLow, revHigh, atmStrike, label, oiStr } = waitRevSell;
+      if (c.low < revLow || c.close < revLow) {
+        const entryPx = Math.min(c.close, revLow);
+        const tgt     = ptNextLower(entryPx, strikes);
+        const slPx    = revHigh + PT_C_SL_PTS;
+        if (tgt != null) {
+          openTrade = {
+            id: ptTrades.length + 1, dir: 'SELL', setup: 'C',
+            entryTime: c.label, entryPrice: entryPx,
+            target: tgt, sl: slPx, strike: atmStrike, status: 'open',
+            reason: `[C-SELL] Prior fall@${waitRevSell.priorLabel} (C:${waitRevSell.priorClose.toFixed(0)}) → Bounce candle@${label} (O:${waitRevSell.revOpen.toFixed(0)} H:${revHigh.toFixed(0)} L:${revLow.toFixed(0)} C:${waitRevSell.revClose.toFixed(0)}) | ATM ${atmStrike} PE unwind ${oiStr} on bounce candle → Breakdown triggered@${c.label} (spot ${c.close.toFixed(0)} < bounce-low ${revLow.toFixed(0)}) | Entry@${entryPx.toFixed(0)} Tgt:${tgt} SL:${slPx.toFixed(0)} (bounce-H+30)`,
+          };
+        }
+        waitRevSell = null;
+      }
+      // Invalidate if price rallies well above the reversal candle's high
+      if (c.close > revHigh + step) waitRevSell = null;
+    }
+
+    // ── Fire BUY: break above reversal candle's high ──────────────
+    if (!openTrade && waitRevBuy) {
+      const { revLow, revHigh, atmStrike, label, oiStr } = waitRevBuy;
+      if (c.high > revHigh || c.close > revHigh) {
+        const entryPx = Math.max(c.close, revHigh);
+        const tgt     = ptNextHigher(entryPx, strikes);
+        const slPx    = revLow - PT_C_SL_PTS;
+        if (tgt != null) {
+          openTrade = {
+            id: ptTrades.length + 1, dir: 'BUY', setup: 'C',
+            entryTime: c.label, entryPrice: entryPx,
+            target: tgt, sl: slPx, strike: atmStrike, status: 'open',
+            reason: `[C-BUY] Prior rise@${waitRevBuy.priorLabel} (C:${waitRevBuy.priorClose.toFixed(0)}) → Dip candle@${label} (O:${waitRevBuy.revOpen.toFixed(0)} H:${revHigh.toFixed(0)} L:${revLow.toFixed(0)} C:${waitRevBuy.revClose.toFixed(0)}) | ATM ${atmStrike} CE unwind ${oiStr} on dip candle → Breakout triggered@${c.label} (spot ${c.close.toFixed(0)} > dip-high ${revHigh.toFixed(0)}) | Entry@${entryPx.toFixed(0)} Tgt:${tgt} SL:${slPx.toFixed(0)} (dip-L−30)`,
+          };
+        }
+        waitRevBuy = null;
+      }
+      // Invalidate if price drops well below the reversal candle's low
+      if (c.close < revLow - step) waitRevBuy = null;
+    }
+
+    // ═══ SELL SIGNALS (spot falling, look for PE UNWINDING) ═══════
+
+    // Detect fresh downward cross (spot crossed below a strike this candle)
+    if (falling) {
+      const newCross = strikes.find(s => p1.close > s && c.close < s);
+      if (newCross !== undefined) {
+        const peUW = ptPeUnwind(c, newCross);
+        if (peUW >= PT_MIN_UNWIND) {
+          // PE unwind confirmed at the moment of crossing — Setup B immediate
+          const tgt = ptNextLower(c.close, strikes);
+          if (tgt != null && c.close - tgt >= PT_MIN_GAP_PTS) {
+            openTrade = {
+              id: ptTrades.length + 1, dir: 'SELL', setup: 'B',
+              entryTime: c.label, entryPrice: c.close,
+              target: tgt, sl: c.high + PT_POST_SL_PTS,
+              strike: newCross, status: 'open',
+              reason: `[B-SELL] ${c.label} candle: spot crossed ↓ ${newCross} (O:${c.open.toFixed(0)} H:${c.high.toFixed(0)} L:${c.low.toFixed(0)} C:${c.close.toFixed(0)}) | PE unwind ${ptFmtOI(peUW)} on cross candle | Entry@${c.close.toFixed(0)} → Tgt:${tgt} | SL:${(c.high+PT_POST_SL_PTS).toFixed(0)} (cross-high+${PT_POST_SL_PTS})`,
+            };
+            waitSell = null;
+          }
+        } else {
+          // No unwind yet — enter wait-retrace state
+          waitSell = { crossedStrike: newCross, retraced: false,
+                       crossTime: c.label, crossClose: c.close, crossHigh: c.high, crossLow: c.low };
+          waitBuy  = null;
+        }
+      }
+    }
+
+    // Setup B — post-cross: waiting for retracement then PE unwind
+    if (!openTrade && waitSell) {
+      const { crossedStrike } = waitSell;
+      // Mark retracement if previous candle was bullish (pullback into fallen zone)
+      if (!waitSell.retraced && p1.close > p1.open) { waitSell.retraced = true; waitSell.retraceTime = p1.label; waitSell.retraceHigh = p1.high; }
+      // Entry: retracement seen, current candle falling again, PE unwind now
+      if (waitSell.retraced && falling) {
+        const peUW = ptPeUnwind(c, crossedStrike);
+        if (peUW >= PT_MIN_UNWIND) {
+          const tgt = ptNextLower(c.close, strikes);
+          if (tgt != null && c.close - tgt >= PT_MIN_GAP_PTS) {
+            openTrade = {
+              id: ptTrades.length + 1, dir: 'SELL', setup: 'B',
+              entryTime: c.label, entryPrice: c.close,
+              target: tgt, sl: c.close + PT_POST_SL_PTS,
+              strike: crossedStrike, status: 'open',
+              reason: `[B-SELL] Cross@${waitSell.crossTime} spot ↓${crossedStrike} (C:${waitSell.crossClose.toFixed(0)}) → Retrace@${waitSell.retraceTime||"—"} (H:${waitSell.retraceHigh ? waitSell.retraceHigh.toFixed(0) : "—"}) → PE unwind ${ptFmtOI(peUW)} on ${c.label} candle (C:${c.close.toFixed(0)}) | Gap to tgt: ${(c.close-tgt).toFixed(0)} pts | Entry@${c.close.toFixed(0)} Tgt:${tgt} SL:${(c.close+PT_POST_SL_PTS).toFixed(0)}`,
+            };
+            waitSell = null;
+          }
+        }
+      }
+      // Abandon if spot rallies far back above the crossed strike
+      if (c.close > crossedStrike + step) waitSell = null;
+    }
+
+    // ═══ BUY SIGNALS (spot rising, look for CE UNWINDING) ═════════
+
+    // Detect fresh upward cross
+    if (!openTrade && rising) {
+      const newCross = strikes.find(s => p1.close < s && c.close > s);
+      if (newCross !== undefined) {
+        const ceUW = ptCeUnwind(c, newCross);
+        if (ceUW >= PT_MIN_UNWIND) {
+          const tgt = ptNextHigher(c.close, strikes);
+          if (tgt != null && tgt - c.close >= PT_MIN_GAP_PTS) {
+            openTrade = {
+              id: ptTrades.length + 1, dir: 'BUY', setup: 'B',
+              entryTime: c.label, entryPrice: c.close,
+              target: tgt, sl: c.low - PT_POST_SL_PTS,
+              strike: newCross, status: 'open',
+              reason: `[B-BUY] ${c.label} candle: spot crossed ↑ ${newCross} (O:${c.open.toFixed(0)} H:${c.high.toFixed(0)} L:${c.low.toFixed(0)} C:${c.close.toFixed(0)}) | CE unwind ${ptFmtOI(ceUW)} on cross candle | Entry@${c.close.toFixed(0)} → Tgt:${tgt} | SL:${(c.low-PT_POST_SL_PTS).toFixed(0)} (cross-low−${PT_POST_SL_PTS})`,
+            };
+            waitBuy = null;
+          }
+        } else {
+          waitBuy  = { crossedStrike: newCross, retraced: false,
+                      crossTime: c.label, crossClose: c.close, crossHigh: c.high, crossLow: c.low };
+          waitSell = null;
+        }
+      }
+    }
+
+    // Setup B — post-cross bullish: waiting for retracement then CE unwind
+    if (!openTrade && waitBuy) {
+      const { crossedStrike } = waitBuy;
+      if (!waitBuy.retraced && p1.close < p1.open) { waitBuy.retraced = true; waitBuy.retraceTime = p1.label; waitBuy.retraceLow = p1.low; }  // bearish = pullback
+      if (waitBuy.retraced && rising) {
+        const ceUW = ptCeUnwind(c, crossedStrike);
+        if (ceUW >= PT_MIN_UNWIND) {
+          const tgt = ptNextHigher(c.close, strikes);
+          if (tgt != null && tgt - c.close >= PT_MIN_GAP_PTS) {
+            openTrade = {
+              id: ptTrades.length + 1, dir: 'BUY', setup: 'B',
+              entryTime: c.label, entryPrice: c.close,
+              target: tgt, sl: c.close - PT_POST_SL_PTS,
+              strike: crossedStrike, status: 'open',
+              reason: `[B-BUY] Cross@${waitBuy.crossTime} spot ↑${crossedStrike} (C:${waitBuy.crossClose.toFixed(0)}) → Retrace@${waitBuy.retraceTime||"—"} (L:${waitBuy.retraceLow ? waitBuy.retraceLow.toFixed(0) : "—"}) → CE unwind ${ptFmtOI(ceUW)} on ${c.label} candle (C:${c.close.toFixed(0)}) | Gap to tgt: ${(tgt-c.close).toFixed(0)} pts | Entry@${c.close.toFixed(0)} Tgt:${tgt} SL:${(c.close-PT_POST_SL_PTS).toFixed(0)}`,
+            };
+            waitBuy = null;
+          }
+        }
+      }
+      if (c.close < crossedStrike - step) waitBuy = null;
+    }
+  }  // end candle loop
+
+  // Any still-open trade at session end
+  if (openTrade) {
+    const last = candles[candles.length - 1];
+    openTrade.lastSpot = last.close;
+    openTrade.pnl = openTrade.dir === 'SELL'
+      ? openTrade.entryPrice - last.close
+      : last.close - openTrade.entryPrice;
+    ptTrades.push({ ...openTrade });
+  }
+}
+
+// Derive strike list from raw rows when allStrikes not populated
+function ptDeriveStrikes(rows, step) {
+  const spots = rows.map(r => parseFloat(r.spot_close) || 0).filter(v => v > 0);
+  if (!spots.length) return [];
+  const lo = Math.floor(Math.min(...spots) / step) * step - step * 6;
+  const hi = Math.ceil(Math.max(...spots) / step)  * step + step * 6;
+  const out = [];
+  for (let s = lo; s <= hi; s += step) out.push(s);
+  return out;
+}
+
+// ── Render ────────────────────────────────────────────────────────
+function ptRenderAll() {
+  ptRunEngine(minuteRows);
+
+  const open   = ptTrades.filter(t => t.status === 'open');
+  const closed = ptTrades.filter(t => t.status !== 'open');
+  const wins   = closed.filter(t => (t.pnl || 0) > 0);
+  const losses = closed.filter(t => (t.pnl || 0) < 0);
+  const slHit  = closed.filter(t => t.status === 'sl');
+  const netPnl = closed.reduce((s, t) => s + (t.pnl || 0), 0);
+  const wr     = closed.length ? ((wins.length / closed.length) * 100).toFixed(0) + '%' : '—';
+
+  const el = id => document.getElementById(id);
+
+  // Stats
+  if (el('pt-total'))     el('pt-total').textContent     = ptTrades.length;
+  if (el('pt-open-count'))el('pt-open-count').textContent= open.length;
+  if (el('pt-wins'))      el('pt-wins').textContent      = wins.length;
+  if (el('pt-losses'))    el('pt-losses').textContent    = losses.length;
+  if (el('pt-sl-count'))  el('pt-sl-count').textContent  = slHit.length;
+  if (el('pt-winrate'))   el('pt-winrate').textContent   = wr;
+  const pnlEl = el('pt-net-pnl');
+  if (pnlEl) {
+    pnlEl.textContent = (netPnl > 0 ? '+' : '') + netPnl.toFixed(1);
+    pnlEl.style.color = netPnl > 0 ? '#1D9E75' : netPnl < 0 ? '#D85A30' : '#1a1a1a';
+  }
+
+  // Mode badge
+  const badge = el('pt-mode-badge');
+  if (badge) {
+    const isHistorical = !!selectedDate && selectedDate !== todayIST();
+    badge.textContent  = isHistorical ? `📅 ${selectedDate}` : '🔴 Live';
+    badge.className    = 'eod-sentiment-pill ' + (isHistorical ? 'eod-sentiment-neutral' : 'eod-sentiment-bull');
+  }
+
+  // Open trades table
+  const openBody = el('pt-open-body');
+  if (openBody) {
+    if (!open.length) {
+      openBody.innerHTML = '<tr><td colspan="9" class="pt-empty">No open positions</td></tr>';
+    } else {
+      openBody.innerHTML = open.map(t => {
+        const unreal = t.pnl != null ? ptFmtPnl(t.pnl) : '—';
+        const dirBadge = t.dir === 'SELL'
+          ? `<span class="pt-badge pt-sell">▼ SELL</span>`
+          : `<span class="pt-badge pt-buy">▲ BUY</span>`;
+        const setupBadge = `<span class="pt-badge pt-open-badge">${t.setup}</span>`;
+        return `<tr>
+          <td>${t.entryTime}</td>
+          <td>${dirBadge}</td>
+          <td><strong>${ptFmt(t.entryPrice)}</strong></td>
+          <td style="color:#1D9E75;">${ptFmt(t.target)}</td>
+          <td style="color:#D85A30;">${ptFmt(t.sl)}</td>
+          <td>${setupBadge}</td>
+          <td class="pt-reason">${t.reason ? t.reason.split(' — ').map((s,i)=>`<span class="reason-line">${i>0?'— ':''  }${s}</span>`).join('') : '—'}</td>
+          <td>${ptFmt(t.lastSpot || currentSpot)}</td>
+          <td>${unreal}</td>
+        </tr>`;
+      }).join('');
+    }
+  }
+
+  // Closed trades table
+  const closedBody = el('pt-closed-body');
+  if (closedBody) {
+    if (!closed.length) {
+      closedBody.innerHTML = '<tr><td colspan="10" class="pt-empty">No closed trades yet — run the engine on a day with data</td></tr>';
+    } else {
+      closedBody.innerHTML = [...closed].reverse().map(t => {
+        const dirBadge = t.dir === 'SELL'
+          ? `<span class="pt-badge pt-sell">▼ SELL</span>`
+          : `<span class="pt-badge pt-buy">▲ BUY</span>`;
+        const resultBadge = t.status === 'target'
+          ? `<span class="pt-badge pt-win">✓ Target</span>`
+          : t.status === 'sl'
+          ? `<span class="pt-badge pt-sl">✕ SL</span>`
+          : `<span class="pt-badge">—</span>`;
+        return `<tr>
+          <td>${t.entryTime}</td>
+          <td>${t.exitTime || '—'}</td>
+          <td>${dirBadge}</td>
+          <td><strong>${ptFmt(t.entryPrice)}</strong></td>
+          <td>${ptFmt(t.exitPrice)}</td>
+          <td style="color:#D85A30;">${ptFmt(t.sl)}</td>
+          <td style="color:#1D9E75;">${ptFmt(t.target)}</td>
+          <td>${ptFmtPnl(t.pnl)}</td>
+          <td>${resultBadge}</td>
+          <td class="pt-reason">${t.reason ? t.reason.split(' — ').map((s,i)=>`<span class="reason-line">${i>0?'— ':''  }${s}</span>`).join('') : '—'}</td>
+        </tr>`;
+      }).join('');
+    }
+  }
+}
+
+function ptClearAll() {
+  ptTrades = [];
+  ptRenderAll();
+}
+
+// ── EOD OI SUMMARY ────────────────────────────────────────────────
+// Computes whole-day cumulative OI change per strike (last row OI - first row OI)
+// and categorises into: CE Added, CE Removed, PE Added, PE Removed
+function renderEODSummary(rows) {
+  const body = document.getElementById('eod-body');
+  const pill = document.getElementById('eod-sentiment-pill');
+  const meta = document.getElementById('eod-summary-meta');
+  if (!body) return;
+
+  function fmtOIEod(v) {
+    const n = Number(v) || 0;
+    const a = Math.abs(n);
+    const s = a >= 1e7 ? (n / 1e7).toFixed(2) + ' Cr'
+            : a >= 1e5 ? (n / 1e5).toFixed(1) + ' L'
+            : a >= 1e3 ? (n / 1e3).toFixed(1) + ' K'
+            : Math.round(n).toLocaleString('en-IN');
+    return s;
+  }
+  function fmtDelta(v) {
+    const n = Number(v) || 0;
+    return (n > 0 ? '+' : '') + fmtOIEod(n);
+  }
+
+  const cleanRows = [...(rows || [])].filter(r => r && (parseFloat(r.ts) || 0) > 0)
+    .sort((a, b) => (parseFloat(a.ts) || 0) - (parseFloat(b.ts) || 0));
+
+  if (cleanRows.length < 2) {
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#aaa;font-size:12px;">Need at least 2 candles of data</td></tr>';
+    if (pill) { pill.textContent = '—'; pill.className = 'eod-sentiment-pill eod-sentiment-neutral'; }
+    if (meta) meta.textContent = '';
+    return;
+  }
+
+  const first = cleanRows[0];
+  const last  = cleanRows[cleanRows.length - 1];
+
+  // Collect all strike keys that appear in the data
+  const strikeSet = {};
+  cleanRows.forEach(r => {
+    Object.keys(r).forEach(k => {
+      const m = k.match(/^s(\d+)_(ce|pe)_oi$/);
+      if (m) {
+        const key = 's' + m[1] + '_' + m[2];
+        if (!strikeSet[key]) strikeSet[key] = { strike: Number(m[1]), side: m[2].toUpperCase() };
+      }
+    });
+  });
+
+  // Compute day-total OI change = last candle OI - first candle OI
+  const changes = Object.entries(strikeSet).map(([key, info]) => {
+    const oiField = key + '_oi';
+    const firstOI = parseFloat(first[oiField]) || 0;
+    const lastOI  = parseFloat(last[oiField])  || 0;
+    const delta   = lastOI - firstOI;
+    return { key, strike: info.strike, side: info.side, delta, lastOI, firstOI };
+  }).filter(x => x.firstOI > 0 || x.lastOI > 0);
+
+  const ceChanges = changes.filter(x => x.side === 'CE');
+  const peChanges = changes.filter(x => x.side === 'PE');
+
+  const ceAdded   = [...ceChanges].filter(x => x.delta > 0).sort((a,b) => b.delta - a.delta);
+  const ceRemoved = [...ceChanges].filter(x => x.delta < 0).sort((a,b) => a.delta - b.delta);
+  const peAdded   = [...peChanges].filter(x => x.delta > 0).sort((a,b) => b.delta - a.delta);
+  const peRemoved = [...peChanges].filter(x => x.delta < 0).sort((a,b) => a.delta - b.delta);
+
+  function rowCells(items, badgeCls, n = 3) {
+    const top = items.slice(0, n);
+    let cells = '';
+    for (let i = 0; i < n; i++) {
+      const item = top[i];
+      if (item) {
+        cells += `<td class="eod-strike-label" style="text-align:left;">${item.strike.toLocaleString('en-IN')}</td>`;
+        cells += `<td style="text-align:right;"><span class="eod-badge ${badgeCls}">${fmtDelta(item.delta)}</span> <span style="color:#aaa;font-size:10px;">(${fmtOIEod(item.lastOI)})</span></td>`;
+      } else {
+        cells += '<td style="color:#ccc;text-align:left;">—</td><td></td>';
+      }
+    }
+    return cells;
+  }
+
+  const rows4 = [
+    { label: '📈 Call OI Added',   items: ceAdded,   badgeCls: 'eod-add',    desc: 'Strikes where writers added CE positions (bearish pressure)' },
+    { label: '📉 Call OI Removed', items: ceRemoved, badgeCls: 'eod-rem',    desc: 'Strikes where CE unwinding happened (bullish relief)' },
+    { label: '📈 Put OI Added',    items: peAdded,   badgeCls: 'eod-add-pe', desc: 'Strikes where writers added PE positions (bullish support)' },
+    { label: '📉 Put OI Removed',  items: peRemoved, badgeCls: 'eod-rem-pe', desc: 'Strikes where PE unwinding happened (bearish signal)' },
+  ];
+
+  const htmlRows = rows4.map(({ label, items, badgeCls, desc }) => {
+    return `<tr title="${desc}">
+      <td style="font-size:11px;font-weight:600;color:#444;white-space:nowrap;">${label}</td>
+      ${rowCells(items, badgeCls, 3)}
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = htmlRows || '<tr><td colspan="7" style="text-align:center;padding:16px;color:#aaa;">No OI data found</td></tr>';
+
+  // ── Sentiment logic ──
+  // CE Added (bearish) vs PE Added (bullish) vs CE Removed (bullish) vs PE Removed (bearish)
+  const totalCeAdded   = ceAdded.reduce((s, x) => s + x.delta, 0);
+  const totalCeRemoved = ceRemoved.reduce((s, x) => s + Math.abs(x.delta), 0);
+  const totalPeAdded   = peAdded.reduce((s, x) => s + x.delta, 0);
+  const totalPeRemoved = peRemoved.reduce((s, x) => s + Math.abs(x.delta), 0);
+
+  // Bullish score: PE added + CE removed (writers protect downside, CE shorts cover)
+  // Bearish score: CE added + PE removed (call writers pile in, puts unwound)
+  const bullScore = totalPeAdded + totalCeRemoved;
+  const bearScore = totalCeAdded + totalPeRemoved;
+  const ratio = bullScore + bearScore > 0 ? bullScore / (bullScore + bearScore) : 0.5;
+
+  let sentiment, sentCls;
+  if (ratio >= 0.57) { sentiment = '🟢 Bullish'; sentCls = 'eod-sentiment-bull'; }
+  else if (ratio <= 0.43) { sentiment = '🔴 Bearish'; sentCls = 'eod-sentiment-bear'; }
+  else { sentiment = '⚪ Neutral'; sentCls = 'eod-sentiment-neutral'; }
+
+  if (pill) { pill.textContent = sentiment; pill.className = 'eod-sentiment-pill ' + sentCls; }
+  if (meta) meta.textContent = `${cleanRows.length} candles · ${first.time_label || '—'} → ${last.time_label || '—'}`;
 }
 
 function renderOptionChain() {
@@ -2897,8 +4756,7 @@ function calcMaxPain(spot) {
   }));
   // Sort by total OI descending, take top 3
   const top3 = oiByStrike.slice().sort((a,b) => b.totalOI - a.totalOI).slice(0,3);
-  // Sort the top 3 by strike value descending for display
-  top3.sort((a,b) => b.st - a.st);
+  // Keep in OI-descending order — left = highest OI (no re-sort by strike)
   const topPainEl = document.getElementById('oc-ticker-top-pain');
   if (topPainEl) {
     const fmtOIShort = v => {
@@ -2907,15 +4765,42 @@ function calcMaxPain(spot) {
       if (v >= 1e3) return (v/1e3).toFixed(1)+' K';
       return Math.round(v).toLocaleString('en-IN');
     };
-    const bgColors  = ['#EEEDFE','#E1F5EE','#FAECE7'];
-    const txtColors = ['#534AB7','#085041','#712B13'];
+    // Solid purple gradient — darkest = most OI
+    const bgColors  = ['#534AB7','#7B74CC','#A9A4E0'];
+    const txtColors = ['#fff','#fff','#fff'];
     topPainEl.innerHTML = top3.map((x, i) =>
-      `<span style="display:inline-flex;align-items:center;gap:4px;background:${bgColors[i]};color:${txtColors[i]};border-radius:6px;padding:2px 7px;font-size:11px;font-weight:500;white-space:nowrap;">` +
+      `<span style="display:inline-flex;align-items:center;gap:4px;background:${bgColors[i]};color:${txtColors[i]};border-radius:6px;padding:2px 7px;font-size:11px;font-weight:500;white-space:nowrap;" title="Total OI: ${fmtOIShort(x.totalOI)}">` +
       `<span style="font-weight:700;">${x.st.toLocaleString('en-IN')}</span>` +
-      `<span style="opacity:0.55;font-size:10px;font-weight:400;">${fmtOIShort(x.totalOI)}</span>` +
+      `<span style="opacity:0.8;font-size:10px;font-weight:400;">${fmtOIShort(x.totalOI)}</span>` +
       `</span>`
     ).join('<span style="color:#ddd;margin:0 2px;">|</span>');
   }
+
+  // ── TOP 3 STRIKES BY MAX CHANGE IN OI (ΔOI) ───────────────────
+  const fmtDelta = v => {
+    const a = Math.abs(v), s = v >= 0 ? '+' : '';
+    if (a >= 1e7) return s+(v/1e7).toFixed(1)+' Cr';
+    if (a >= 1e5) return s+(v/1e5).toFixed(1)+' L';
+    if (a >= 1e3) return s+(v/1e3).toFixed(1)+' K';
+    return (v >= 0 ? '+' : '')+Math.round(v).toLocaleString('en-IN');
+  };
+  const chgByStrike = strikeList.map(st => {
+    const cd = ocOIDeltaCache['s'+st+'_ce'] ?? 0;
+    const pd = ocOIDeltaCache['s'+st+'_pe'] ?? 0;
+    return { st, netDelta: cd + pd, absDelta: Math.abs(cd) + Math.abs(pd) };
+  }).filter(x => x.absDelta > 0);
+  const top3chg = chgByStrike.slice().sort((a,b) => b.absDelta - a.absDelta).slice(0,3);
+  const topChgEl = document.getElementById('oc-ticker-top-chg');
+  if (topChgEl && top3chg.length) {
+    // Teal palette — visually distinct from the purple OI palette
+    const chgBg = ['#0C5F7A','#1A82A0','#3CA5C4'];
+    topChgEl.innerHTML = top3chg.map((x, i) =>
+      `<span style="display:inline-flex;align-items:center;gap:4px;background:${chgBg[i]};color:#fff;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:500;white-space:nowrap;" title="Net ΔOI: ${fmtDelta(x.netDelta)}  |  Activity: ${fmtDelta(x.absDelta)}">` +
+      `<span style="font-weight:700;">${x.st.toLocaleString('en-IN')}</span>` +
+      `<span style="opacity:0.8;font-size:10px;font-weight:400;">${fmtDelta(x.netDelta)}</span>` +
+      `</span>`
+    ).join('<span style="color:#ddd;margin:0 2px;">|</span>');
+  } else if (topChgEl) { topChgEl.textContent = '—'; }
 
   // Update UI
   const mpStrikeEl = document.getElementById('mp-strike');
@@ -2968,73 +4853,419 @@ function scrollOCtoATM() {
   if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+
+// ── SELECTED STRIKES OI CHANGE TAB ───────────────────────────────
+function getOIChangeVisibleStrikes() {
+  if (!allStrikes || !allStrikes.length) return [];
+  const depthEl = document.getElementById('oi-change-depth');
+  const depth = depthEl ? parseInt(depthEl.value || '5') : 5;
+  if (!depth || !atmStrike) return [...allStrikes];
+  const atmIdx = allStrikes.indexOf(atmStrike);
+  if (atmIdx < 0) return [...allStrikes];
+  return allStrikes.slice(Math.max(0, atmIdx - depth), Math.min(allStrikes.length, atmIdx + depth + 1));
+}
+
+function ensureOIChangeSelection() {
+  if (oiChangeSelectedStrikes && oiChangeSelectedStrikes.length) return;
+  if (selectedStrikes && selectedStrikes.length) {
+    oiChangeSelectedStrikes = [...new Set(selectedStrikes.filter(Boolean))];
+  }
+  if ((!oiChangeSelectedStrikes || !oiChangeSelectedStrikes.length) && atmStrike) {
+    const idx = allStrikes.indexOf(atmStrike);
+    oiChangeSelectedStrikes = [allStrikes[idx-1], atmStrike, allStrikes[idx+1]].filter(Boolean);
+  }
+}
+
+function renderOIChangeStrikeChips() {
+  const box = document.getElementById('oi-change-strike-chips');
+  if (!box) return;
+  ensureOIChangeSelection();
+  const visible = getOIChangeVisibleStrikes();
+  if (!visible.length) { box.textContent = 'Waiting for strike data…'; return; }
+  box.innerHTML = visible.map(st => {
+    const active = oiChangeSelectedStrikes.includes(st);
+    const atm = st === atmStrike;
+    return `<span class="oi-change-chip ${active?'active':''} ${atm?'atm':''}" onclick="toggleOIChangeStrike(${st})">${st.toLocaleString('en-IN')}${atm?' · ATM':''}</span>`;
+  }).join('');
+  const sub = document.getElementById('oi-change-sub');
+  if (sub) {
+    sub.textContent = `Visible: ${visible[0].toLocaleString('en-IN')} → ${visible[visible.length-1].toLocaleString('en-IN')} · Selected: ${oiChangeSelectedStrikes.length || 0} strike(s) · ${intervalMin}-min candles`;
+  }
+  renderOIChangeSelectedChips([...new Set(oiChangeSelectedStrikes.filter(Boolean))].sort((a,b)=>a-b));
+}
+
+function toggleOIChangeStrike(strike) {
+  if (oiChangeSelectedStrikes.includes(strike)) {
+    oiChangeSelectedStrikes = oiChangeSelectedStrikes.filter(s => s !== strike);
+  } else {
+    oiChangeSelectedStrikes.push(strike);
+    oiChangeSelectedStrikes.sort((a,b)=>a-b);
+  }
+  renderOIChangeStrikeChips();
+  renderOIChangeChart();
+}
+
+function selectOIChangeDefaultStrikes() {
+  if (!atmStrike || !allStrikes.length) return;
+  const idx = allStrikes.indexOf(atmStrike);
+  oiChangeSelectedStrikes = [allStrikes[idx-1], atmStrike, allStrikes[idx+1]].filter(Boolean);
+  renderOIChangeStrikeChips();
+  renderOIChangeChart();
+}
+
+function selectAllOIChangeVisibleStrikes() {
+  oiChangeSelectedStrikes = getOIChangeVisibleStrikes();
+  renderOIChangeStrikeChips();
+  renderOIChangeChart();
+}
+
+function clearOIChangeStrikes() {
+  oiChangeSelectedStrikes = [];
+  renderOIChangeStrikeChips();
+  renderOIChangeChart();
+}
+
+function drawStickyOIYAxis(axisId, minVal, maxVal, chartH, formatter, title) {
+  const c = document.getElementById(axisId);
+  if (!c) return;
+  const dpr = window.devicePixelRatio || 1;
+  c.width = OI_YAXIS_W * dpr;
+  c.height = chartH * dpr;
+  c.style.width = OI_YAXIS_W + 'px';
+  c.style.height = chartH + 'px';
+  const ctx = c.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,OI_YAXIS_W,chartH);
+  ctx.fillStyle = '#666';
+  ctx.strokeStyle = '#ddd';
+  ctx.lineWidth = 1;
+  ctx.font = '10px system-ui,-apple-system,sans-serif';
+
+  const top = 22, bottom = 32;
+  const plotH = chartH - top - bottom;
+  const range = maxVal - minVal || 1;
+  const ticks = 6;
+
+  ctx.beginPath();
+  ctx.moveTo(OI_YAXIS_W - 1, top);
+  ctx.lineTo(OI_YAXIS_W - 1, chartH - bottom);
+  ctx.stroke();
+
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (let i=0; i<=ticks; i++) {
+    const v = maxVal - (range * i / ticks);
+    const y = top + (plotH * i / ticks);
+    ctx.fillStyle = '#888';
+    ctx.fillText(formatter(v), OI_YAXIS_W - 8, y);
+    ctx.strokeStyle = '#eee';
+    ctx.beginPath();
+    ctx.moveTo(OI_YAXIS_W - 5, y);
+    ctx.lineTo(OI_YAXIS_W - 1, y);
+    ctx.stroke();
+  }
+
+  if (title) {
+    ctx.save();
+    ctx.translate(13, chartH/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillStyle = '#444';
+    ctx.font = '11px system-ui,-apple-system,sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(title, 0, 0);
+    ctx.restore();
+  }
+}
+
+function niceRange(values, forceZero=false) {
+  const clean = values.filter(v => Number.isFinite(v));
+  if (!clean.length) return {min: forceZero ? 0 : -1, max: 1};
+  let min = Math.min(...clean), max = Math.max(...clean);
+  if (forceZero) min = Math.min(0, min);
+  if (min === max) {
+    const pad = Math.max(1, Math.abs(max) * 0.1);
+    min -= pad; max += pad;
+  }
+  const pad = (max - min) * 0.08;
+  return {min: min - pad, max: max + pad};
+}
+
+function fmtCompactAxis(v, signed=false) {
+  const sign = signed && v > 0 ? '+' : '';
+  const av = Math.abs(v);
+  if (av >= 1000000) return sign + (v/1000000).toFixed(av >= 10000000 ? 0 : 1) + 'M';
+  if (av >= 1000) return sign + Math.round(v/1000) + 'k';
+  return sign + Math.round(v);
+}
+
+function renderOIChangeSelectedChips(strikes) {
+  const box = document.getElementById('oi-change-selected-chips');
+  if (!box) return;
+  if (!strikes.length) {
+    box.innerHTML = '<span class="oi-change-pill">No strike selected.</span>';
+    return;
+  }
+  const palette = ['#185FA5','#1D9E75','#D85A30','#534AB7','#EF9F27','#0F6E56','#8B1A1A','#97C459','#666'];
+  box.innerHTML = strikes.map((st, idx) => {
+    const col = palette[idx % palette.length];
+    const atm = st === atmStrike ? ' (ATM)' : '';
+    return `<span class="oi-change-selected-chip" style="border-color:${col};color:${col};background:#fff;">${st.toLocaleString('en-IN')}${atm}<button onclick="toggleOIChangeStrike(${st})" title="Remove strike">×</button></span>`;
+  }).join('');
+}
+
+function buildOIChartDatasets(candleSets, mode) {
+  const palette = ['#185FA5','#1D9E75','#D85A30','#534AB7','#EF9F27','#0F6E56','#8B1A1A','#97C459','#666'];
+  const datasets = [];
+  candleSets.forEach((entry, idx) => {
+    const base = palette[idx % palette.length];
+    const atm = entry.strike === atmStrike ? ' (ATM)' : '';
+    const ceField = mode === 'abs' ? 'ce_oi' : 'dce';
+    const peField = mode === 'abs' ? 'pe_oi' : 'dpe';
+    const suffix = mode === 'abs' ? 'OI' : 'ΔOI';
+
+    datasets.push({
+      label: `${entry.strike.toLocaleString('en-IN')} CE ${suffix}${atm}`,
+      data: entry.candles.map(c => c[ceField] || 0),
+      borderColor: base,
+      backgroundColor: base,
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0.2
+    });
+    datasets.push({
+      label: `${entry.strike.toLocaleString('en-IN')} PE ${suffix}${atm}`,
+      data: entry.candles.map(c => c[peField] || 0),
+      borderColor: base,
+      backgroundColor: base,
+      borderWidth: 2,
+      pointRadius: 0,
+      borderDash: [6,5],
+      tension: 0.2
+    });
+  });
+  return datasets;
+}
+
+function oiLabelToMinutes(label) {
+  if (label == null) return null;
+  const m = String(label).match(/(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+}
+
+function getOIChangeTimeLabelStep() {
+  const el = document.getElementById('oi-change-time-label-step');
+  const val = el ? el.value : 'auto';
+  if (val === 'auto') return intervalMin <= 1 ? 3 : Math.max(1, intervalMin);
+  return parseInt(val || '3', 10) || 3;
+}
+
+function shouldShowOIChangeXLabel(label, index, labels) {
+  const step = getOIChangeTimeLabelStep();
+  if (!step || step <= 1) return true;
+
+  // Always show the last label so the rightmost timestamp is never hidden.
+  if (labels && index === labels.length - 1) return true;
+
+  // For regular interval candles this keeps labels close together even when
+  // the first candle starts at an offset time like 13:49 instead of 13:45.
+  const firstMin = oiLabelToMinutes(labels && labels[0]);
+  const curMin = oiLabelToMinutes(label);
+  if (firstMin != null && curMin != null) {
+    let diff = curMin - firstMin;
+    if (diff < 0) diff += 24 * 60;
+    return diff % step === 0;
+  }
+
+  // Fallback when labels are not HH:MM strings.
+  const candlesPerLabel = Math.max(1, Math.round(step / Math.max(1, intervalMin)));
+  return index % candlesPerLabel === 0;
+}
+
+function createOIChart(canvas, labels, datasets, yRange, signedAxis, tooltipSuffix) {
+  return new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive:false, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      layout:{padding:{left:8,right:50,top:8,bottom:0}},
+      plugins:{
+        legend:{display:true, position:'top', labels:{boxWidth:22, font:{size:10}, usePointStyle:false}},
+        tooltip:{callbacks:{label:ctx => `${ctx.dataset.label}: ${fmtCompactAxis(ctx.raw || 0, signedAxis)} ${tooltipSuffix}`}}
+      },
+      scales:{
+        x:{
+          grid:{color:'rgba(136,135,128,0.08)'},
+          ticks:{
+            color:TCLR,
+            font:{size:10},
+            autoSkip:false,
+            maxRotation:0,
+            minRotation:0,
+            callback:function(value, index) {
+              const total = labels.length;
+              // Always show last label
+              if (index === total - 1) return labels[index];
+              // Show every Nth label so they don't overlap — same logic as the SVG index chart
+              const labelEvery = Math.max(1, Math.ceil(total / Math.max(4, Math.floor((canvas.width - 60) / 52))));
+              return index % labelEvery === 0 ? labels[index] : '';
+            }
+          }
+        },
+        y:{display:false, min:yRange.min, max:yRange.max, grid:{color:GRID}}
+      },
+      animation:{duration:250}
+    }
+  });
+}
+
+function renderOIChangeChart() {
+  const changeCanvas = document.getElementById('oiChangeChart');
+  const changeWrap = document.getElementById('oiChangeChartWrap');
+  const changeScroll = document.getElementById('oi-change-scroll');
+  const absCanvas = document.getElementById('oiAbsChart');
+  const absWrap = document.getElementById('oiAbsChartWrap');
+  const absScroll = document.getElementById('oi-abs-scroll');
+  const summary = document.getElementById('oi-change-summary');
+  if (!changeCanvas || !changeWrap || !changeScroll || !absCanvas || !absWrap || !absScroll) return;
+
+  ensureOIChangeSelection();
+  const strikes = [...new Set(oiChangeSelectedStrikes.filter(Boolean))].sort((a,b)=>a-b);
+  renderOIChangeSelectedChips(strikes);
+
+  const validRows = minuteRows || [];
+  if (!strikes.length || !validRows.length) {
+    if (oiChangeChartInstance) { oiChangeChartInstance.destroy(); oiChangeChartInstance = null; }
+    if (oiAbsChartInstance) { oiAbsChartInstance.destroy(); oiAbsChartInstance = null; }
+    if (summary) summary.innerHTML = '<span class="oi-change-pill">Select at least one strike to plot OI.</span>';
+    return;
+  }
+
+  const candleSets = strikes.map(st => ({ strike: st, candles: buildCandlesForStrike(validRows, intervalMin, st) }));
+  const labels = candleSets[0]?.candles.map(c => c.label) || [];
+  const chartW = Math.max(labels.length * Math.max(36, MIN_BAR_PX) + 160, Math.floor(changeScroll.getBoundingClientRect().width || window.innerWidth - 120));
+  const chartH = 360;
+
+  [changeWrap, absWrap].forEach(wrap => {
+    wrap.style.width = chartW + 'px';
+    wrap.style.height = chartH + 'px';
+  });
+  setCanvas('oiChangeChart', chartW, chartH);
+  setCanvas('oiAbsChart', chartW, chartH);
+
+  const changeDatasets = buildOIChartDatasets(candleSets, 'chg');
+  const absDatasets = buildOIChartDatasets(candleSets, 'abs');
+  const changeValues = changeDatasets.flatMap(ds => ds.data);
+  const absValues = absDatasets.flatMap(ds => ds.data);
+  const changeRange = niceRange(changeValues, false);
+  const absRange = niceRange(absValues, true);
+
+  drawStickyOIYAxis('oiChangeYAxis', changeRange.min, changeRange.max, chartH, v => fmtCompactAxis(v, true), 'Change in OI');
+  drawStickyOIYAxis('oiAbsYAxis', absRange.min, absRange.max, chartH, v => fmtCompactAxis(v, false), 'Open Interest');
+
+  if (oiChangeChartInstance) { oiChangeChartInstance.destroy(); oiChangeChartInstance = null; }
+  if (oiAbsChartInstance) { oiAbsChartInstance.destroy(); oiAbsChartInstance = null; }
+
+  oiChangeChartInstance = createOIChart(changeCanvas, labels, changeDatasets, changeRange, true, 'contracts');
+  oiAbsChartInstance = createOIChart(absCanvas, labels, absDatasets, absRange, false, 'contracts');
+
+  if (summary) {
+    summary.innerHTML = candleSets.map(entry => {
+      const ceD = entry.candles.reduce((s,c)=>s+(c.dce||0),0);
+      const peD = entry.candles.reduce((s,c)=>s+(c.dpe||0),0);
+      const last = entry.candles[entry.candles.length-1] || {};
+      return `<span class="oi-change-pill"><strong>${entry.strike.toLocaleString('en-IN')}</strong> Δ CE ${fmtD(ceD)} · Δ PE ${fmtD(peD)} · OI CE ${fmtCompactAxis(last.ce_oi||0)} · OI PE ${fmtCompactAxis(last.pe_oi||0)}</span>`;
+    }).join('');
+  }
+
+  changeScroll.scrollLeft = changeScroll.scrollWidth;
+  absScroll.scrollLeft = absScroll.scrollWidth;
+}
+
 // ── MAIN REBUILD ──────────────────────────────────────────────────
 function rebuildCharts() { requestAnimationFrame(_doRebuild); }
 
 function _doRebuild() {
   if (selectedStrikes.some(s=>!s)) return;
-  const [s1, s2, s3] = selectedStrikes;
 
-  // Build per-strike candle arrays
-  const c1 = buildCandlesForStrike(minuteRows, intervalMin, s1);
-  const c2 = buildCandlesForStrike(minuteRows, intervalMin, s2);
-  const c3 = buildCandlesForStrike(minuteRows, intervalMin, s3);
-  latestCandles = [c1, c2, c3];
+  // Build per-strike candle arrays for all N slots
+  const allCandles = selectedStrikes.map(st => buildCandlesForStrike(minuteRows, intervalMin, st));
+  latestCandles = allCandles;
 
-  // Build merged candles for index chart
+  const midIdx = Math.floor(numCharts / 2);
+  const topCandles = allCandles[0];
+  const midCandles = allCandles[midIdx];
+  const botCandles = allCandles[numCharts - 1];
+  const s1 = selectedStrikes[0], s2 = selectedStrikes[midIdx], s3 = selectedStrikes[numCharts - 1];
+
+  // Build merged candles for index chart (uses top/mid/bot)
   const merged = buildMergedCandles(minuteRows, intervalMin, s1, s2, s3);
 
   const sub = intervalMin+'-min · '+minuteRows.length+' rows · session '+currentSession;
-  ['s1','s2','s3'].forEach(pfx => {
-    document.getElementById(pfx+'-chart-sub').textContent = sub;
-  });
+  for (let i = 0; i < numCharts; i++) {
+    const subEl = document.getElementById(slotPfx(i)+'-chart-sub');
+    if (subEl) subEl.textContent = sub;
+  }
 
-  document.getElementById('index-chart-sub').textContent = 'Nifty 50 · '+intervalMin+'m candles · colour = dominant OI move (top+bottom strikes)';
+  const icsEl = document.getElementById('index-chart-sub');
+  if (icsEl) icsEl.textContent = 'Nifty 50 · '+intervalMin+'m candles · colour = dominant OI move (top+bottom strikes)';
 
-  // Cumulative OI
   drawCumOIChart(minuteRows);
-
-  // OI movers
   drawOIMovers(minuteRows, atmStrike);
+  renderOIChangeStrikeChips();
+  if (document.getElementById('tab-oi-change-panel')?.classList.contains('active')) renderOIChangeChart();
 
-  // Index chart (uses merged candles)
   const mergedWithLive = liveCandle ? [...merged, liveCandle] : merged;
   drawIndexChart(mergedWithLive);
 
-  // Confluence SVG charts (s1 CE = top strike lens, s3 PE = bottom strike lens)
-  const c1WithLive = liveCandle ? [...c1, liveCandle] : c1;
-  const c3WithLive = liveCandle ? [...c3, liveCandle] : c3;
+  // Confluence SVG charts: top slot = bear lens, bottom slot = bull lens
+  const topPfx = slotPfx(0), botPfx = slotPfx(numCharts - 1);
+  const topWithLive = liveCandle ? [...topCandles, liveCandle] : topCandles;
+  const botWithLive = liveCandle ? [...botCandles, liveCandle] : botCandles;
 
-  const bearSigs = drawStrikeActivityChart('svgBear', c1WithLive,
-    c=>c.s1_bce_ltp_open||c.bce_ltp_open||0, c=>c.s1_bce_ltp_high||c.bce_ltp_high||0,
-    c=>c.s1_bce_ltp_low||c.bce_ltp_low||0,   c=>c.s1_bce_ltp_close||c.bce_ltp_close||0,
-    c=>c.s1_bce_oi_delta||c.bce_oi_delta||0, 'bear-activity-badge');
-  const bullSigs = drawStrikeActivityChart('svgBull', c3WithLive,
-    c=>c.s3_upe_ltp_open||c.upe_ltp_open||0, c=>c.s3_upe_ltp_high||c.upe_ltp_high||0,
-    c=>c.s3_upe_ltp_low||c.upe_ltp_low||0,   c=>c.s3_upe_ltp_close||c.upe_ltp_close||0,
-    c=>c.s3_upe_oi_delta||c.upe_oi_delta||0, 'bull-activity-badge');
+  const bearSigs = drawStrikeActivityChart('svgBear', topWithLive,
+    c=>c[topPfx+'_bce_ltp_open']||c.s1_bce_ltp_open||c.bce_ltp_open||0,
+    c=>c[topPfx+'_bce_ltp_high']||c.s1_bce_ltp_high||c.bce_ltp_high||0,
+    c=>c[topPfx+'_bce_ltp_low'] ||c.s1_bce_ltp_low ||c.bce_ltp_low ||0,
+    c=>c[topPfx+'_bce_ltp_close']||c.s1_bce_ltp_close||c.bce_ltp_close||0,
+    c=>c[topPfx+'_bce_oi_delta']||c.s1_bce_oi_delta||c.bce_oi_delta||0, 'bear-activity-badge');
+  const bullSigs = drawStrikeActivityChart('svgBull', botWithLive,
+    c=>c[botPfx+'_upe_ltp_open']||c.s3_upe_ltp_open||c.upe_ltp_open||0,
+    c=>c[botPfx+'_upe_ltp_high']||c.s3_upe_ltp_high||c.upe_ltp_high||0,
+    c=>c[botPfx+'_upe_ltp_low'] ||c.s3_upe_ltp_low ||c.upe_ltp_low ||0,
+    c=>c[botPfx+'_upe_ltp_close']||c.s3_upe_ltp_close||c.upe_ltp_close||0,
+    c=>c[botPfx+'_upe_oi_delta']||c.s3_upe_oi_delta||c.upe_oi_delta||0, 'bull-activity-badge');
 
   buildStrip('bear-strip', bearSigs);
   buildStrip('bull-strip', bullSigs);
-  if (c1.length) updateConfluenceSummary(c1, c3, bearSigs, bullSigs);
+  if (topCandles.length) updateConfluenceSummary(topCandles, botCandles, bearSigs, bullSigs);
 
-  // ── THREE OI BAR CHARTS ──
-  const chartDefs = [
-    { candles:c1, strike:s1, pfx:'s1', chartId:'s1Chart', wrapId:'s1ChartWrap', scrollId:'s1-scroll', yAxisId:'s1YAxis' },
-    { candles:c2, strike:s2, pfx:'s2', chartId:'s2Chart', wrapId:'s2ChartWrap', scrollId:'s2-scroll', yAxisId:'s2YAxis' },
-    { candles:c3, strike:s3, pfx:'s3', chartId:'s3Chart', wrapId:'s3ChartWrap', scrollId:'s3-scroll', yAxisId:'s3YAxis' },
-  ];
+  // ── N OI BAR CHARTS ──────────────────────────────────────────────
+  // Map slot index → DOM ids.
+  // Slots midIdx-1=s1card, midIdx=s2card, midIdx+1=s3card; all others are extra cards.
+  for (let idx = 0; idx < numCharts; idx++) {
+    const candles = allCandles[idx];
+    const pfx     = slotPfx(idx);
+    const chartId  = pfx + 'Chart';
+    const wrapId   = pfx + 'ChartWrap';
+    const scrollId = pfx + '-scroll';
+    const yAxisId  = pfx + 'YAxis';
 
-  chartDefs.forEach(({candles, strike, pfx, chartId, wrapId, scrollId, yAxisId}, idx) => {
-    if (!candles.length) return;
+    if (!candles.length) continue;
+
+    const scrollEl = document.getElementById(scrollId);
+    const wrapEl   = document.getElementById(wrapId);
+    if (!scrollEl || !wrapEl) continue;
 
     const labels = candles.map(c=>c.label);
-    const outerW = Math.floor(document.getElementById(scrollId)?.getBoundingClientRect().width||(window.innerWidth-80));
+    const outerW = Math.floor(scrollEl.getBoundingClientRect().width||(window.innerWidth-80));
     const oiW    = Math.max(candles.length*MIN_BAR_PX + 40, outerW);
     const oiH    = OI_CHART_H;
 
-    document.getElementById(wrapId).style.width  = oiW+'px';
-    document.getElementById(wrapId).style.height = oiH+'px';
+    wrapEl.style.width  = oiW+'px';
+    wrapEl.style.height = oiH+'px';
     setCanvas(chartId, oiW, oiH);
 
     const ceCol = candles.map(c=>c.dce>=0?'#D85A30':'#93c5e8');
@@ -3050,7 +5281,6 @@ function _doRebuild() {
       options:opts
     });
 
-    // Net summary
     const netCe = candles.reduce((s,c)=>s+c.dce,0);
     const netPe = candles.reduce((s,c)=>s+c.dpe,0);
     const setNet=(id,v)=>{const el=document.getElementById(id);if(el){el.textContent=fmtD(v);el.className='net-val '+dcls(v);}};
@@ -3062,7 +5292,7 @@ function _doRebuild() {
       scoreEl.textContent=Math.abs(diff)<3000?'Neutral':diff>0?'CE building':'PE building';
       scoreEl.className='net-val '+(diff>3000?'ddn':diff<-3000?'dup':'dfl');
     }
-  });
+  }
 
   scrollToLatest();
   updateSpotBadges();
@@ -3091,6 +5321,7 @@ _initBadge.className = 'date-mode-badge live';
 _initBadge.textContent = '● Live';
 
 fetchAvailableDates();
+syncExtraChartCards();   // build extra chart cards for default numCharts=5 before first data fetch
 fetchOI().then(()=>fetchHistory());
 fetchLTP();
 fetchLiveCandle();
