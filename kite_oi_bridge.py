@@ -1010,12 +1010,6 @@ def _dw_worker(watch_id):
             "remaining":  duration - i - 1,
             "sample":     sample,
             "rolling":    rolling,
-            # Raw depth this second — all 5 levels, unfiltered by threshold
-            # Browser uses these to always show the grid from tick 1
-            "depth_now": {
-                "buy":  buy_levels,
-                "sell": sell_levels,
-            },
         }
         try:
             q.put_nowait(json.dumps(event))
