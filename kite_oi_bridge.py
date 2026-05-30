@@ -1350,14 +1350,34 @@ def get_iv():
     valid_rrs = [v for v in rr.values() if v is not None]
     avg_rr    = round(sum(valid_rrs) / len(valid_rrs), 2) if valid_rrs else None
 
-    # Tighter thresholds — valid for 3-min window (sustained move, not a spike)
+    # Signal — 3-min price + skew combined.
+    # When price is flat or history is thin, fall back to skew-only
+    # so a signal fires rather than staying permanently neutral.
     signal = "neutral"
+    signal_basis = "price+skew"
+
     if avg_rr is not None:
-        if   price_chg >  0.3 and avg_rr <  2: signal = "strong_bullish"
-        elif price_chg >  0.3 and avg_rr >= 2: signal = "weak_bullish"
-        elif price_chg < -0.3 and avg_rr >  5: signal = "strong_bearish"
-        elif price_chg < -0.3 and avg_rr <= 5: signal = "short_covering"
-        elif abs(price_chg) <= 0.3 and avg_rr > 6: signal = "tail_hedge"
+        has_price = abs(price_chg) > 0.05   # at least a marginal move
+
+        if has_price:
+            # Full signal: price direction confirmed by skew
+            if   price_chg >  0.3 and avg_rr <  2: signal = "strong_bullish"
+            elif price_chg >  0.3 and avg_rr >= 2: signal = "weak_bullish"
+            elif price_chg < -0.3 and avg_rr >  5: signal = "strong_bearish"
+            elif price_chg < -0.3 and avg_rr <= 5: signal = "short_covering"
+            elif abs(price_chg) <= 0.3 and avg_rr > 6: signal = "tail_hedge"
+        else:
+            # Skew-only: fires when price is flat but skew structure is clear
+            signal_basis = "skew_only"
+            rr10 = rr.get("10")
+            rr25 = rr.get("25")
+            if rr10 is not None and rr25 is not None:
+                divergence = rr10 - rr25
+                if   divergence > 4 and avg_rr > 5: signal = "tail_hedge"
+                elif avg_rr < 1:                    signal = "strong_bullish"
+                elif avg_rr < 3:                    signal = "weak_bullish"
+                elif avg_rr > 7:                    signal = "strong_bearish"
+                elif avg_rr > 4:                    signal = "short_covering"
 
     return jsonify({
         "available":      True,
@@ -1372,6 +1392,7 @@ def get_iv():
         "risk_reversal":  rr,
         "avg_rr":         avg_rr,
         "signal":         signal,
+        "signal_basis":   signal_basis,
     })
 
 
