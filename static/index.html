@@ -498,6 +498,7 @@ tr:last-child td{border-bottom:none;}
   <button class="tab-btn" id="tab-paper-trade-btn" onclick="switchTab('paper-trade')">🤖 Paper Trades</button>
   <button class="tab-btn" id="tab-depth-watch-btn" onclick="switchTab('depth-watch')">🔬 Depth Watch</button>
   <button class="tab-btn" id="tab-iv-skew-btn" onclick="switchTab('iv-skew')">📐 IV Skew</button>
+  <button class="tab-btn" id="tab-iv-history-btn" onclick="switchTab('iv-history')">📈 IV History</button>
   <span class="tab-hint">Move heavy tables away from the main trading view</span>
 </div>
 
@@ -1470,6 +1471,7 @@ tr:last-child td{border-bottom:none;}
   <span>Price Δ: <span class="sval" id="iv-price-chg">—</span></span>
   <span>Avg RR: <span class="sval" id="iv-avg-rr">—</span></span>
   <span>Next refresh: <span class="sval" id="iv-countdown">180</span>s <span style="color:#aaa;font-size:10px;">(3m window)</span></span>
+  <span style="color:#aaa;font-size:11px;">IV avg: <span id="iv-candle-avg-label">3</span>-candle close</span>
   <button class="btn btn-primary" onclick="fetchIV()">Refresh now</button>
 </div>
 
@@ -1480,18 +1482,27 @@ tr:last-child td{border-bottom:none;}
     <div style="font-size:15px;font-weight:500;margin-bottom:4px;" id="iv-signal-title"><span class="badge bn">Waiting…</span></div>
     <div style="font-size:12px;color:#666;" id="iv-signal-desc">Live IV signal will appear here once data is fetched.</div>
   </div>
-  <div style="margin-left:auto;display:flex;gap:20px;">
+  <div style="margin-left:auto;display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
     <div style="text-align:center;">
-      <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">25Δ RR</div>
-      <div style="font-size:18px;font-weight:500;" id="iv-rr-25">—</div>
+      <div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">10Δ RR</div>
+      <div style="font-size:16px;font-weight:500;" id="iv-rr-10">—</div>
     </div>
     <div style="text-align:center;">
-      <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">15Δ RR</div>
-      <div style="font-size:18px;font-weight:500;" id="iv-rr-15">—</div>
+      <div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">15Δ RR</div>
+      <div style="font-size:16px;font-weight:500;" id="iv-rr-15">—</div>
     </div>
     <div style="text-align:center;">
-      <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">10Δ RR</div>
-      <div style="font-size:18px;font-weight:500;" id="iv-rr-20">—</div>
+      <div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">25Δ RR</div>
+      <div style="font-size:16px;font-weight:500;" id="iv-rr-25">—</div>
+    </div>
+    <div style="width:0.5px;background:#eee;align-self:stretch;margin:0 4px;"></div>
+    <div style="text-align:center;">
+      <div style="font-size:9px;color:#534AB7;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">50Δ ATM</div>
+      <div style="font-size:16px;font-weight:500;" id="iv-rr-50">—</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:9px;color:#185FA5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">70Δ ITM</div>
+      <div style="font-size:16px;font-weight:500;" id="iv-rr-70">—</div>
     </div>
   </div>
 </div>
@@ -1499,44 +1510,65 @@ tr:last-child td{border-bottom:none;}
 <!-- Risk reversal bars -->
 <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;">
   <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;">Risk Reversal Bars (Put IV − Call IV)</div>
+  <div style="font-size:10px;color:#aaa;margin-bottom:8px;">OTM skew (used for signal) &nbsp;·&nbsp; <span style="color:#534AB7;">ATM / ITM skew</span></div>
   <div id="iv-rr-bars" style="display:flex;flex-direction:column;gap:10px;">
     <div style="display:flex;align-items:center;gap:10px;font-size:12px;">
-      <span style="width:38px;color:#888;font-weight:500;">25Δ</span>
-      <div style="flex:1;height:8px;background:#f0f0ec;border-radius:4px;position:relative;">
-        <div id="iv-bar-25" style="position:absolute;top:0;height:8px;border-radius:4px;transition:all .4s;"></div>
-        <div style="position:absolute;top:-4px;left:50%;width:1px;height:16px;background:#ddd;"></div>
-      </div>
-      <span style="width:52px;text-align:right;font-weight:500;" id="iv-bar-25-val">—</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px;font-size:12px;">
-      <span style="width:38px;color:#888;font-weight:500;">15Δ</span>
-      <div style="flex:1;height:8px;background:#f0f0ec;border-radius:4px;position:relative;">
-        <div id="iv-bar-15" style="position:absolute;top:0;height:8px;border-radius:4px;transition:all .4s;"></div>
-        <div style="position:absolute;top:-4px;left:50%;width:1px;height:16px;background:#ddd;"></div>
-      </div>
-      <span style="width:52px;text-align:right;font-weight:500;" id="iv-bar-15-val">—</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px;font-size:12px;">
-      <span style="width:38px;color:#888;font-weight:500;">10Δ</span>
+      <span style="width:42px;color:#888;font-weight:500;">10Δ</span>
       <div style="flex:1;height:8px;background:#f0f0ec;border-radius:4px;position:relative;">
         <div id="iv-bar-10" style="position:absolute;top:0;height:8px;border-radius:4px;transition:all .4s;"></div>
         <div style="position:absolute;top:-4px;left:50%;width:1px;height:16px;background:#ddd;"></div>
       </div>
-      <span style="width:52px;text-align:right;font-weight:500;" id="iv-bar-10-val">—</span>
+      <span style="width:56px;text-align:right;font-weight:500;" id="iv-bar-10-val">—</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;font-size:12px;">
+      <span style="width:42px;color:#888;font-weight:500;">15Δ</span>
+      <div style="flex:1;height:8px;background:#f0f0ec;border-radius:4px;position:relative;">
+        <div id="iv-bar-15" style="position:absolute;top:0;height:8px;border-radius:4px;transition:all .4s;"></div>
+        <div style="position:absolute;top:-4px;left:50%;width:1px;height:16px;background:#ddd;"></div>
+      </div>
+      <span style="width:56px;text-align:right;font-weight:500;" id="iv-bar-15-val">—</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;font-size:12px;">
+      <span style="width:42px;color:#888;font-weight:500;">25Δ</span>
+      <div style="flex:1;height:8px;background:#f0f0ec;border-radius:4px;position:relative;">
+        <div id="iv-bar-25" style="position:absolute;top:0;height:8px;border-radius:4px;transition:all .4s;"></div>
+        <div style="position:absolute;top:-4px;left:50%;width:1px;height:16px;background:#ddd;"></div>
+      </div>
+      <span style="width:56px;text-align:right;font-weight:500;" id="iv-bar-25-val">—</span>
+    </div>
+    <div style="height:0.5px;background:#eee;margin:2px 0;"></div>
+    <div style="display:flex;align-items:center;gap:10px;font-size:12px;">
+      <span style="width:42px;color:#534AB7;font-weight:500;">50Δ</span>
+      <div style="flex:1;height:8px;background:#f0f0ec;border-radius:4px;position:relative;">
+        <div id="iv-bar-50" style="position:absolute;top:0;height:8px;border-radius:4px;transition:all .4s;"></div>
+        <div style="position:absolute;top:-4px;left:50%;width:1px;height:16px;background:#ddd;"></div>
+      </div>
+      <span style="width:56px;text-align:right;font-weight:500;" id="iv-bar-50-val">—</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;font-size:12px;">
+      <span style="width:42px;color:#185FA5;font-weight:500;">70Δ</span>
+      <div style="flex:1;height:8px;background:#f0f0ec;border-radius:4px;position:relative;">
+        <div id="iv-bar-70" style="position:absolute;top:0;height:8px;border-radius:4px;transition:all .4s;"></div>
+        <div style="position:absolute;top:-4px;left:50%;width:1px;height:16px;background:#ddd;"></div>
+      </div>
+      <span style="width:56px;text-align:right;font-weight:500;" id="iv-bar-70-val">—</span>
     </div>
   </div>
 </div>
 
-<!-- Delta level detail cards -->
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;" id="iv-delta-cards">
-  <!-- populated by JS -->
+<!-- Delta level detail cards — OTM row + ATM/ITM row -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:8px;" id="iv-delta-cards-otm">
+  <!-- populated by JS: 10Δ 15Δ 25Δ -->
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;" id="iv-delta-cards-itm">
+  <!-- populated by JS: 50Δ 70Δ -->
 </div>
 
 <!-- Per-minute log table -->
 <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
     <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;">Per-minute log (auto-fills every 60s)</div>
-    <button class="btn" style="font-size:11px;" onclick="ivHistory=[];renderIVTable();document.getElementById('iv-log-body').innerHTML='<tr><td colspan=8 style=text-align:center;padding:16px;color:#aaa;>Cleared.</td></tr>'">Clear</button>
+    <button class="btn" style="font-size:11px;" onclick="ivHistory=[];renderIVTable();document.getElementById('iv-log-body').innerHTML='<tr><td colspan=10 style=text-align:center;padding:16px;color:#aaa;>Cleared.</td></tr>'">Clear</button>
   </div>
   <div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -1545,15 +1577,17 @@ tr:last-child td{border-bottom:none;}
           <th style="padding:7px 10px;text-align:left;border-bottom:0.5px solid #ddd;color:#888;font-weight:500;font-size:11px;white-space:nowrap;">Time</th>
           <th style="padding:7px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-weight:500;font-size:11px;white-space:nowrap;">Spot</th>
           <th style="padding:7px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-weight:500;font-size:11px;white-space:nowrap;">Price Δ% (3m)</th>
-          <th style="padding:7px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-weight:500;font-size:11px;white-space:nowrap;">25Δ RR</th>
-          <th style="padding:7px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-weight:500;font-size:11px;white-space:nowrap;">15Δ RR</th>
           <th style="padding:7px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-weight:500;font-size:11px;white-space:nowrap;">10Δ RR</th>
+          <th style="padding:7px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-weight:500;font-size:11px;white-space:nowrap;">15Δ RR</th>
+          <th style="padding:7px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-weight:500;font-size:11px;white-space:nowrap;">25Δ RR</th>
+          <th style="padding:7px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#534AB7;font-weight:500;font-size:11px;white-space:nowrap;">50Δ ATM</th>
+          <th style="padding:7px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#185FA5;font-weight:500;font-size:11px;white-space:nowrap;">70Δ ITM</th>
           <th style="padding:7px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-weight:500;font-size:11px;white-space:nowrap;">5m avg RR</th>
           <th style="padding:7px 10px;text-align:left;border-bottom:0.5px solid #ddd;color:#888;font-weight:500;font-size:11px;white-space:nowrap;">Signal</th>
         </tr>
       </thead>
       <tbody id="iv-log-body">
-        <tr><td colspan="8" style="text-align:center;padding:24px;color:#aaa;font-size:12px;">Waiting for first IV fetch…</td></tr>
+        <tr><td colspan="10" style="text-align:center;padding:24px;color:#aaa;font-size:12px;">Waiting for first IV fetch…</td></tr>
       </tbody>
     </table>
   </div>
@@ -1582,6 +1616,94 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 </div><!-- end tab-iv-skew-panel -->
+
+<!-- ══════════════════════════════════════════════════════════════════
+     IV HISTORY TAB — pulls from /iv/history for any date
+════════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-iv-history-panel">
+
+<div class="date-bar" style="margin-bottom:12px;">
+  <label>Date:</label>
+  <input type="date" id="ivh-date-picker">
+  <button class="btn btn-primary" onclick="fetchIVHistory()">Load</button>
+  <button class="btn" onclick="fetchIVHistory('today')">Today</button>
+  <span style="color:#aaa;font-size:11px;" id="ivh-status">Select a date and click Load.</span>
+  <div style="flex:1;"></div>
+  <label style="font-size:11px;color:#888;">
+    <input type="checkbox" id="ivh-include-strikes" style="margin-right:4px;">
+    Include per-strike IV
+  </label>
+</div>
+
+<!-- Summary cards -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px;" id="ivh-summary-cards">
+  <div style="background:var(--color-background-secondary);border-radius:8px;padding:12px;">
+    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Rows loaded</div>
+    <div style="font-size:22px;font-weight:500;" id="ivh-row-count">—</div>
+  </div>
+  <div style="background:var(--color-background-secondary);border-radius:8px;padding:12px;">
+    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Avg RR (OTM)</div>
+    <div style="font-size:22px;font-weight:500;" id="ivh-avg-rr-day">—</div>
+  </div>
+  <div style="background:var(--color-background-secondary);border-radius:8px;padding:12px;">
+    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Max 10Δ RR</div>
+    <div style="font-size:22px;font-weight:500;" id="ivh-max-rr10">—</div>
+  </div>
+  <div style="background:var(--color-background-secondary);border-radius:8px;padding:12px;">
+    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Min 25Δ RR</div>
+    <div style="font-size:22px;font-weight:500;" id="ivh-min-rr25">—</div>
+  </div>
+  <div style="background:var(--color-background-secondary);border-radius:8px;padding:12px;">
+    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">50Δ ATM range</div>
+    <div style="font-size:22px;font-weight:500;" id="ivh-atm-range">—</div>
+  </div>
+</div>
+
+<!-- RR chart -->
+<div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;">
+  <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Risk Reversal over the day</div>
+  <div style="font-size:11px;color:#aaa;margin-bottom:10px;">10Δ · 25Δ · 50Δ ATM — put IV minus call IV at each candle close</div>
+  <div style="position:relative;height:220px;">
+    <canvas id="ivh-rr-chart" role="img" aria-label="IV Risk Reversal chart over the trading day"></canvas>
+  </div>
+</div>
+
+<!-- ATM IV chart -->
+<div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;">
+  <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">ATM IV over the day</div>
+  <div style="font-size:11px;color:#aaa;margin-bottom:10px;">50Δ Call IV vs 50Δ Put IV — divergence shows skew direction</div>
+  <div style="position:relative;height:200px;">
+    <canvas id="ivh-atm-chart" role="img" aria-label="ATM IV chart"></canvas>
+  </div>
+</div>
+
+<!-- Full per-minute table -->
+<div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;">
+  <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Per-minute IV log</div>
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="background:#f8f8f5;">
+          <th style="padding:6px 10px;text-align:left;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">Time</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">Spot</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">10Δ RR</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">15Δ RR</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">25Δ RR</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#534AB7;font-size:11px;font-weight:500;">50Δ ATM</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#185FA5;font-size:11px;font-weight:500;">70Δ ITM</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">ATM CE IV</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">ATM PE IV</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">Avg RR</th>
+        </tr>
+      </thead>
+      <tbody id="ivh-table-body">
+        <tr><td colspan="10" style="text-align:center;padding:24px;color:#aaa;">Select a date and click Load.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- end tab-iv-history-panel -->
 
 <script>
 // ═══════════════════════════════════════════════════════════════
@@ -1986,7 +2108,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 function switchTab(tabName) {
-  ['dashboard', 'option-chain', 'oi-movers', 'oi-change', 'paper-trade', 'depth-watch', 'iv-skew'].forEach(name => {
+  ['dashboard', 'option-chain', 'oi-movers', 'oi-change', 'paper-trade', 'depth-watch', 'iv-skew', 'iv-history'].forEach(name => {
     const panel = document.getElementById('tab-' + name + '-panel');
     const btn = document.getElementById('tab-' + name + '-btn');
     const active = name === tabName;
@@ -2017,6 +2139,11 @@ function switchTab(tabName) {
   }
   if (tabName === 'iv-skew') {
     fetchIV();
+  }
+  if (tabName === 'iv-history') {
+    const picker = document.getElementById('ivh-date-picker');
+    if (picker && !picker.value) picker.value = todayIST();
+    fetchIVHistory();
   }
 }
 
@@ -5515,39 +5642,52 @@ function renderRRBar(barId, valId, rr) {
   else         { bar.style.right = '50%'; bar.style.left = ''; }
 }
 
+function _buildDeltaCard(lv, skew, accentColor) {
+  const d   = skew[lv.key] || {};
+  const rr  = (d.put_iv != null && d.call_iv != null) ? (d.put_iv - d.call_iv).toFixed(1) : null;
+  const col = rrColor(rr != null ? parseFloat(rr) : null);
+  const n   = d.put_iv_n || d.call_iv_n || 0;
+  const border = (rr != null && Math.abs(parseFloat(rr)) > 6) ? `border:0.5px solid ${col};` : 'border:0.5px solid #ddd;';
+  return `<div style="background:#fff;${border}border-radius:10px;padding:12px;">
+    <div style="font-size:11px;font-weight:500;color:${accentColor || '#888'};margin-bottom:4px;">${lv.label}</div>
+    <div style="font-size:10px;color:#aaa;margin-bottom:8px;line-height:1.5;">${lv.hint}</div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+      <span style="color:#D85A30;">Put IV</span>
+      <span style="font-weight:500;">${d.put_iv != null ? d.put_iv.toFixed(1)+'%' : '—'}${n ? ` <span style="color:#aaa;font-size:9px;">(${n}c)</span>` : ''}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+      <span style="color:#1D9E75;">Call IV</span>
+      <span style="font-weight:500;">${d.call_iv != null ? d.call_iv.toFixed(1)+'%' : '—'}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+      <span style="color:#888;">Put K</span><span>${d.put_strike != null ? d.put_strike.toLocaleString('en-IN') : '—'}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:8px;">
+      <span style="color:#888;">Call K</span><span>${d.call_strike != null ? d.call_strike.toLocaleString('en-IN') : '—'}</span>
+    </div>
+    <div style="border-top:0.5px solid #eee;padding-top:7px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:10px;color:#888;">RR</span>
+      <span style="font-size:15px;font-weight:500;color:${col};">${rr != null ? (parseFloat(rr)>=0?'+':'')+rr+'%' : '—'}</span>
+    </div>
+  </div>`;
+}
+
 function renderIVDeltaCards(skew) {
-  const box = document.getElementById('iv-delta-cards');
-  if (!box) return;
-  const levels = [
-    { label: '25Δ — Near-term sentiment', key: '25', hint: 'Reprices almost instantly with spot. Fastest signal.' },
-    { label: '15Δ — Institution hedge',   key: '15', hint: 'Divergence from 25Δ = someone positioning for a larger swing.' },
+  const otmBox = document.getElementById('iv-delta-cards-otm');
+  const itmBox = document.getElementById('iv-delta-cards-itm');
+
+  const otmLevels = [
     { label: '10Δ — Crash protection',    key: '10', hint: 'Should move slowly. Sudden spike = tail risk being priced in.' },
+    { label: '15Δ — Institution hedge',   key: '15', hint: 'Divergence from 25Δ = someone sizing for a larger swing.' },
+    { label: '25Δ — Near-term sentiment', key: '25', hint: 'Most liquid OTM level. Reprices almost instantly with spot.' },
   ];
-  box.innerHTML = levels.map(lv => {
-    const d = skew[lv.key] || {};
-    const rr = (d.put_iv != null && d.call_iv != null) ? (d.put_iv - d.call_iv).toFixed(1) : null;
-    const col = rrColor(rr != null ? parseFloat(rr) : null);
-    return `<div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:14px;">
-      <div style="font-size:11px;color:#888;margin-bottom:8px;">${lv.label}</div>
-      <div style="font-size:10px;color:#aaa;margin-bottom:10px;line-height:1.5;">${lv.hint}</div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
-        <span style="color:#D85A30;">Put IV</span><span style="font-weight:500;">${d.put_iv != null ? d.put_iv.toFixed(1)+'%' : '—'}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
-        <span style="color:#1D9E75;">Call IV</span><span style="font-weight:500;">${d.call_iv != null ? d.call_iv.toFixed(1)+'%' : '—'}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
-        <span style="color:#888;">Put strike</span><span>${d.put_strike != null ? d.put_strike.toLocaleString('en-IN') : '—'}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:10px;">
-        <span style="color:#888;">Call strike</span><span>${d.call_strike != null ? d.call_strike.toLocaleString('en-IN') : '—'}</span>
-      </div>
-      <div style="border-top:0.5px solid #eee;padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-size:11px;color:#888;">Risk Reversal</span>
-        <span style="font-size:16px;font-weight:500;color:${col};">${rr != null ? (parseFloat(rr)>=0?'+':'')+rr+'%' : '—'}</span>
-      </div>
-    </div>`;
-  }).join('');
+  const itmLevels = [
+    { label: '50Δ — ATM skew',  key: '50', hint: 'Earliest sign of sentiment flip. Highest liquidity. Negative = calls pricier than puts.' },
+    { label: '70Δ — ITM skew',  key: '70', hint: 'Institutional directional positioning. Rising = big players paying up for high-delta puts.' },
+  ];
+
+  if (otmBox) otmBox.innerHTML = otmLevels.map(lv => _buildDeltaCard(lv, skew, '#888')).join('');
+  if (itmBox) itmBox.innerHTML = itmLevels.map((lv, i) => _buildDeltaCard(lv, skew, i === 0 ? '#534AB7' : '#185FA5')).join('');
 }
 
 function renderIVMap(ivMap) {
@@ -5579,20 +5719,24 @@ function renderIVTable() {
   if (!tbody || !ivHistory.length) return;
   const rows = [...ivHistory].reverse();
   tbody.innerHTML = rows.map((r, i) => {
-    const avg5 = ivHistory.slice(Math.max(0, ivHistory.length - 5 - i), ivHistory.length - i)
-      .reduce((s, x) => s + ((x.rr25 || 0) + (x.rr15 || 0) + (x.rr10 || 0)) / 3, 0) /
-      Math.min(5, Math.max(1, ivHistory.length - i));
+    const histSlice = ivHistory.slice(Math.max(0, ivHistory.length - 5 - i), ivHistory.length - i);
+    const avg5 = histSlice.length
+      ? histSlice.reduce((s, x) => s + ((x.rr10||0) + (x.rr15||0) + (x.rr25||0)) / 3, 0) / histSlice.length
+      : 0;
     const priceCol = r.pricePct > 0 ? '#1D9E75' : r.pricePct < 0 ? '#D85A30' : '#888';
     const sig = IV_SIGNAL_META[r.signal] || IV_SIGNAL_META.neutral;
+    const basisTag = r.basis === 'skew_only' ? ' <span style="font-size:9px;color:#aaa;">skew</span>' : '';
     return `<tr>
-      <td style="padding:7px 10px;border-bottom:0.5px solid #eee;font-variant-numeric:tabular-nums;font-size:11px;color:#888;">${r.time}</td>
-      <td style="padding:7px 10px;border-bottom:0.5px solid #eee;text-align:right;font-variant-numeric:tabular-nums;">${r.spot ? r.spot.toLocaleString('en-IN') : '—'}</td>
-      <td style="padding:7px 10px;border-bottom:0.5px solid #eee;text-align:right;font-weight:500;color:${priceCol};">${r.pricePct != null ? (r.pricePct >= 0 ? '+' : '') + r.pricePct.toFixed(2) + '%' : '—'}</td>
-      <td style="padding:7px 10px;border-bottom:0.5px solid #eee;text-align:right;color:${rrColor(r.rr25)};font-weight:500;">${fmtRR(r.rr25)}</td>
-      <td style="padding:7px 10px;border-bottom:0.5px solid #eee;text-align:right;color:${rrColor(r.rr15)};">${fmtRR(r.rr15)}</td>
-      <td style="padding:7px 10px;border-bottom:0.5px solid #eee;text-align:right;color:${rrColor(r.rr10)};">${fmtRR(r.rr10)}</td>
-      <td style="padding:7px 10px;border-bottom:0.5px solid #eee;text-align:right;color:#888;">${fmtRR(avg5)}</td>
-      <td style="padding:7px 10px;border-bottom:0.5px solid #eee;"><span class="badge ${sig.cls}">${sig.label}</span></td>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #eee;font-variant-numeric:tabular-nums;font-size:11px;color:#888;">${r.time}</td>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #eee;text-align:right;font-variant-numeric:tabular-nums;">${r.spot ? r.spot.toLocaleString('en-IN') : '—'}</td>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #eee;text-align:right;font-weight:500;color:${priceCol};">${r.pricePct != null ? (r.pricePct >= 0 ? '+' : '') + r.pricePct.toFixed(2) + '%' : '—'}</td>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #eee;text-align:right;color:${rrColor(r.rr10)};font-weight:500;">${fmtRR(r.rr10)}</td>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #eee;text-align:right;color:${rrColor(r.rr15)};">${fmtRR(r.rr15)}</td>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #eee;text-align:right;color:${rrColor(r.rr25)};">${fmtRR(r.rr25)}</td>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #eee;text-align:right;color:#534AB7;">${fmtRR(r.rr50)}</td>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #eee;text-align:right;color:#185FA5;">${fmtRR(r.rr70)}</td>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #eee;text-align:right;color:#888;">${avg5 ? fmtRR(parseFloat(avg5.toFixed(1))) : '—'}</td>
+      <td style="padding:6px 10px;border-bottom:0.5px solid #eee;"><span class="badge ${sig.cls}">${sig.label}</span>${basisTag}</td>
     </tr>`;
   }).join('');
 }
@@ -5632,13 +5776,19 @@ async function fetchIV() {
       arrEl.style.color = rrColor(data.avg_rr);
     }
 
-    // Summary RR values in signal bar
+    // Summary RR values in signal bar — all 5 delta levels
     const rr = data.risk_reversal || {};
-    document.getElementById('iv-rr-25') && (document.getElementById('iv-rr-25').textContent = fmtRR(rr['25']));
-    document.getElementById('iv-rr-15') && (document.getElementById('iv-rr-15').textContent = fmtRR(rr['15']));
-    document.getElementById('iv-rr-20') && (document.getElementById('iv-rr-20').textContent = fmtRR(rr['10']));
-    [document.getElementById('iv-rr-25'), document.getElementById('iv-rr-15'), document.getElementById('iv-rr-20')]
-      .forEach((el, i) => { if (el) el.style.color = rrColor([rr['25'], rr['15'], rr['10']][i]); });
+    const rrIds = { '10':'iv-rr-10','15':'iv-rr-15','25':'iv-rr-25','50':'iv-rr-50','70':'iv-rr-70' };
+    Object.entries(rrIds).forEach(([key, id]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = fmtRR(rr[key]);
+      el.style.color = rrColor(rr[key]);
+    });
+
+    // iv_candle_avg label
+    const avgLbl = document.getElementById('iv-candle-avg-label');
+    if (avgLbl && data.iv_candle_avg) avgLbl.textContent = data.iv_candle_avg;
 
     // Signal box
     const sig = IV_SIGNAL_META[data.signal] || IV_SIGNAL_META.neutral;
@@ -5655,10 +5805,12 @@ async function fetchIV() {
       sigBox.style.borderRadius = '10px';
     }
 
-    // RR bars
-    renderRRBar('iv-bar-25', 'iv-bar-25-val', rr['25']);
-    renderRRBar('iv-bar-15', 'iv-bar-15-val', rr['15']);
+    // RR bars — all 5 delta levels
     renderRRBar('iv-bar-10', 'iv-bar-10-val', rr['10']);
+    renderRRBar('iv-bar-15', 'iv-bar-15-val', rr['15']);
+    renderRRBar('iv-bar-25', 'iv-bar-25-val', rr['25']);
+    renderRRBar('iv-bar-50', 'iv-bar-50-val', rr['50']);
+    renderRRBar('iv-bar-70', 'iv-bar-70-val', rr['70']);
 
     // Delta cards
     renderIVDeltaCards(data.skew || {});
@@ -5671,11 +5823,15 @@ async function fetchIV() {
       time:     data.as_of,
       spot:     data.spot,
       pricePct: data.price_chg_pct,
-      rr25:     rr['25'],
-      rr15:     rr['15'],
       rr10:     rr['10'],
+      rr15:     rr['15'],
+      rr25:     rr['25'],
+      rr50:     rr['50'],
+      rr70:     rr['70'],
       avgRr:    data.avg_rr,
+      avgRrAll: data.avg_rr_all,
       signal:   data.signal,
+      basis:    data.signal_basis,
     });
     if (ivHistory.length > 80) ivHistory.shift();
     renderIVTable();
@@ -5697,6 +5853,169 @@ setInterval(() => {
     if (!pollingSuspended) fetchIV();
   }
 }, 1000);
+
+// ══════════════════════════════════════════════════════════════════
+// IV HISTORY TAB
+// ══════════════════════════════════════════════════════════════════
+
+let ivhRRChart  = null;
+let ivhATMChart = null;
+
+function ivhFmtRR(v) {
+  if (v == null) return '—';
+  return (v >= 0 ? '+' : '') + parseFloat(v).toFixed(1) + '%';
+}
+function ivhRRColor(v) {
+  if (v == null) return '#888';
+  if (v > 6)  return '#D85A30';
+  if (v > 2)  return '#EF9F27';
+  if (v < -2) return '#1D9E75';
+  return '#888';
+}
+
+async function fetchIVHistory(mode) {
+  const statusEl = document.getElementById('ivh-status');
+  const picker   = document.getElementById('ivh-date-picker');
+  const strikes  = document.getElementById('ivh-include-strikes')?.checked ? '1' : '0';
+
+  let dateStr = mode === 'today' ? todayIST() : (picker?.value || todayIST());
+  if (picker && mode === 'today') picker.value = todayIST();
+  if (statusEl) statusEl.textContent = 'Loading…';
+
+  try {
+    const res  = await fetch(`/iv/history?date=${dateStr}&strikes=${strikes}`);
+    const rows = await res.json();
+
+    if (!Array.isArray(rows) || !rows.length) {
+      if (statusEl) statusEl.textContent = `No IV data for ${dateStr}. Data is saved from the current session onwards.`;
+      document.getElementById('ivh-table-body').innerHTML =
+        '<tr><td colspan="10" style="text-align:center;padding:24px;color:#aaa;">No IV data for this date.</td></tr>';
+      ['ivh-row-count','ivh-avg-rr-day','ivh-max-rr10','ivh-min-rr25','ivh-atm-range']
+        .forEach(id => { const el=document.getElementById(id); if(el) el.textContent='—'; });
+      return;
+    }
+
+    if (statusEl) statusEl.textContent = `${rows.length} candles loaded for ${dateStr}`;
+
+    // Summary stats
+    const validRR    = rows.filter(r => r.iv_avg_rr != null).map(r => r.iv_avg_rr);
+    const validRR10  = rows.filter(r => r.iv_rr_10  != null).map(r => r.iv_rr_10);
+    const validRR25  = rows.filter(r => r.iv_rr_25  != null).map(r => r.iv_rr_25);
+    const atmCeVals  = rows.filter(r => r.iv_atm_ce != null).map(r => r.iv_atm_ce);
+    const atmPeVals  = rows.filter(r => r.iv_atm_pe != null).map(r => r.iv_atm_pe);
+
+    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    setEl('ivh-row-count',  rows.length);
+    setEl('ivh-avg-rr-day', validRR.length  ? ivhFmtRR(validRR.reduce((a,b)=>a+b,0)/validRR.length) : '—');
+    setEl('ivh-max-rr10',   validRR10.length ? ivhFmtRR(Math.max(...validRR10)) : '—');
+    setEl('ivh-min-rr25',   validRR25.length ? ivhFmtRR(Math.min(...validRR25)) : '—');
+
+    if (atmCeVals.length && atmPeVals.length) {
+      const atm_lo = Math.min(...[...atmCeVals,...atmPeVals]).toFixed(1);
+      const atm_hi = Math.max(...[...atmCeVals,...atmPeVals]).toFixed(1);
+      setEl('ivh-atm-range', `${atm_lo}–${atm_hi}%`);
+    } else {
+      setEl('ivh-atm-range', '—');
+    }
+
+    // Color summary cards by direction
+    const avgRrEl = document.getElementById('ivh-avg-rr-day');
+    if (avgRrEl && validRR.length) {
+      const avg = validRR.reduce((a,b)=>a+b,0)/validRR.length;
+      avgRrEl.style.color = avg > 3 ? '#D85A30' : avg < -1 ? '#1D9E75' : '#1a1a1a';
+    }
+
+    // RR chart
+    const labels = rows.map(r => r.time_label || '');
+    const rr10d  = rows.map(r => r.iv_rr_10  ?? null);
+    const rr25d  = rows.map(r => r.iv_rr_25  ?? null);
+    const rr50d  = rows.map(r => r.iv_rr_50  ?? null);
+
+    if (ivhRRChart)  { ivhRRChart.destroy();  ivhRRChart  = null; }
+    if (ivhATMChart) { ivhATMChart.destroy(); ivhATMChart = null; }
+
+    const rrCanvas = document.getElementById('ivh-rr-chart');
+    if (rrCanvas) {
+      ivhRRChart = new Chart(rrCanvas, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: '10Δ RR', data: rr10d, borderColor: '#D85A30', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, spanGaps: true },
+            { label: '25Δ RR', data: rr25d, borderColor: '#EF9F27', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, spanGaps: true },
+            { label: '50Δ ATM', data: rr50d, borderColor: '#534AB7', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, borderDash: [4,3], spanGaps: true },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: true, labels: { boxWidth: 12, font: { size: 10 } } } },
+          scales: {
+            x: { ticks: { color: '#888', font: { size: 10 }, maxRotation: 0,
+                  callback: (v, i) => i % Math.max(1, Math.ceil(labels.length/12)) === 0 ? labels[i] : '' } },
+            y: { ticks: { color: '#888', font: { size: 10 },
+                  callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%' },
+                 grid: { color: 'rgba(136,135,128,0.1)' } }
+          },
+          animation: { duration: 300 }
+        }
+      });
+    }
+
+    // ATM IV chart
+    const atmCe = rows.map(r => r.iv_atm_ce ?? null);
+    const atmPe = rows.map(r => r.iv_atm_pe ?? null);
+    const atmCanvas = document.getElementById('ivh-atm-chart');
+    if (atmCanvas) {
+      ivhATMChart = new Chart(atmCanvas, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: 'ATM Call IV', data: atmCe, borderColor: '#1D9E75', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, spanGaps: true },
+            { label: 'ATM Put IV',  data: atmPe, borderColor: '#D85A30', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, spanGaps: true },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: true, labels: { boxWidth: 12, font: { size: 10 } } } },
+          scales: {
+            x: { ticks: { color: '#888', font: { size: 10 }, maxRotation: 0,
+                  callback: (v, i) => i % Math.max(1, Math.ceil(labels.length/12)) === 0 ? labels[i] : '' } },
+            y: { ticks: { color: '#888', font: { size: 10 },
+                  callback: v => v.toFixed(1) + '%' },
+                 grid: { color: 'rgba(136,135,128,0.1)' } }
+          },
+          animation: { duration: 300 }
+        }
+      });
+    }
+
+    // Table
+    const tbody = document.getElementById('ivh-table-body');
+    if (tbody) {
+      tbody.innerHTML = [...rows].reverse().map(r => {
+        return `<tr>
+          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;color:#888;font-size:11px;">${r.time_label || '—'}</td>
+          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;font-variant-numeric:tabular-nums;">${r.spot_close ? r.spot_close.toLocaleString('en-IN') : '—'}</td>
+          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;font-weight:500;color:${ivhRRColor(r.iv_rr_10)};">${ivhFmtRR(r.iv_rr_10)}</td>
+          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;color:${ivhRRColor(r.iv_rr_15)};">${ivhFmtRR(r.iv_rr_15)}</td>
+          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;color:${ivhRRColor(r.iv_rr_25)};">${ivhFmtRR(r.iv_rr_25)}</td>
+          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;color:#534AB7;">${ivhFmtRR(r.iv_rr_50)}</td>
+          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;color:#185FA5;">${ivhFmtRR(r.iv_rr_70)}</td>
+          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;">${r.iv_atm_ce != null ? r.iv_atm_ce.toFixed(1)+'%' : '—'}</td>
+          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;">${r.iv_atm_pe != null ? r.iv_atm_pe.toFixed(1)+'%' : '—'}</td>
+          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;color:${ivhRRColor(r.iv_avg_rr)};font-weight:500;">${ivhFmtRR(r.iv_avg_rr)}</td>
+        </tr>`;
+      }).join('');
+    }
+
+  } catch(e) {
+    if (statusEl) statusEl.textContent = 'Error loading IV history: ' + e.message;
+  }
+}
+
+// Trigger fetchIVHistory when switching to this tab
+// (handled in switchTab below)
 
 // ── TIMERS ────────────────────────────────────────────────────────
 let cdOI=POLL_OI_SEC, cdHX=POLL_HX_SEC;
@@ -5726,6 +6045,9 @@ fetchOI().then(()=>fetchHistory());
 fetchLTP();
 fetchLiveCandle();
 fetchIV();
+// Pre-fill IV history date picker
+const _ivhPicker = document.getElementById('ivh-date-picker');
+if (_ivhPicker) _ivhPicker.value = todayIST();
 </script>
 </body>
 </html>
