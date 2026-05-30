@@ -61,11 +61,116 @@ def is_market_open(dt=None):
     close_mins = MARKET_CLOSE_HM[0] * 60 + MARKET_CLOSE_HM[1]
     return open_mins <= mins < close_mins
 
+import math
 import psycopg2
 import psycopg2.extras
 from flask import Flask, jsonify, request, send_from_directory, Response
 from flask_cors import CORS
 from kiteconnect import KiteTicker, KiteConnect
+
+
+# ── BLACK-SCHOLES IV ──────────────────────────────────────────────────────────
+
+def _norm_cdf(x):
+    """Standard normal CDF via math.erfc (no scipy needed)."""
+    return 0.5 * math.erfc(-x / math.sqrt(2))
+
+def _bs_price(S, K, T, r, sigma, opt_type):
+    """Black-Scholes option price. opt_type: 'CE' or 'PE'."""
+    if T <= 0 or sigma <= 0:
+        return max(0.0, (S - K) if opt_type == "CE" else (K - S))
+    d1 = (math.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * math.sqrt(T))
+    d2 = d1 - sigma * math.sqrt(T)
+    if opt_type == "CE":
+        return S * _norm_cdf(d1) - K * math.exp(-r * T) * _norm_cdf(d2)
+    else:
+        return K * math.exp(-r * T) * _norm_cdf(-d2) - S * _norm_cdf(-d1)
+
+def _bs_delta(S, K, T, r, sigma, opt_type):
+    """Black-Scholes delta (always returned as a positive value 0–1)."""
+    if T <= 0 or sigma <= 0:
+        return 0.0
+    d1 = (math.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * math.sqrt(T))
+    raw = _norm_cdf(d1)
+    return raw if opt_type == "CE" else abs(raw - 1)
+
+def compute_iv(S, K, T, r, market_price, opt_type, tol=1e-5, max_iter=100):
+    """
+    Implied volatility via bisection.
+    Returns IV as a decimal (0.20 = 20%) or None if no solution found.
+    """
+    if market_price <= 0 or T <= 0 or S <= 0 or K <= 0:
+        return None
+    intrinsic = max(0.0, (S - K) if opt_type == "CE" else (K - S))
+    if market_price <= intrinsic + 0.01:
+        return None
+    lo, hi = 0.001, 5.0
+    for _ in range(max_iter):
+        mid = (lo + hi) / 2
+        price = _bs_price(S, K, T, r, mid, opt_type)
+        if abs(price - market_price) < tol:
+            return mid
+        if price < market_price:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+def compute_iv_snapshot():
+    """
+    Compute IV and delta for every tracked strike using current LTPs.
+    Returns dict keyed by role_key: {strike, type, ltp, iv (%), delta}.
+    """
+    RISK_FREE = 0.065   # approximate RBI repo rate annualised
+
+    with state_lock:
+        spot       = state["spot"]
+        expiry_str = state["expiry_date"]
+        tokens     = dict(state["tokens"])
+        oi_snap    = dict(state["oi"])
+
+    if not spot or not expiry_str:
+        return {}
+
+    try:
+        from datetime import date as _date
+        today      = now_ist().date()
+        expiry     = _date.fromisoformat(expiry_str[:10])
+        days_left  = max(0, (expiry - today).days)
+    except Exception:
+        return {}
+
+    T = max(days_left / 365.0, 1 / 365.0)   # floor at 1 day to avoid T=0 on expiry day
+
+    result = {}
+    for token, meta in tokens.items():
+        ltp = oi_snap.get(token, {}).get("ltp", 0)
+        if not ltp or ltp <= 0:
+            continue
+        K        = float(meta["strike"])
+        opt_type = meta["instrument_type"]   # "CE" or "PE"
+        iv = compute_iv(float(spot), K, T, RISK_FREE, float(ltp), opt_type)
+        if iv is None:
+            continue
+        delta = _bs_delta(float(spot), K, T, RISK_FREE, iv, opt_type)
+        result[meta["role_key"]] = {
+            "strike": int(K),
+            "type":   opt_type,
+            "ltp":    round(ltp, 2),
+            "iv":     round(iv * 100, 2),
+            "delta":  round(delta, 3),
+        }
+    return result
+
+def _find_by_delta(iv_map, target_delta, opt_type, tolerance=0.06):
+    """Return the iv_map entry closest to target_delta for a given opt_type."""
+    candidates = [
+        v for v in iv_map.values()
+        if v["type"] == opt_type and abs(v["delta"] - target_delta) <= tolerance
+    ]
+    if not candidates:
+        return None
+    return min(candidates, key=lambda x: abs(x["delta"] - target_delta))
 
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
@@ -1170,6 +1275,104 @@ def dw_result(watch_id):
         return jsonify({"status": "still_running",
                         "watch_id": watch_id}), 202
     return jsonify(w["result"])
+
+
+@app.route("/iv")
+def get_iv():
+    """
+    Live IV snapshot: per-strike IV + delta, delta-based risk reversals
+    at 25D / 15D / 10D, and a directional signal.
+    """
+    iv_map = compute_iv_snapshot()
+
+    with state_lock:
+        spot       = state["spot"]
+        expiry_str = state["expiry_date"]
+        spot_open  = minute_buffer.get("spot_open")
+        spot_close = minute_buffer.get("spot_close")
+
+    if not iv_map or not spot:
+        return jsonify({"available": False, "reason": "IV data not ready — waiting for LTPs"})
+
+    dte = None
+    if expiry_str:
+        try:
+            from datetime import date as _date
+            dte = max(0, (_date.fromisoformat(expiry_str[:10]) - now_ist().date()).days)
+        except Exception:
+            pass
+
+    # 3-minute price change — look back 3 completed 1-min rows in oi_history.
+    # Falls back to current candle open->close if fewer than 3 rows exist yet.
+    price_chg = 0.0
+    price_window = "3m"
+    try:
+        history_rows = list(oi_history)
+        if len(history_rows) >= 3:
+            ref = history_rows[-3]
+            ref_spot = ref.get("spot_close") or ref.get("spot")
+            if ref_spot and ref_spot > 0:
+                price_chg = round((spot - ref_spot) / ref_spot * 100, 3)
+        elif len(history_rows) >= 1:
+            ref = history_rows[0]
+            ref_spot = ref.get("spot_close") or ref.get("spot")
+            if ref_spot and ref_spot > 0:
+                price_chg = round((spot - ref_spot) / ref_spot * 100, 3)
+                price_window = f"{len(history_rows)}m"
+        elif spot_open and spot_open > 0:
+            price_chg = round(((spot_close or spot) - spot_open) / spot_open * 100, 3)
+            price_window = "1m"
+    except Exception:
+        pass
+
+    DELTA_LEVELS = [("25", 0.25), ("15", 0.15), ("10", 0.10)]
+    skew = {}
+    rr   = {}
+
+    for label, target in DELTA_LEVELS:
+        put_entry  = _find_by_delta(iv_map, target, "PE")
+        call_entry = _find_by_delta(iv_map, target, "CE")
+        skew[label] = {
+            "put_iv":     put_entry["iv"]      if put_entry  else None,
+            "call_iv":    call_entry["iv"]     if call_entry else None,
+            "put_delta":  put_entry["delta"]   if put_entry  else None,
+            "call_delta": call_entry["delta"]  if call_entry else None,
+            "put_strike": put_entry["strike"]  if put_entry  else None,
+            "call_strike":call_entry["strike"] if call_entry else None,
+            "put_ltp":    put_entry["ltp"]     if put_entry  else None,
+            "call_ltp":   call_entry["ltp"]    if call_entry else None,
+        }
+        if put_entry and call_entry:
+            rr[label] = round(put_entry["iv"] - call_entry["iv"], 2)
+        else:
+            rr[label] = None
+
+    valid_rrs = [v for v in rr.values() if v is not None]
+    avg_rr    = round(sum(valid_rrs) / len(valid_rrs), 2) if valid_rrs else None
+
+    # Tighter thresholds — valid for 3-min window (sustained move, not a spike)
+    signal = "neutral"
+    if avg_rr is not None:
+        if   price_chg >  0.3 and avg_rr <  2: signal = "strong_bullish"
+        elif price_chg >  0.3 and avg_rr >= 2: signal = "weak_bullish"
+        elif price_chg < -0.3 and avg_rr >  5: signal = "strong_bearish"
+        elif price_chg < -0.3 and avg_rr <= 5: signal = "short_covering"
+        elif abs(price_chg) <= 0.3 and avg_rr > 6: signal = "tail_hedge"
+
+    return jsonify({
+        "available":      True,
+        "as_of":          now_ist().strftime("%H:%M:%S"),
+        "spot":           round(spot) if spot else None,
+        "expiry_date":    expiry_str,
+        "dte":            dte,
+        "price_chg_pct":  price_chg,
+        "price_window":   price_window,
+        "iv_map":         iv_map,
+        "skew":           skew,
+        "risk_reversal":  rr,
+        "avg_rr":         avg_rr,
+        "signal":         signal,
+    })
 
 
 @app.route("/health")
