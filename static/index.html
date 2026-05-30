@@ -1583,6 +1583,7 @@ tr:last-child td{border-bottom:none;}
 
 </div><!-- end tab-iv-skew-panel -->
 
+<script>
 // ═══════════════════════════════════════════════════════════════
 // DEPTH WATCH — JS  (SSE streaming, up to 10 min)
 // ═══════════════════════════════════════════════════════════════
@@ -5646,7 +5647,8 @@ async function fetchIV() {
     const sigTitle = document.getElementById('iv-signal-title');
     const sigDesc  = document.getElementById('iv-signal-desc');
     if (sigIcon)  sigIcon.textContent  = sig.icon;
-    if (sigTitle) sigTitle.innerHTML   = `<span class="badge ${sig.cls}">${sig.label}</span>`;
+    const basisLabel = data.signal_basis === 'skew_only' ? ' <span style="font-size:10px;color:#aaa;font-weight:400;margin-left:4px;">skew only</span>' : '';
+    if (sigTitle) sigTitle.innerHTML   = `<span class="badge ${sig.cls}">${sig.label}</span>${basisLabel}`;
     if (sigDesc)  sigDesc.textContent  = sig.desc;
     if (sigBox) {
       sigBox.style.borderLeft = `3px solid ${sig.cls === 'bu' || sig.cls === 'bk' ? '#1D9E75' : sig.cls === 'bb' ? '#D85A30' : '#ddd'}`;
