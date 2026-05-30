@@ -116,12 +116,63 @@ def compute_iv(S, K, T, r, market_price, opt_type, tol=1e-5, max_iter=100):
             hi = mid
     return (lo + hi) / 2
 
+def _get_candle_close_ltps(tokens, n_candles):
+    """
+    Return {role_key: [ltp_close_c1, ltp_close_c2, ...]} for the last
+    n_candles completed 1-min rows. Falls back to live LTP when a row
+    doesn't have a close for that strike.
+    """
+    rows = list(oi_history)[-n_candles:] if len(oi_history) >= 1 else []
+    result = {meta["role_key"]: [] for meta in tokens.values()}
+    for row in rows:
+        for token, meta in tokens.items():
+            rk  = meta["role_key"]
+            ltp = (row.get(rk + "_ltp_close") or
+                   row.get(rk + "_ltp") or 0)
+            if ltp > 0:
+                result[rk].append(float(ltp))
+    return result
+
+
+def _get_candle_close_ivs(tokens, n_candles):
+    """
+    Return {role_key: [iv_c1, iv_c2, ...]} from pre-computed iv_close
+    values already stored in oi_history rows.  When iv_close is present
+    we skip re-running Black-Scholes entirely — much faster.
+    Returns None if the rows don't have iv_close yet (first run or
+    rows written before this feature was deployed).
+    """
+    rows = list(oi_history)[-n_candles:] if len(oi_history) >= 1 else []
+    if not rows:
+        return None
+    # Check whether the newest row actually has iv_close data
+    sample_rk = next(iter(tokens.values()))["role_key"] if tokens else None
+    if sample_rk and rows[-1].get(sample_rk + "_iv_close") is None:
+        return None   # rows pre-date this feature — fall back to LTP path
+    result = {meta["role_key"]: [] for meta in tokens.values()}
+    for row in rows:
+        for token, meta in tokens.items():
+            rk = meta["role_key"]
+            iv = row.get(rk + "_iv_close")
+            if iv is not None:
+                result[rk].append(float(iv))
+    return result
+
+
 def compute_iv_snapshot():
     """
-    Compute IV and delta for every tracked strike using current LTPs.
-    Returns dict keyed by role_key: {strike, type, ltp, iv (%), delta}.
+    Compute IV and delta for every tracked strike.
+
+    Method (controlled by IV_CANDLE_AVG env var, default 3):
+      1. Pull LTP closes from the last IV_CANDLE_AVG completed 1-min candles.
+      2. Compute Black-Scholes IV for each candle-close LTP.
+      3. Average the IVs — smooths out spike candles.
+      4. Fall back to live LTP when fewer than IV_CANDLE_AVG candles exist.
+
+    Returns dict keyed by role_key:
+      {strike, type, ltp (latest), iv (% avg), iv_samples (list), delta}
     """
-    RISK_FREE = 0.065   # approximate RBI repo rate annualised
+    RISK_FREE = 0.065
 
     with state_lock:
         spot       = state["spot"]
@@ -134,31 +185,64 @@ def compute_iv_snapshot():
 
     try:
         from datetime import date as _date
-        today      = now_ist().date()
-        expiry     = _date.fromisoformat(expiry_str[:10])
-        days_left  = max(0, (expiry - today).days)
+        today     = now_ist().date()
+        expiry    = _date.fromisoformat(expiry_str[:10])
+        days_left = max(0, (expiry - today).days)
     except Exception:
         return {}
 
-    T = max(days_left / 365.0, 1 / 365.0)   # floor at 1 day to avoid T=0 on expiry day
+    T = max(days_left / 365.0, 1 / 365.0)
+    S = float(spot)
+
+    # Try to use pre-computed iv_close values from oi_history rows first.
+    # This avoids re-running Black-Scholes on data we already computed.
+    # Falls back to LTP-based computation for rows that pre-date this feature.
+    candle_ivs  = _get_candle_close_ivs(tokens, IV_CANDLE_AVG)
+    candle_ltps = None if candle_ivs is not None else _get_candle_close_ltps(tokens, IV_CANDLE_AVG)
 
     result = {}
     for token, meta in tokens.items():
-        ltp = oi_snap.get(token, {}).get("ltp", 0)
-        if not ltp or ltp <= 0:
-            continue
+        rk       = meta["role_key"]
         K        = float(meta["strike"])
-        opt_type = meta["instrument_type"]   # "CE" or "PE"
-        iv = compute_iv(float(spot), K, T, RISK_FREE, float(ltp), opt_type)
-        if iv is None:
+        opt_type = meta["instrument_type"]
+        live_ltp = float(oi_snap.get(token, {}).get("ltp", 0) or 0)
+
+        if candle_ivs is not None:
+            # Fast path: iv_close already stored — just average them
+            iv_samples = candle_ivs.get(rk, [])
+            if not iv_samples:
+                # Strike not in stored IVs (e.g. just rolled) — compute from live LTP
+                iv_live = compute_iv(S, K, T, RISK_FREE, live_ltp, opt_type) if live_ltp > 0 else None
+                if iv_live is None:
+                    continue
+                iv_samples = [round(iv_live * 100, 2)]
+        else:
+            # Slow path: compute IV from LTP candle closes (legacy rows)
+            ltp_list = (candle_ltps or {}).get(rk, [])
+            if not ltp_list:
+                ltp_list = [live_ltp] if live_ltp > 0 else []
+            if not ltp_list:
+                continue
+            iv_samples = []
+            for ltp in ltp_list:
+                iv = compute_iv(S, K, T, RISK_FREE, ltp, opt_type)
+                if iv is not None:
+                    iv_samples.append(round(iv * 100, 2))
+
+        if not iv_samples:
             continue
-        delta = _bs_delta(float(spot), K, T, RISK_FREE, iv, opt_type)
-        result[meta["role_key"]] = {
-            "strike": int(K),
-            "type":   opt_type,
-            "ltp":    round(ltp, 2),
-            "iv":     round(iv * 100, 2),
-            "delta":  round(delta, 3),
+
+        avg_iv = round(sum(iv_samples) / len(iv_samples), 2)
+        delta  = _bs_delta(S, K, T, RISK_FREE, avg_iv / 100, opt_type)
+
+        result[rk] = {
+            "strike":     int(K),
+            "type":       opt_type,
+            "ltp":        round(live_ltp, 2),
+            "iv":         avg_iv,
+            "iv_samples": iv_samples,
+            "iv_n":       len(iv_samples),
+            "delta":      round(delta, 3),
         }
     return result
 
@@ -171,6 +255,98 @@ def _find_by_delta(iv_map, target_delta, opt_type, tolerance=0.06):
     if not candidates:
         return None
     return min(candidates, key=lambda x: abs(x["delta"] - target_delta))
+
+
+def _compute_iv_for_row(row: dict, tokens: dict, spot, expiry_str: str) -> dict:
+    """
+    Compute candle-close IV for every strike in `tokens` using the
+    ltp_close values already stored in `row`, then derive the 5 RR levels.
+
+    Returns a flat dict of fields to merge into the candle row:
+        {rk}_iv_close   — IV % at candle-close LTP   (e.g. s24300_ce_iv_close)
+        {rk}_delta      — BS delta at candle close    (overwrites OI delta field
+                          name clash: stored as {rk}_bs_delta instead)
+        iv_rr_10, iv_rr_15, iv_rr_25, iv_rr_50, iv_rr_70  — risk reversals
+        iv_atm_ce, iv_atm_pe  — ATM call/put IV for quick reference
+        iv_avg_rr       — average of OTM RRs (10/15/25)
+    """
+    RISK_FREE = 0.065
+    result    = {}
+
+    if not spot or not expiry_str:
+        return result
+
+    try:
+        from datetime import date as _date
+        today     = now_ist().date()
+        expiry    = _date.fromisoformat(expiry_str[:10])
+        days_left = max(0, (expiry - today).days)
+    except Exception:
+        return result
+
+    T = max(days_left / 365.0, 1 / 365.0)
+    S = float(spot)
+
+    # Build iv_map from candle-close LTPs stored in row
+    iv_map = {}
+    for token, meta in tokens.items():
+        rk       = meta["role_key"]
+        K        = float(meta["strike"])
+        opt_type = meta["instrument_type"]
+        ltp      = float(row.get(rk + "_ltp_close") or row.get(rk + "_ltp") or 0)
+        if ltp <= 0:
+            continue
+        iv = compute_iv(S, K, T, RISK_FREE, ltp, opt_type)
+        if iv is None:
+            continue
+        delta = _bs_delta(S, K, T, RISK_FREE, iv, opt_type)
+        iv_pct = round(iv * 100, 2)
+        result[rk + "_iv_close"] = iv_pct
+        result[rk + "_bs_delta"] = round(delta, 3)
+        iv_map[rk] = {
+            "strike": int(K),
+            "type":   opt_type,
+            "ltp":    ltp,
+            "iv":     iv_pct,
+            "iv_n":   1,
+            "delta":  round(delta, 3),
+        }
+
+    if not iv_map:
+        return result
+
+    # Derive RR at all 5 delta levels
+    DELTA_LEVELS = [
+        ("10",  0.10, 0.06),
+        ("15",  0.15, 0.06),
+        ("25",  0.25, 0.07),
+        ("50",  0.50, 0.10),
+        ("70",  0.70, 0.10),
+    ]
+    rrs = {}
+    for label, target, tol in DELTA_LEVELS:
+        pe = _find_by_delta(iv_map, target, "PE", tol)
+        ce = _find_by_delta(iv_map, target, "CE", tol)
+        if pe and ce:
+            rrs[label] = round(pe["iv"] - ce["iv"], 2)
+            result[f"iv_rr_{label}"] = rrs[label]
+            # Store which strikes were used — useful for backtesting
+            result[f"iv_rr_{label}_put_k"]  = pe["strike"]
+            result[f"iv_rr_{label}_call_k"] = ce["strike"]
+        else:
+            result[f"iv_rr_{label}"] = None
+
+    # ATM IV convenience fields
+    atm_ce = _find_by_delta(iv_map, 0.50, "CE", 0.10)
+    atm_pe = _find_by_delta(iv_map, 0.50, "PE", 0.10)
+    result["iv_atm_ce"]  = atm_ce["iv"] if atm_ce else None
+    result["iv_atm_pe"]  = atm_pe["iv"] if atm_pe else None
+
+    # avg_rr from OTM levels only
+    otm_rrs = [rrs[k] for k in ("10", "15", "25") if k in rrs and rrs[k] is not None]
+    result["iv_avg_rr"] = round(sum(otm_rrs) / len(otm_rrs), 2) if otm_rrs else None
+
+    return result
 
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
@@ -209,12 +385,31 @@ else:
     ROLL_THRESHOLD  = 100
     DB_TABLE        = "oi_history_nifty"
 
-# OI_NUM_STRIKES: total strikes to track (must be odd so ATM sits in the middle).
+# OI_NUM_STRIKES: total strikes to track for OI (must be odd so ATM sits in the middle).
 # Default 11 = ATM ±5 strikes. Set e.g. OI_NUM_STRIKES=21 for ATM ±10 strikes.
 NUM_STRIKES    = int(os.environ.get("OI_NUM_STRIKES", 11))
 if NUM_STRIKES % 2 == 0:
     NUM_STRIKES += 1          # force odd so ATM is centred
     print(f"Warning: OI_NUM_STRIKES must be odd — bumped to {NUM_STRIKES}")
+
+# IV_NUM_STRIKES: how many strikes around ATM to use for IV/skew computation.
+# Must be >= NUM_STRIKES to be meaningful; default 21 = ATM ±10 strikes.
+# A wider window ensures 70Δ (ITM) strikes are always in range.
+# Set IV_NUM_STRIKES=31 for ATM ±15 if you want deeper ITM coverage.
+# NOTE: IV strikes are computed from the SAME WebSocket tokens as OI.
+#       If IV_NUM_STRIKES > NUM_STRIKES, the extra strikes are fetched via
+#       kite.quote() at IV computation time (one REST call per /iv request).
+#       Keep IV_NUM_STRIKES <= NUM_STRIKES to avoid REST calls entirely.
+IV_NUM_STRIKES = int(os.environ.get("IV_NUM_STRIKES", max(21, NUM_STRIKES)))
+if IV_NUM_STRIKES % 2 == 0:
+    IV_NUM_STRIKES += 1
+    print(f"Warning: IV_NUM_STRIKES must be odd — bumped to {IV_NUM_STRIKES}")
+IV_HALF = IV_NUM_STRIKES // 2
+print(f"IV window: ATM ±{IV_HALF} strikes ({IV_NUM_STRIKES} total)")
+
+# IV_CANDLE_AVG: number of completed 1-min candles to average IV over.
+# Default 3 — smooths spike candles. Set IV_CANDLE_AVG=1 for raw candle-close.
+IV_CANDLE_AVG  = max(1, int(os.environ.get("IV_CANDLE_AVG", 3)))
 
 
 # ── APP ───────────────────────────────────────────────────────────────────────
@@ -253,6 +448,14 @@ def init_db():
                 );
                 CREATE INDEX IF NOT EXISTS idx_{DB_TABLE}_date
                     ON {DB_TABLE} (trade_date);
+                -- IV-specific indexes for fast backtesting queries
+                -- e.g. SELECT * WHERE iv_rr_25 > 5 AND trade_date = '2025-05-01'
+                CREATE INDEX IF NOT EXISTS idx_{DB_TABLE}_iv_rr25
+                    ON {DB_TABLE} ((data->>'iv_rr_25'));
+                CREATE INDEX IF NOT EXISTS idx_{DB_TABLE}_iv_avg_rr
+                    ON {DB_TABLE} ((data->>'iv_avg_rr'));
+                CREATE INDEX IF NOT EXISTS idx_{DB_TABLE}_date_time
+                    ON {DB_TABLE} (trade_date, ts);
             """)
         conn.commit()
     print(f"DB initialised — table {DB_TABLE} ready.")
@@ -579,6 +782,31 @@ def _append_history():
         row[rk + "_ltp_close"] = ohlc.get("close", close_ltp)
         row[rk + "_baseline"]  = close.get(rk + "_baseline", 0)
         row[rk + "_delta"]     = close.get(rk + "_oi", 0) - start.get(rk + "_oi", 0)
+
+    # ── IV at candle close ───────────────────────────────────────────
+    # Compute Black-Scholes IV for every strike using the candle-close LTPs
+    # we just stored in `row`.  The result is merged into the same row so
+    # it lands in the JSONB blob alongside OI/LTP data — no schema change.
+    # Fields added: {rk}_iv_close, {rk}_bs_delta, iv_rr_10/15/25/50/70,
+    #               iv_rr_{n}_put_k, iv_rr_{n}_call_k, iv_atm_ce/pe, iv_avg_rr
+    try:
+        iv_fields = _compute_iv_for_row(
+            row,
+            dict(state["tokens"]),
+            state["spot"],
+            state["expiry_date"],
+        )
+        row.update(iv_fields)
+        iv_summary = (
+            f"RR25={iv_fields.get('iv_rr_25','?')} "
+            f"RR10={iv_fields.get('iv_rr_10','?')} "
+            f"ATM_CE={iv_fields.get('iv_atm_ce','?')} "
+            f"ATM_PE={iv_fields.get('iv_atm_pe','?')}"
+        )
+        print(f"[{row['time_label']}] IV close: {iv_summary}")
+    except Exception as _iv_err:
+        print(f"[{row['time_label']}] IV compute error (non-fatal): {_iv_err}")
+    # ─────────────────────────────────────────────────────────────────
 
     # Write to PostgreSQL (non-blocking — do it in a thread to avoid holding state_lock)
     threading.Thread(target=db_write_row, args=(row,), daemon=True).start()
@@ -1325,30 +1553,44 @@ def get_iv():
     except Exception:
         pass
 
-    DELTA_LEVELS = [("25", 0.25), ("15", 0.15), ("10", 0.10)]
+    # Delta levels: OTM (10/15/25), ATM (50), ITM (70)
+    # Tolerance is wider for ATM/ITM because delta distribution is compressed there.
+    DELTA_LEVELS = [
+        ("10",  0.10, 0.06),   # (label, target_delta, tolerance)
+        ("15",  0.15, 0.06),
+        ("25",  0.25, 0.07),
+        ("50",  0.50, 0.10),   # ATM — wider tolerance, delta clusters near 0.5
+        ("70",  0.70, 0.10),   # ITM — needs IV_NUM_STRIKES wide enough to capture
+    ]
     skew = {}
     rr   = {}
 
-    for label, target in DELTA_LEVELS:
-        put_entry  = _find_by_delta(iv_map, target, "PE")
-        call_entry = _find_by_delta(iv_map, target, "CE")
+    for label, target, tol in DELTA_LEVELS:
+        put_entry  = _find_by_delta(iv_map, target, "PE",  tol)
+        call_entry = _find_by_delta(iv_map, target, "CE",  tol)
         skew[label] = {
-            "put_iv":     put_entry["iv"]      if put_entry  else None,
-            "call_iv":    call_entry["iv"]     if call_entry else None,
-            "put_delta":  put_entry["delta"]   if put_entry  else None,
-            "call_delta": call_entry["delta"]  if call_entry else None,
-            "put_strike": put_entry["strike"]  if put_entry  else None,
-            "call_strike":call_entry["strike"] if call_entry else None,
-            "put_ltp":    put_entry["ltp"]     if put_entry  else None,
-            "call_ltp":   call_entry["ltp"]    if call_entry else None,
+            "put_iv":      put_entry["iv"]        if put_entry  else None,
+            "call_iv":     call_entry["iv"]       if call_entry else None,
+            "put_delta":   put_entry["delta"]     if put_entry  else None,
+            "call_delta":  call_entry["delta"]    if call_entry else None,
+            "put_strike":  put_entry["strike"]    if put_entry  else None,
+            "call_strike": call_entry["strike"]   if call_entry else None,
+            "put_ltp":     put_entry["ltp"]       if put_entry  else None,
+            "call_ltp":    call_entry["ltp"]      if call_entry else None,
+            "put_iv_n":    put_entry["iv_n"]      if put_entry  else None,
+            "call_iv_n":   call_entry["iv_n"]     if call_entry else None,
         }
         if put_entry and call_entry:
             rr[label] = round(put_entry["iv"] - call_entry["iv"], 2)
         else:
             rr[label] = None
 
-    valid_rrs = [v for v in rr.values() if v is not None]
-    avg_rr    = round(sum(valid_rrs) / len(valid_rrs), 2) if valid_rrs else None
+    # avg_rr uses only OTM levels (10/15/25) for signal — ATM/ITM have different dynamics
+    otm_rrs   = [rr[k] for k in ("10", "15", "25") if rr.get(k) is not None]
+    avg_rr    = round(sum(otm_rrs) / len(otm_rrs), 2) if otm_rrs else None
+    # full avg across all levels for reference
+    all_rrs   = [v for v in rr.values() if v is not None]
+    avg_rr_all = round(sum(all_rrs) / len(all_rrs), 2) if all_rrs else None
 
     # Signal — 3-min price + skew combined.
     # When price is flat or history is thin, fall back to skew-only
@@ -1387,13 +1629,105 @@ def get_iv():
         "dte":            dte,
         "price_chg_pct":  price_chg,
         "price_window":   price_window,
+        "iv_candle_avg":  IV_CANDLE_AVG,
         "iv_map":         iv_map,
         "skew":           skew,
         "risk_reversal":  rr,
-        "avg_rr":         avg_rr,
+        "avg_rr":         avg_rr,          # OTM only (10/15/25) — used for signal
+        "avg_rr_all":     avg_rr_all,      # all 5 levels for reference
         "signal":         signal,
         "signal_basis":   signal_basis,
     })
+
+
+@app.route("/iv/history")
+def get_iv_history():
+    """
+    Return per-minute IV snapshots for a given date, extracted from the
+    stored JSONB rows.  Each row already has iv_rr_*, iv_atm_*, iv_avg_rr
+    and per-strike iv_close fields written at candle-close time.
+
+    Query params:
+        date=YYYY-MM-DD   (default: today)
+        strikes=1         include per-strike iv_close fields (default: 0)
+
+    Response: list of dicts, one per minute, newest-last:
+    [
+      {
+        "time_label": "09:15",
+        "ts": 1234567890.0,
+        "spot_close": 24312,
+        "iv_rr_10": 3.2,  "iv_rr_15": 2.8,  "iv_rr_25": 2.1,
+        "iv_rr_50": -0.4, "iv_rr_70": -1.1,
+        "iv_atm_ce": 17.4, "iv_atm_pe": 18.1,
+        "iv_avg_rr": 2.7,
+        # if strikes=1:
+        "s24300_ce_iv_close": 17.4,
+        "s24300_pe_iv_close": 18.1,
+        ...
+      },
+      ...
+    ]
+    """
+    date_param    = request.args.get("date", "").strip()
+    include_strikes = request.args.get("strikes", "0").strip() == "1"
+
+    IV_FIELDS = (
+        "time_label", "ts", "spot_close", "spot_open", "spot_high", "spot_low",
+        "iv_rr_10", "iv_rr_15", "iv_rr_25", "iv_rr_50", "iv_rr_70",
+        "iv_rr_10_put_k", "iv_rr_10_call_k",
+        "iv_rr_15_put_k", "iv_rr_15_call_k",
+        "iv_rr_25_put_k", "iv_rr_25_call_k",
+        "iv_rr_50_put_k", "iv_rr_50_call_k",
+        "iv_rr_70_put_k", "iv_rr_70_call_k",
+        "iv_atm_ce", "iv_atm_pe", "iv_avg_rr",
+    )
+
+    try:
+        if date_param:
+            from datetime import date as _date
+            _date.fromisoformat(date_param)
+            rows = db_read_by_date(date_param)
+        else:
+            rows = db_read_today()
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    out = []
+    for row in rows:
+        rec = {k: row.get(k) for k in IV_FIELDS}
+        if include_strikes:
+            for k, v in row.items():
+                if k.endswith("_iv_close") or k.endswith("_bs_delta"):
+                    rec[k] = v
+        out.append(rec)
+
+    return jsonify(out)
+
+
+@app.route("/iv/dates")
+def get_iv_dates():
+    """
+    Return dates that have at least one row with iv_rr_25 populated.
+    Useful for the frontend date picker to show which days have IV data.
+    """
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT DISTINCT trade_date
+                    FROM {DB_TABLE}
+                    WHERE (data->>'iv_rr_25') IS NOT NULL
+                    ORDER BY trade_date DESC
+                    """
+                )
+                dates = [str(r[0]) for r in cur.fetchall()]
+        return jsonify({"dates": dates})
+    except Exception as e:
+        return jsonify({"dates": [], "error": str(e)})
 
 
 @app.route("/health")
@@ -1495,6 +1829,8 @@ if __name__ == "__main__":
     print(f"  GET  /stream          browser SSE stream for tick-by-tick chart updates")
     print(f"  GET  /strikes         strike list")
     print(f"  GET  /oi/history      1-min rows + spot OHLC (today, or ?date=YYYY-MM-DD)")
+    print(f"  GET  /iv/history      per-minute IV + RR values (today, or ?date=YYYY-MM-DD&strikes=1)")
+    print(f"  GET  /iv/dates        dates that have IV data")
     print(f"  POST /depth/watch/start   create depth watcher (?strike=N&type=CE|PE&seconds=N&threshold=N)")
     print(f"  GET  /depth/watch/stream/<id>  SSE live depth events")
     print(f"  POST /depth/watch/stop/<id>    cancel watcher early")
