@@ -257,6 +257,160 @@ def _find_by_delta(iv_map, target_delta, opt_type, tolerance=0.06):
     return min(candidates, key=lambda x: abs(x["delta"] - target_delta))
 
 
+def _target_strike_for_delta(S, T, r, atm_iv, target_delta, opt_type):
+    """
+    Invert Black-Scholes delta to find the strike that has a given delta,
+    using ATM IV as the vol seed.
+
+    For a CE:  delta = N(d1)  →  d1 = N_inv(delta)
+    For a PE:  delta = N(d1) - 1  →  d1 = N_inv(delta + 1)  [since we store |delta|]
+
+    d1 = (ln(S/K) + (r + 0.5σ²)T) / (σ√T)
+    Solving for K:
+        K = S * exp((r + 0.5σ²)T - d1 * σ√T)
+    """
+    import math
+
+    sigma = atm_iv / 100.0
+    if sigma <= 0 or T <= 0:
+        return None
+
+    # Map our always-positive delta convention back to N(d1)
+    # CE: delta = N(d1)              → d1 = N_inv(target_delta)
+    # PE: |delta| = 1 - N(d1)        → N(d1) = 1 - target_delta → d1 = N_inv(1 - target_delta)
+    nd1 = target_delta if opt_type == "CE" else (1.0 - target_delta)
+
+    # Clamp to avoid math domain errors at extreme deltas
+    nd1 = max(1e-6, min(1 - 1e-6, nd1))
+
+    # Inverse normal CDF via rational approximation (Beasley-Springer-Moro)
+    def _norm_inv(p):
+        a = [0, -3.969683028665376e+01,  2.209460984245205e+02,
+             -2.759285104469687e+02,  1.383577518672690e+02,
+             -3.066479806614716e+01,  2.506628277459239e+00]
+        b = [0, -5.447609879822406e+01,  1.615858368580409e+02,
+             -1.556989798598866e+02,  6.680131188771972e+01,
+             -1.328068155288572e+01]
+        c = [0, -7.784894002430293e-03, -3.223964580411365e-01,
+             -2.400758277161838e+00, -2.549732539343734e+00,
+              4.374664141464968e+00,  2.938163982698783e+00]
+        d = [0,  7.784695709041462e-03,  3.224671290700398e-01,
+              2.445134137142996e+00,  3.754408661907416e+00]
+        p_low, p_high = 0.02425, 1 - 0.02425
+        if p < p_low:
+            q = math.sqrt(-2 * math.log(p))
+            return (((((c[1]*q+c[2])*q+c[3])*q+c[4])*q+c[5])*q+c[6]) / \
+                   ((((d[1]*q+d[2])*q+d[3])*q+d[4])*q+1)
+        elif p <= p_high:
+            q = p - 0.5
+            r2 = q * q
+            return (((((a[1]*r2+a[2])*r2+a[3])*r2+a[4])*r2+a[5])*r2+a[6])*q / \
+                   (((((b[1]*r2+b[2])*r2+b[3])*r2+b[4])*r2+b[5])*r2+1)
+        else:
+            q = math.sqrt(-2 * math.log(1 - p))
+            return -(((((c[1]*q+c[2])*q+c[3])*q+c[4])*q+c[5])*q+c[6]) / \
+                    ((((d[1]*q+d[2])*q+d[3])*q+d[4])*q+1)
+
+    d1 = _norm_inv(nd1)
+    K = S * math.exp((r + 0.5 * sigma ** 2) * T - d1 * sigma * math.sqrt(T))
+    return K
+
+
+def compute_skew_by_delta(S, T, r, iv_map):
+    """
+    Compute IV skew at fixed delta targets (10/15/25/50/70) re-anchored to
+    current spot every call.
+
+    Steps for each delta level:
+      1. Use ATM IV as vol seed to back-solve the theoretical strike for that delta.
+      2. Snap to the nearest tracked strike (CE or PE independently).
+      3. Look up that strike's actual IV from iv_map.
+      4. Return the real IV at the real strike — not a delta-searched approximation.
+
+    This means that as spot moves, the strikes selected automatically shift
+    to the new delta-equivalent strikes. No tolerance fudging required.
+    """
+    DELTA_TARGETS = [
+        ("10", 0.10),
+        ("15", 0.15),
+        ("25", 0.25),
+        ("50", 0.50),
+        ("70", 0.70),
+    ]
+
+    # Build lookup: (strike, opt_type) → iv_map entry
+    strike_map = {}
+    for entry in iv_map.values():
+        strike_map[(entry["strike"], entry["type"])] = entry
+
+    if not strike_map:
+        return {}, {}
+
+    # Get all available strikes per type
+    ce_strikes = sorted(set(k for (k, t) in strike_map if t == "CE"))
+    pe_strikes = sorted(set(k for (k, t) in strike_map if t == "PE"))
+
+    if not ce_strikes or not pe_strikes:
+        return {}, {}
+
+    # Seed vol: use ATM CE IV (strike closest to spot)
+    atm_k = min(ce_strikes, key=lambda k: abs(k - S))
+    atm_entry = strike_map.get((atm_k, "CE"))
+    atm_iv = atm_entry["iv"] if atm_entry else None
+
+    # Fall back to median CE IV if ATM lookup fails
+    if atm_iv is None:
+        ce_ivs = [strike_map[(k, "CE")]["iv"] for k in ce_strikes if (k, "CE") in strike_map]
+        atm_iv = sorted(ce_ivs)[len(ce_ivs) // 2] if ce_ivs else 15.0
+
+    def snap(theoretical_k, available_strikes):
+        """Snap theoretical strike to nearest available tracked strike."""
+        if theoretical_k is None:
+            return None
+        return min(available_strikes, key=lambda k: abs(k - theoretical_k))
+
+    skew = {}
+    rr   = {}
+
+    for label, target_delta in DELTA_TARGETS:
+        # For OTM convention:
+        #   CE with target_delta → OTM call (strike > spot for delta < 0.5)
+        #   PE with target_delta → OTM put  (strike < spot for delta < 0.5)
+        # The inversion handles both OTM and ITM naturally via the delta formula.
+
+        ce_theoretical = _target_strike_for_delta(S, T, r, atm_iv, target_delta, "CE")
+        pe_theoretical = _target_strike_for_delta(S, T, r, atm_iv, target_delta, "PE")
+
+        ce_k = snap(ce_theoretical, ce_strikes)
+        pe_k = snap(pe_theoretical, pe_strikes)
+
+        ce_entry = strike_map.get((ce_k, "CE")) if ce_k is not None else None
+        pe_entry = strike_map.get((pe_k, "PE")) if pe_k is not None else None
+
+        skew[label] = {
+            "put_iv":      pe_entry["iv"]    if pe_entry else None,
+            "call_iv":     ce_entry["iv"]    if ce_entry else None,
+            "put_delta":   pe_entry["delta"] if pe_entry else None,
+            "call_delta":  ce_entry["delta"] if ce_entry else None,
+            "put_strike":  pe_k,
+            "call_strike": ce_k,
+            "put_ltp":     pe_entry["ltp"]   if pe_entry else None,
+            "call_ltp":    ce_entry["ltp"]   if ce_entry else None,
+            "put_iv_n":    pe_entry["iv_n"]  if pe_entry else None,
+            "call_iv_n":   ce_entry["iv_n"]  if ce_entry else None,
+            "atm_iv_seed": round(atm_iv, 2),          # useful for debugging
+            "ce_theoretical_k": round(ce_theoretical) if ce_theoretical else None,
+            "pe_theoretical_k": round(pe_theoretical) if pe_theoretical else None,
+        }
+
+        if pe_entry and ce_entry:
+            rr[label] = round(pe_entry["iv"] - ce_entry["iv"], 2)
+        else:
+            rr[label] = None
+
+    return skew, rr
+
+
 def _compute_iv_for_row(row: dict, tokens: dict, spot, expiry_str: str) -> dict:
     """
     Compute candle-close IV for every strike in `tokens` using the
@@ -315,32 +469,28 @@ def _compute_iv_for_row(row: dict, tokens: dict, spot, expiry_str: str) -> dict:
     if not iv_map:
         return result
 
-    # Derive RR at all 5 delta levels
-    DELTA_LEVELS = [
-        ("10",  0.10, 0.06),
-        ("15",  0.15, 0.06),
-        ("25",  0.25, 0.07),
-        ("50",  0.50, 0.10),
-        ("70",  0.70, 0.10),
-    ]
-    rrs = {}
-    for label, target, tol in DELTA_LEVELS:
-        pe = _find_by_delta(iv_map, target, "PE", tol)
-        ce = _find_by_delta(iv_map, target, "CE", tol)
-        if pe and ce:
-            rrs[label] = round(pe["iv"] - ce["iv"], 2)
-            result[f"iv_rr_{label}"] = rrs[label]
-            # Store which strikes were used — useful for backtesting
-            result[f"iv_rr_{label}_put_k"]  = pe["strike"]
-            result[f"iv_rr_{label}_call_k"] = ce["strike"]
-        else:
-            result[f"iv_rr_{label}"] = None
+    # Derive RR at all 5 delta levels using spot-driven strike selection.
+    # Same logic as the live /iv endpoint — strikes are picked by inverting
+    # Black-Scholes delta so they track spot as it moves, not the fixed window.
+    skew_detail_full, rr_detail = compute_skew_by_delta(S, T, 0.065, iv_map)
 
-    # ATM IV convenience fields
-    atm_ce = _find_by_delta(iv_map, 0.50, "CE", 0.10)
-    atm_pe = _find_by_delta(iv_map, 0.50, "PE", 0.10)
-    result["iv_atm_ce"]  = atm_ce["iv"] if atm_ce else None
-    result["iv_atm_pe"]  = atm_pe["iv"] if atm_pe else None
+    rrs = {}
+    for label in ("10", "15", "25", "50", "70"):
+        rr_val = rr_detail.get(label)
+        result[f"iv_rr_{label}"] = rr_val
+        if rr_val is not None:
+            rrs[label] = rr_val
+            sd = skew_detail_full.get(label, {})
+            result[f"iv_rr_{label}_put_k"]  = sd.get("put_strike")
+            result[f"iv_rr_{label}_call_k"] = sd.get("call_strike")
+
+    # ATM IV convenience fields — snap to strike nearest spot
+    atm_k_ce  = min((e for e in iv_map.values() if e["type"] == "CE"),
+                    key=lambda e: abs(e["strike"] - S), default=None)
+    atm_k_pe  = min((e for e in iv_map.values() if e["type"] == "PE"),
+                    key=lambda e: abs(e["strike"] - S), default=None)
+    result["iv_atm_ce"] = atm_k_ce["iv"] if atm_k_ce else None
+    result["iv_atm_pe"] = atm_k_pe["iv"] if atm_k_pe else None
 
     # avg_rr from OTM levels only
     otm_rrs = [rrs[k] for k in ("10", "15", "25") if k in rrs and rrs[k] is not None]
@@ -1553,37 +1703,18 @@ def get_iv():
     except Exception:
         pass
 
-    # Delta levels: OTM (10/15/25), ATM (50), ITM (70)
-    # Tolerance is wider for ATM/ITM because delta distribution is compressed there.
-    DELTA_LEVELS = [
-        ("10",  0.10, 0.06),   # (label, target_delta, tolerance)
-        ("15",  0.15, 0.06),
-        ("25",  0.25, 0.07),
-        ("50",  0.50, 0.10),   # ATM — wider tolerance, delta clusters near 0.5
-        ("70",  0.70, 0.10),   # ITM — needs IV_NUM_STRIKES wide enough to capture
-    ]
-    skew = {}
-    rr   = {}
+    # Spot-driven delta skew: for every tick, back-solve the strike that
+    # corresponds to each delta target given current spot + ATM IV.
+    # This means the strikes update automatically as spot moves — no fixed
+    # strike window, no tolerance hunting, no stale delta labels.
+    try:
+        from datetime import date as _date
+        _dte_days = max(0, (_date.fromisoformat(expiry_str[:10]) - now_ist().date()).days)
+    except Exception:
+        _dte_days = 0
+    _T_iv = max(_dte_days / 365.0, 1 / 365.0)
 
-    for label, target, tol in DELTA_LEVELS:
-        put_entry  = _find_by_delta(iv_map, target, "PE",  tol)
-        call_entry = _find_by_delta(iv_map, target, "CE",  tol)
-        skew[label] = {
-            "put_iv":      put_entry["iv"]        if put_entry  else None,
-            "call_iv":     call_entry["iv"]       if call_entry else None,
-            "put_delta":   put_entry["delta"]     if put_entry  else None,
-            "call_delta":  call_entry["delta"]    if call_entry else None,
-            "put_strike":  put_entry["strike"]    if put_entry  else None,
-            "call_strike": call_entry["strike"]   if call_entry else None,
-            "put_ltp":     put_entry["ltp"]       if put_entry  else None,
-            "call_ltp":    call_entry["ltp"]      if call_entry else None,
-            "put_iv_n":    put_entry["iv_n"]      if put_entry  else None,
-            "call_iv_n":   call_entry["iv_n"]     if call_entry else None,
-        }
-        if put_entry and call_entry:
-            rr[label] = round(put_entry["iv"] - call_entry["iv"], 2)
-        else:
-            rr[label] = None
+    skew, rr = compute_skew_by_delta(float(spot), _T_iv, 0.065, iv_map)
 
     # avg_rr uses only OTM levels (10/15/25) for signal — ATM/ITM have different dynamics
     otm_rrs   = [rr[k] for k in ("10", "15", "25") if rr.get(k) is not None]
