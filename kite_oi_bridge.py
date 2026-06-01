@@ -1724,8 +1724,14 @@ def get_iv():
     avg_rr_all = round(sum(all_rrs) / len(all_rrs), 2) if all_rrs else None
 
     # Signal — 3-min price + skew combined.
-    # When price is flat or history is thin, fall back to skew-only
-    # so a signal fires rather than staying permanently neutral.
+    #
+    # RR convention: RR = Put IV - Call IV
+    #   Positive RR -> puts more expensive -> bearish/hedge demand (normal equity skew)
+    #   Negative RR -> calls more expensive -> bullish chase / upside demand
+    #
+    # Previous logic only handled positive RR and had a dead zone for price moves
+    # between 0.05-0.3% where has_price=True but no condition fired -> always neutral.
+    # Fixed: thresholds lowered to 0.1%, negative RR handled explicitly.
     signal = "neutral"
     signal_basis = "price+skew"
 
@@ -1733,24 +1739,25 @@ def get_iv():
         has_price = abs(price_chg) > 0.05   # at least a marginal move
 
         if has_price:
-            # Full signal: price direction confirmed by skew
-            if   price_chg >  0.3 and avg_rr <  2: signal = "strong_bullish"
-            elif price_chg >  0.3 and avg_rr >= 2: signal = "weak_bullish"
-            elif price_chg < -0.3 and avg_rr >  5: signal = "strong_bearish"
-            elif price_chg < -0.3 and avg_rr <= 5: signal = "short_covering"
-            elif abs(price_chg) <= 0.3 and avg_rr > 6: signal = "tail_hedge"
+            if   price_chg >  0.3 and avg_rr <  -1: signal = "strong_bullish"   # strong up + calls clearly pricier
+            elif price_chg >  0.3 and avg_rr >= -1: signal = "weak_bullish"      # strong up + skew mixed
+            elif price_chg >  0.05 and avg_rr < -2: signal = "weak_bullish"      # any up move + calls clearly pricier
+            elif price_chg < -0.3 and avg_rr >   5: signal = "strong_bearish"    # strong down + puts very expensive
+            elif price_chg < -0.3 and avg_rr <=  5: signal = "short_covering"    # strong down + puts mild -> covering not panic
+            elif price_chg < -0.1 and avg_rr >   3: signal = "weak_bearish"      # mild down + put premium building
+            elif avg_rr >  6:                        signal = "tail_hedge"        # heavy put buying regardless of price move
         else:
-            # Skew-only: fires when price is flat but skew structure is clear
+            # Skew-only: price flat, read structure of vol surface alone
             signal_basis = "skew_only"
             rr10 = rr.get("10")
             rr25 = rr.get("25")
             if rr10 is not None and rr25 is not None:
-                divergence = rr10 - rr25
-                if   divergence > 4 and avg_rr > 5: signal = "tail_hedge"
-                elif avg_rr < 1:                    signal = "strong_bullish"
-                elif avg_rr < 3:                    signal = "weak_bullish"
-                elif avg_rr > 7:                    signal = "strong_bearish"
-                elif avg_rr > 4:                    signal = "short_covering"
+                divergence = rr10 - rr25   # positive = tail risk steepening
+                if   divergence > 4 and avg_rr >   5: signal = "tail_hedge"
+                elif avg_rr < -3:                      signal = "strong_bullish"  # calls very expensive vs puts
+                elif avg_rr < -1:                      signal = "weak_bullish"    # calls moderately expensive
+                elif avg_rr >   7:                     signal = "strong_bearish"
+                elif avg_rr >   4:                     signal = "short_covering"
 
     return jsonify({
         "available":      True,
