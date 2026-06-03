@@ -250,11 +250,11 @@ tr:last-child td{border-bottom:none;}
 .oi-change-chip:hover{border-color:#185FA5;color:#185FA5;}
 .oi-change-chip.active{background:#185FA5;color:#fff;border-color:#185FA5;font-weight:500;}
 .oi-change-chip.atm{border-color:#534AB7;}
-.oi-change-chart-wrap{position:relative;width:100%;min-height:420px;margin-top:12px;}
+.oi-change-chart-wrap{position:relative;width:100%;min-height:650px;margin-top:12px;}
 .oi-change-chart-shell{display:flex;align-items:stretch;width:100%;position:relative;}
-.oi-change-yaxis{width:62px;min-width:62px;height:420px;position:sticky;left:0;z-index:12;background:#fff;border-right:0.5px solid #eee;}
+.oi-change-yaxis{width:62px;min-width:62px;height:650px;position:sticky;left:0;z-index:12;background:#fff;border-right:0.5px solid #eee;}
 .oi-change-chart-scroll{overflow-x:auto;overflow-y:hidden;width:100%;border-radius:4px;}
-.oi-change-chart-inner{height:420px;min-width:100%;position:relative;}
+.oi-change-chart-inner{height:650px;min-width:100%;position:relative;}
 .oi-change-section-title{font-size:11px;font-weight:600;color:#444;text-transform:uppercase;letter-spacing:.04em;margin:14px 0 6px;}
 .oi-change-legend{display:flex;gap:18px;align-items:center;flex-wrap:wrap;justify-content:center;margin:6px 0 8px;font-size:11px;color:#555;}
 .oi-change-leg-item{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
@@ -5318,7 +5318,7 @@ function renderOIChangeChart() {
   const candleSets = strikes.map(st => ({ strike: st, candles: buildCandlesForStrike(validRows, intervalMin, st) }));
   const labels = candleSets[0]?.candles.map(c => c.label) || [];
   const chartW = Math.max(labels.length * Math.max(36, MIN_BAR_PX) + 160, Math.floor(absScroll.getBoundingClientRect().width || window.innerWidth - 120));
-  const chartH = 420;
+  const chartH = 650;
 
   absWrap.style.width = chartW + 'px';
   absWrap.style.height = chartH + 'px';
