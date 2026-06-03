@@ -250,11 +250,11 @@ tr:last-child td{border-bottom:none;}
 .oi-change-chip:hover{border-color:#185FA5;color:#185FA5;}
 .oi-change-chip.active{background:#185FA5;color:#fff;border-color:#185FA5;font-weight:500;}
 .oi-change-chip.atm{border-color:#534AB7;}
-.oi-change-chart-wrap{position:relative;width:100%;min-height:360px;margin-top:12px;}
+.oi-change-chart-wrap{position:relative;width:100%;min-height:420px;margin-top:12px;}
 .oi-change-chart-shell{display:flex;align-items:stretch;width:100%;position:relative;}
-.oi-change-yaxis{width:62px;min-width:62px;height:360px;position:sticky;left:0;z-index:12;background:#fff;border-right:0.5px solid #eee;}
+.oi-change-yaxis{width:62px;min-width:62px;height:420px;position:sticky;left:0;z-index:12;background:#fff;border-right:0.5px solid #eee;}
 .oi-change-chart-scroll{overflow-x:auto;overflow-y:hidden;width:100%;border-radius:4px;}
-.oi-change-chart-inner{height:360px;min-width:100%;position:relative;}
+.oi-change-chart-inner{height:420px;min-width:100%;position:relative;}
 .oi-change-section-title{font-size:11px;font-weight:600;color:#444;text-transform:uppercase;letter-spacing:.04em;margin:14px 0 6px;}
 .oi-change-legend{display:flex;gap:18px;align-items:center;flex-wrap:wrap;justify-content:center;margin:6px 0 8px;font-size:11px;color:#555;}
 .oi-change-leg-item{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
@@ -493,10 +493,9 @@ tr:last-child td{border-bottom:none;}
   <button class="tab-btn active" id="tab-dashboard-btn" onclick="switchTab('dashboard')">Dashboard</button>
   <button class="tab-btn" id="tab-option-chain-btn" onclick="switchTab('option-chain')">Option Chain & OI Moves</button>
   <button class="tab-btn" id="tab-oi-movers-btn" onclick="switchTab('oi-movers')">📊 OI Movers</button>
-  <button class="tab-btn" id="tab-oi-change-btn" onclick="switchTab('oi-change')">📈 Selected Strike ΔOI</button>
+  <button class="tab-btn" id="tab-oi-change-btn" onclick="switchTab('oi-change')">📈 Selected Strike OI</button>
 
   <button class="tab-btn" id="tab-paper-trade-btn" onclick="switchTab('paper-trade')">🤖 Paper Trades</button>
-  <button class="tab-btn" id="tab-depth-watch-btn" onclick="switchTab('depth-watch')">🔬 Depth Watch</button>
   <button class="tab-btn" id="tab-iv-skew-btn" onclick="switchTab('iv-skew')">📐 IV Skew</button>
   <button class="tab-btn" id="tab-iv-history-btn" onclick="switchTab('iv-history')">📈 IV History</button>
   <span class="tab-hint">Move heavy tables away from the main trading view</span>
@@ -1092,8 +1091,8 @@ tr:last-child td{border-bottom:none;}
   <div class="oi-change-card">
     <div class="oi-change-header">
       <div>
-        <div class="oi-change-title">Selected strikes — Change of OI</div>
-        <div class="oi-change-sub" id="oi-change-sub">Select one or more strikes from the visible range. CE and PE are plotted separately.</div>
+        <div class="oi-change-title">Selected strikes — Absolute OI</div>
+        <div class="oi-change-sub" id="oi-change-sub">Select one or more strikes. CE (solid, warm colours) and PE (dashed, cool colours) absolute open interest are plotted — rising lines indicate position buildup.</div>
       </div>
       <div class="oi-change-controls">
         <label>Range around ATM:</label>
@@ -1125,24 +1124,12 @@ tr:last-child td{border-bottom:none;}
     <div class="oi-change-selected-row" id="oi-change-selected-chips">—</div>
 
     <div class="oi-change-legend">
-      <span class="oi-change-leg-item"><span class="oi-change-line-sample"></span>CE / Call OI</span>
-      <span class="oi-change-leg-item"><span class="oi-change-line-sample pe"></span>PE / Put OI</span>
+      <span class="oi-change-leg-item"><span class="oi-change-line-sample" style="border-top-width:3px;"></span>CE / Call OI (solid)</span>
+      <span class="oi-change-leg-item"><span class="oi-change-line-sample pe" style="border-top-width:3px;"></span>PE / Put OI (dashed)</span>
       <span style="color:#888;">Colour = strike</span>
     </div>
 
-    <div class="oi-change-section-title">Change of OI (ΔOI)</div>
-    <div class="oi-change-chart-wrap">
-      <div class="oi-change-chart-shell">
-        <canvas id="oiChangeYAxis" class="oi-change-yaxis"></canvas>
-        <div class="oi-change-chart-scroll" id="oi-change-scroll">
-          <div class="oi-change-chart-inner" id="oiChangeChartWrap">
-            <canvas id="oiChangeChart"></canvas>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="oi-change-section-title">Absolute OI</div>
+    <div class="oi-change-section-title">Absolute OI — Position Buildup</div>
     <div class="oi-change-chart-wrap">
       <div class="oi-change-chart-shell">
         <canvas id="oiAbsYAxis" class="oi-change-yaxis"></canvas>
@@ -1229,233 +1216,6 @@ tr:last-child td{border-bottom:none;}
 
 </div><!-- end tab-paper-trade-panel -->
 
-<!-- ═══════════════════════════════════════════════════════════════
-     DEPTH WATCH TAB
-     On-demand market depth sampler for CE/PE unwinding detection.
-     Samples /depth/watch for a chosen strike + type + duration,
-     then renders a live table, imbalance sparkline, and big-order summary.
-═══════════════════════════════════════════════════════════════ -->
-<div class="tab-panel" id="tab-depth-watch-panel">
-<style>
-.dw-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;}
-.dw-title{font-size:14px;font-weight:500;margin-bottom:4px;}
-.dw-sub{font-size:11px;color:#888;margin-bottom:14px;}
-.dw-controls{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;}
-.dw-field{display:flex;flex-direction:column;gap:4px;}
-.dw-label{font-size:11px;color:#888;}
-.dw-input{font-size:13px;padding:6px 10px;border:0.5px solid #ccc;border-radius:7px;background:#fff;color:#1a1a1a;width:110px;}
-.dw-select{font-size:13px;padding:6px 10px;border:0.5px solid #ccc;border-radius:7px;background:#fff;color:#1a1a1a;cursor:pointer;}
-.dw-btn{font-size:13px;padding:7px 18px;border-radius:7px;cursor:pointer;border:0.5px solid #185FA5;background:#185FA5;color:#fff;font-weight:500;transition:all .15s;min-width:90px;}
-.dw-btn:hover{background:#1350a0;}
-.dw-btn:disabled{background:#aaa;border-color:#aaa;cursor:not-allowed;}
-.dw-btn-stop{background:#D85A30;border-color:#D85A30;}
-.dw-btn-stop:hover{background:#b84520;}
-
-.dw-status{font-size:12px;padding:8px 14px;border-radius:7px;background:#f8f8f5;border:0.5px solid #e0e0da;color:#555;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
-.dw-dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0;transition:background .3s;}
-.dw-dot.running{background:#1D9E75;animation:blink 1.2s infinite;}
-.dw-dot.done{background:#185FA5;}
-.dw-dot.error{background:#D85A30;}
-
-/* Summary boxes */
-.dw-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:14px;}
-.dw-sum-box{background:#f8f8f5;border:0.5px solid #e0e0da;border-radius:8px;padding:8px 12px;}
-.dw-sum-label{font-size:10px;color:#888;margin-bottom:3px;text-transform:uppercase;letter-spacing:.03em;}
-.dw-sum-val{font-size:16px;font-weight:500;font-variant-numeric:tabular-nums;}
-.dw-sum-val.pos{color:#1D9E75;} .dw-sum-val.neg{color:#D85A30;} .dw-sum-val.neu{color:#534AB7;}
-
-/* Interpretation banner */
-.dw-interp{padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:14px;line-height:1.5;}
-.dw-interp.cover{background:#E1F5EE;color:#085041;border:0.5px solid #a0dcc8;}
-.dw-interp.add{background:#FAECE7;color:#712B13;border:0.5px solid #f0c0b0;}
-.dw-interp.neutral{background:#f0f0ec;color:#555;border:0.5px solid #ddd;}
-
-/* Big order tables */
-.dw-big-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
-.dw-big-card{background:#f8f8f5;border:0.5px solid #e0e0da;border-radius:8px;padding:10px 14px;}
-.dw-big-title{font-size:11px;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;}
-.dw-big-title.bid{color:#1D9E75;} .dw-big-title.ask{color:#D85A30;}
-.dw-big-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5px solid #e8e8e2;font-size:12px;}
-.dw-big-row:last-child{border-bottom:none;}
-.dw-big-price{font-weight:500;font-variant-numeric:tabular-nums;}
-.dw-big-qty{color:#555;font-variant-numeric:tabular-nums;}
-.dw-big-bar-wrap{width:60px;height:5px;background:#e0e0da;border-radius:3px;overflow:hidden;margin:0 6px;}
-.dw-big-bar{height:100%;border-radius:3px;}
-.dw-big-empty{font-size:11px;color:#aaa;padding:6px 0;}
-
-/* Imbalance sparkline */
-.dw-spark-wrap{margin-bottom:14px;}
-.dw-spark-title{font-size:11px;color:#888;margin-bottom:6px;}
-
-/* Sample table */
-.dw-table-wrap{overflow-x:auto;}
-.dw-table{width:100%;border-collapse:collapse;font-size:11px;}
-.dw-table th{text-align:right;padding:4px 8px;border-bottom:0.5px solid #ccc;color:#888;font-weight:400;white-space:nowrap;}
-.dw-table th:first-child{text-align:left;}
-.dw-table td{padding:4px 8px;border-bottom:0.5px solid #eee;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
-.dw-table td:first-child{text-align:left;color:#888;}
-.dw-table tr:last-child td{border-bottom:none;}
-.dw-table tr.highlight td{background:#FAFEE6;}
-.imb-pos{color:#1D9E75;font-weight:500;} .imb-neg{color:#D85A30;font-weight:500;}
-.oi-drop{color:#D85A30;} .oi-rise{color:#1D9E75;}
-
-/* Max qty live banner */
-.dw-maxqty{display:none;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
-.dw-maxqty-box{flex:1;min-width:160px;border-radius:9px;padding:10px 16px;display:flex;flex-direction:column;gap:3px;}
-.dw-maxqty-box.bid{background:#E1F5EE;border:1px solid #a0dcc8;}
-.dw-maxqty-box.ask{background:#FAECE7;border:1px solid #f0c0b0;}
-.dw-maxqty-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
-.dw-maxqty-label.bid{color:#085041;} .dw-maxqty-label.ask{color:#712B13;}
-.dw-maxqty-price{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.5px;}
-.dw-maxqty-price.bid{color:#1D9E75;} .dw-maxqty-price.ask{color:#D85A30;}
-.dw-maxqty-meta{font-size:11px;color:#666;}
-
-/* Piggyback highlight */
-.dw-piggyback{background:#FAEEDA;border:0.5px solid #EF9F27;border-radius:8px;padding:10px 14px;font-size:12px;color:#854F0B;margin-bottom:14px;display:none;}
-.dw-piggyback strong{font-weight:600;}
-</style>
-
-<div class="dw-card">
-  <div class="dw-title">🔬 On-Demand Depth Watch</div>
-  <div class="dw-sub">Sample the live order book for a specific strike to confirm CE/PE unwinding. Works for both CE exits after breakouts and PE exits after support breaks.</div>
-
-  <!-- Controls -->
-  <div class="dw-controls">
-    <div class="dw-field">
-      <span class="dw-label">Strike</span>
-      <input class="dw-input" type="number" id="dw-strike" placeholder="e.g. 24000" step="50">
-    </div>
-    <div class="dw-field">
-      <span class="dw-label">Type</span>
-      <select class="dw-select" id="dw-type">
-        <option value="CE">CE — Call (breakout)</option>
-        <option value="PE">PE — Put (support break)</option>
-      </select>
-    </div>
-    <div class="dw-field">
-      <span class="dw-label">Watch duration</span>
-      <select class="dw-select" id="dw-seconds">
-        <option value="15">15s — quick</option>
-        <option value="30" selected>30s — standard</option>
-        <option value="60">1 min</option>
-        <option value="120">2 min</option>
-        <option value="180">3 min</option>
-        <option value="300">5 min</option>
-        <option value="600">10 min</option>
-      </select>
-    </div>
-    <div class="dw-field">
-      <span class="dw-label">Big order ≥ (lots)</span>
-      <input class="dw-input" type="number" id="dw-threshold" value="500" step="100" style="width:90px;">
-    </div>
-    <button class="dw-btn" id="dw-start-btn" onclick="dwStart()">▶ Start</button>
-    <button class="dw-btn dw-btn-stop" id="dw-stop-btn" onclick="dwStop()" style="display:none;">■ Cancel</button>
-  </div>
-
-  <!-- Quick-fill from tracked strikes -->
-  <div style="margin-bottom:14px;">
-    <span style="font-size:11px;color:#888;margin-right:8px;">Quick fill:</span>
-    <span id="dw-quick-chips" style="display:inline-flex;gap:5px;flex-wrap:wrap;"></span>
-  </div>
-
-  <!-- Status -->
-  <div class="dw-status" id="dw-status">
-    <div class="dw-dot" id="dw-dot"></div>
-    <span id="dw-status-text">Ready — enter a strike and press Start</span>
-  </div>
-
-  <!-- Max qty price — live during recording -->
-  <div class="dw-maxqty" id="dw-maxqty">
-    <div class="dw-maxqty-box bid">
-      <div class="dw-maxqty-label bid">🟢 Max bid qty at price</div>
-      <div class="dw-maxqty-price bid" id="dw-maxqty-bid-price">—</div>
-      <div class="dw-maxqty-meta" id="dw-maxqty-bid-meta">—</div>
-    </div>
-    <div class="dw-maxqty-box ask">
-      <div class="dw-maxqty-label ask">🔴 Max ask qty at price</div>
-      <div class="dw-maxqty-price ask" id="dw-maxqty-ask-price">—</div>
-      <div class="dw-maxqty-meta" id="dw-maxqty-ask-meta">—</div>
-    </div>
-  </div>
-
-  <!-- Piggyback suggestion -->
-  <div class="dw-piggyback" id="dw-piggyback">
-    <strong>💡 Piggyback suggestion:</strong> <span id="dw-piggyback-text"></span>
-  </div>
-
-  <!-- Summary boxes -->
-  <div class="dw-summary-grid" id="dw-summary" style="display:none;">
-    <div class="dw-sum-box">
-      <div class="dw-sum-label">OI Start</div>
-      <div class="dw-sum-val neu" id="dw-oi-start">—</div>
-    </div>
-    <div class="dw-sum-box">
-      <div class="dw-sum-label">OI End</div>
-      <div class="dw-sum-val neu" id="dw-oi-end">—</div>
-    </div>
-    <div class="dw-sum-box">
-      <div class="dw-sum-label">OI Δ</div>
-      <div class="dw-sum-val" id="dw-oi-delta">—</div>
-    </div>
-    <div class="dw-sum-box">
-      <div class="dw-sum-label">LTP Start → End</div>
-      <div class="dw-sum-val neu" id="dw-ltp-range">—</div>
-    </div>
-    <div class="dw-sum-box">
-      <div class="dw-sum-label">Avg Imbalance</div>
-      <div class="dw-sum-val" id="dw-avg-imb">—</div>
-    </div>
-    <div class="dw-sum-box">
-      <div class="dw-sum-label">Imb Range</div>
-      <div class="dw-sum-val neu" id="dw-imb-range">—</div>
-    </div>
-  </div>
-
-  <!-- Interpretation -->
-  <div class="dw-interp neutral" id="dw-interp" style="display:none;"></div>
-
-  <!-- Big orders side by side -->
-  <div class="dw-big-grid" id="dw-big-grid" style="display:none;">
-    <div class="dw-big-card">
-      <div class="dw-big-title bid">🟢 Big Bids (covering queue)</div>
-      <div id="dw-big-bids">—</div>
-    </div>
-    <div class="dw-big-card">
-      <div class="dw-big-title ask">🔴 Big Asks (sell wall)</div>
-      <div id="dw-big-asks">—</div>
-    </div>
-  </div>
-
-  <!-- Imbalance sparkline -->
-  <div class="dw-spark-wrap" id="dw-spark-wrap" style="display:none;">
-    <div class="dw-spark-title">Depth imbalance per second (green = bid-heavy, red = ask-heavy)</div>
-    <canvas id="dw-spark" height="60" style="width:100%;display:block;border-radius:6px;"></canvas>
-  </div>
-
-  <!-- Sample table -->
-  <div id="dw-table-section" style="display:none;">
-    <div style="font-size:11px;color:#888;margin-bottom:6px;">Second-by-second samples</div>
-    <div class="dw-table-wrap">
-      <table class="dw-table">
-        <thead>
-          <tr>
-            <th style="text-align:left;">Time</th>
-            <th>LTP</th>
-            <th>OI</th>
-            <th>Bid Qty</th>
-            <th>Ask Qty</th>
-            <th>Imbalance</th>
-            <th>Best Bid</th>
-            <th>Best Ask</th>
-          </tr>
-        </thead>
-        <tbody id="dw-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-</div><!-- end tab-depth-watch-panel -->
 
 <!-- ══════════════════════════════════════════════════════════════════
      IV SKEW TAB — Auto-computed from /iv endpoint every 60s
@@ -2108,7 +1868,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 function switchTab(tabName) {
-  ['dashboard', 'option-chain', 'oi-movers', 'oi-change', 'paper-trade', 'depth-watch', 'iv-skew', 'iv-history'].forEach(name => {
+  ['dashboard', 'option-chain', 'oi-movers', 'oi-change', 'paper-trade', 'iv-skew', 'iv-history'].forEach(name => {
     const panel = document.getElementById('tab-' + name + '-panel');
     const btn = document.getElementById('tab-' + name + '-btn');
     const active = name === tabName;
@@ -2133,9 +1893,6 @@ function switchTab(tabName) {
   }
   if (tabName === 'paper-trade') {
     ptRenderAll();
-  }
-  if (tabName === 'depth-watch') {
-    dwRenderQuickChips();
   }
   if (tabName === 'iv-skew') {
     fetchIV();
@@ -3798,7 +3555,7 @@ function setCanvas(id,w,h){
 }
 
 function scrollToLatest() {
-  ['index-scroll','bear-conf-scroll','bull-conf-scroll','s1-scroll','s2-scroll','s3-scroll','oi-change-scroll'].forEach(id=>{
+  ['index-scroll','bear-conf-scroll','bull-conf-scroll','s1-scroll','s2-scroll','s3-scroll'].forEach(id=>{
     const el=document.getElementById(id);
     if (el) el.scrollLeft=el.scrollWidth;
   });
@@ -5312,6 +5069,127 @@ function renderOIChangeSelectedChips(strikes) {
   }).join('');
 }
 
+// ── ABSOLUTE OI CHART: enhanced buildup visualisation ──────────────
+// CE palette: warm/amber tones (calls = bearish pressure)
+// PE palette: cool/green tones (puts = support pressure)
+const OI_CE_PALETTE = ['#D85A30','#EF9F27','#8B3A1A','#C0392B','#E67E22'];
+const OI_PE_PALETTE = ['#1D9E75','#185FA5','#534AB7','#0F6E56','#2980B9'];
+
+function buildOIAbsDatasets(candleSets) {
+  const datasets = [];
+  candleSets.forEach((entry, idx) => {
+    const ceColor = OI_CE_PALETTE[idx % OI_CE_PALETTE.length];
+    const peColor = OI_PE_PALETTE[idx % OI_PE_PALETTE.length];
+    const atm = entry.strike === atmStrike ? ' ★ATM' : '';
+
+    // CE — solid line with subtle fill
+    datasets.push({
+      label: `${entry.strike.toLocaleString('en-IN')} CE${atm}`,
+      data: entry.candles.map(c => c.ce_oi || 0),
+      borderColor: ceColor,
+      backgroundColor: ceColor + '22',
+      fill: 'origin',
+      borderWidth: 2.5,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      tension: 0.25,
+      order: (idx + 1) * 2
+    });
+    // PE — dashed line with subtle fill
+    datasets.push({
+      label: `${entry.strike.toLocaleString('en-IN')} PE${atm}`,
+      data: entry.candles.map(c => c.pe_oi || 0),
+      borderColor: peColor,
+      backgroundColor: peColor + '18',
+      fill: 'origin',
+      borderWidth: 2.5,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      borderDash: [7, 4],
+      tension: 0.25,
+      order: (idx + 1) * 2 + 1
+    });
+  });
+  return datasets;
+}
+
+function createOIAbsChart(canvas, labels, datasets, yRange) {
+  return new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: false,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      layout: { padding: { left: 8, right: 50, top: 12, bottom: 0 } },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          labels: {
+            boxWidth: 26,
+            font: { size: 11, weight: '500' },
+            usePointStyle: false,
+            padding: 14,
+            generateLabels(chart) {
+              return chart.data.datasets.map((ds, i) => ({
+                text: ds.label,
+                fillStyle: ds.borderColor,
+                strokeStyle: ds.borderColor,
+                lineWidth: ds.borderDash ? 0 : 2,
+                hidden: !chart.isDatasetVisible(i),
+                datasetIndex: i,
+                lineDash: ds.borderDash || [],
+                fontColor: '#333'
+              }));
+            }
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(20,20,20,0.88)',
+          titleFont: { size: 11 },
+          bodyFont: { size: 11 },
+          padding: 10,
+          callbacks: {
+            label: ctx => {
+              const v = ctx.raw || 0;
+              const ds = ctx.dataset;
+              const arrow = ds._prevVal != null ? (v > ds._prevVal ? ' ▲' : v < ds._prevVal ? ' ▼' : '') : '';
+              ds._prevVal = v;
+              return ` ${ds.label}: ${fmtCompactAxis(v, false)}${arrow}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(136,135,128,0.07)' },
+          ticks: {
+            color: TCLR,
+            font: { size: 10 },
+            autoSkip: false,
+            maxRotation: 0,
+            minRotation: 0,
+            callback: function(value, index) {
+              const total = labels.length;
+              if (index === total - 1) return labels[index];
+              const labelEvery = Math.max(1, Math.ceil(total / Math.max(4, Math.floor((canvas.width - 60) / 52))));
+              return index % labelEvery === 0 ? labels[index] : '';
+            }
+          }
+        },
+        y: {
+          display: false,
+          min: yRange.min,
+          max: yRange.max,
+          grid: { color: GRID }
+        }
+      },
+      animation: { duration: 300 }
+    }
+  });
+}
+
 function buildOIChartDatasets(candleSets, mode) {
   const palette = ['#185FA5','#1D9E75','#D85A30','#534AB7','#EF9F27','#0F6E56','#8B1A1A','#97C459','#666'];
   const datasets = [];
@@ -5420,14 +5298,11 @@ function createOIChart(canvas, labels, datasets, yRange, signedAxis, tooltipSuff
 }
 
 function renderOIChangeChart() {
-  const changeCanvas = document.getElementById('oiChangeChart');
-  const changeWrap = document.getElementById('oiChangeChartWrap');
-  const changeScroll = document.getElementById('oi-change-scroll');
   const absCanvas = document.getElementById('oiAbsChart');
   const absWrap = document.getElementById('oiAbsChartWrap');
   const absScroll = document.getElementById('oi-abs-scroll');
   const summary = document.getElementById('oi-change-summary');
-  if (!changeCanvas || !changeWrap || !changeScroll || !absCanvas || !absWrap || !absScroll) return;
+  if (!absCanvas || !absWrap || !absScroll) return;
 
   ensureOIChangeSelection();
   const strikes = [...new Set(oiChangeSelectedStrikes.filter(Boolean))].sort((a,b)=>a-b);
@@ -5435,7 +5310,6 @@ function renderOIChangeChart() {
 
   const validRows = minuteRows || [];
   if (!strikes.length || !validRows.length) {
-    if (oiChangeChartInstance) { oiChangeChartInstance.destroy(); oiChangeChartInstance = null; }
     if (oiAbsChartInstance) { oiAbsChartInstance.destroy(); oiAbsChartInstance = null; }
     if (summary) summary.innerHTML = '<span class="oi-change-pill">Select at least one strike to plot OI.</span>';
     return;
@@ -5443,42 +5317,37 @@ function renderOIChangeChart() {
 
   const candleSets = strikes.map(st => ({ strike: st, candles: buildCandlesForStrike(validRows, intervalMin, st) }));
   const labels = candleSets[0]?.candles.map(c => c.label) || [];
-  const chartW = Math.max(labels.length * Math.max(36, MIN_BAR_PX) + 160, Math.floor(changeScroll.getBoundingClientRect().width || window.innerWidth - 120));
-  const chartH = 360;
+  const chartW = Math.max(labels.length * Math.max(36, MIN_BAR_PX) + 160, Math.floor(absScroll.getBoundingClientRect().width || window.innerWidth - 120));
+  const chartH = 420;
 
-  [changeWrap, absWrap].forEach(wrap => {
-    wrap.style.width = chartW + 'px';
-    wrap.style.height = chartH + 'px';
-  });
-  setCanvas('oiChangeChart', chartW, chartH);
+  absWrap.style.width = chartW + 'px';
+  absWrap.style.height = chartH + 'px';
   setCanvas('oiAbsChart', chartW, chartH);
 
-  const changeDatasets = buildOIChartDatasets(candleSets, 'chg');
-  const absDatasets = buildOIChartDatasets(candleSets, 'abs');
-  const changeValues = changeDatasets.flatMap(ds => ds.data);
-  const absValues = absDatasets.flatMap(ds => ds.data);
-  const changeRange = niceRange(changeValues, false);
+  const absDatasets = buildOIAbsDatasets(candleSets);
+  const absValues = absDatasets.flatMap(ds => ds.data.filter(v => v != null));
   const absRange = niceRange(absValues, true);
 
-  drawStickyOIYAxis('oiChangeYAxis', changeRange.min, changeRange.max, chartH, v => fmtCompactAxis(v, true), 'Change in OI');
   drawStickyOIYAxis('oiAbsYAxis', absRange.min, absRange.max, chartH, v => fmtCompactAxis(v, false), 'Open Interest');
 
-  if (oiChangeChartInstance) { oiChangeChartInstance.destroy(); oiChangeChartInstance = null; }
   if (oiAbsChartInstance) { oiAbsChartInstance.destroy(); oiAbsChartInstance = null; }
 
-  oiChangeChartInstance = createOIChart(changeCanvas, labels, changeDatasets, changeRange, true, 'contracts');
-  oiAbsChartInstance = createOIChart(absCanvas, labels, absDatasets, absRange, false, 'contracts');
+  oiAbsChartInstance = createOIAbsChart(absCanvas, labels, absDatasets, absRange);
 
   if (summary) {
     summary.innerHTML = candleSets.map(entry => {
-      const ceD = entry.candles.reduce((s,c)=>s+(c.dce||0),0);
-      const peD = entry.candles.reduce((s,c)=>s+(c.dpe||0),0);
       const last = entry.candles[entry.candles.length-1] || {};
-      return `<span class="oi-change-pill"><strong>${entry.strike.toLocaleString('en-IN')}</strong> Δ CE ${fmtD(ceD)} · Δ PE ${fmtD(peD)} · OI CE ${fmtCompactAxis(last.ce_oi||0)} · OI PE ${fmtCompactAxis(last.pe_oi||0)}</span>`;
+      const first = entry.candles[0] || {};
+      const ceDelta = (last.ce_oi||0) - (first.ce_oi||0);
+      const peDelta = (last.pe_oi||0) - (first.pe_oi||0);
+      const ceDir = ceDelta > 0 ? '▲' : ceDelta < 0 ? '▼' : '—';
+      const peDir = peDelta > 0 ? '▲' : peDelta < 0 ? '▼' : '—';
+      const ceColor = ceDelta > 0 ? '#D85A30' : '#1D9E75';
+      const peColor = peDelta > 0 ? '#1D9E75' : '#D85A30';
+      return `<span class="oi-change-pill"><strong>${entry.strike.toLocaleString('en-IN')}</strong> &nbsp;CE: ${fmtCompactAxis(last.ce_oi||0)} <span style="color:${ceColor};font-weight:600;">${ceDir}${fmtCompactAxis(Math.abs(ceDelta))}</span> &nbsp;PE: ${fmtCompactAxis(last.pe_oi||0)} <span style="color:${peColor};font-weight:600;">${peDir}${fmtCompactAxis(Math.abs(peDelta))}</span></span>`;
     }).join('');
   }
 
-  changeScroll.scrollLeft = changeScroll.scrollWidth;
   absScroll.scrollLeft = absScroll.scrollWidth;
 }
 
