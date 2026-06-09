@@ -17,6 +17,8 @@ h1{font-size:17px;font-weight:500;margin-bottom:1rem;}
 .tab-panel{display:none;}
 .tab-panel.active{display:block;}
 .tab-hint{margin-left:auto;font-size:11px;color:#888;padding-right:8px;}
+/* ── STRADDLE TAB ── */
+.straddle-int-btn.active{background:#185FA5!important;color:#fff!important;border-color:#185FA5!important;}
 
 
 .status-bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:12px;color:#666;background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:9px 14px;margin-bottom:12px;}
@@ -497,7 +499,7 @@ tr:last-child td{border-bottom:none;}
 
   <button class="tab-btn" id="tab-paper-trade-btn" onclick="switchTab('paper-trade')">🤖 Paper Trades</button>
   <button class="tab-btn" id="tab-iv-skew-btn" onclick="switchTab('iv-skew')">📐 IV Skew</button>
-  <button class="tab-btn" id="tab-iv-history-btn" onclick="switchTab('iv-history')">📈 IV History</button>
+  <button class="tab-btn" id="tab-straddle-btn" onclick="switchTab('straddle')">🎯 Straddle</button>
   <span class="tab-hint">Move heavy tables away from the main trading view</span>
 </div>
 
@@ -1378,92 +1380,95 @@ tr:last-child td{border-bottom:none;}
 </div><!-- end tab-iv-skew-panel -->
 
 <!-- ══════════════════════════════════════════════════════════════════
-     IV HISTORY TAB — pulls from /iv/history for any date
+     STRADDLE TRACKER TAB — combined CE+PE premium of a selected strike
 ════════════════════════════════════════════════════════════════════ -->
-<div class="tab-panel" id="tab-iv-history-panel">
+<div class="tab-panel" id="tab-straddle-panel">
 
-<div class="date-bar" style="margin-bottom:12px;">
-  <label>Date:</label>
-  <input type="date" id="ivh-date-picker">
-  <button class="btn btn-primary" onclick="fetchIVHistory()">Load</button>
-  <button class="btn" onclick="fetchIVHistory('today')">Today</button>
-  <span style="color:#aaa;font-size:11px;" id="ivh-status">Select a date and click Load.</span>
-  <div style="flex:1;"></div>
-  <label style="font-size:11px;color:#888;">
-    <input type="checkbox" id="ivh-include-strikes" style="margin-right:4px;">
-    Include per-strike IV
-  </label>
+<div class="date-bar" style="margin-bottom:12px;flex-wrap:wrap;row-gap:8px;">
+  <label>Strike:</label>
+  <select id="straddle-strike" onchange="straddleOnStrikeChange()"></select>
+  <button class="btn" onclick="straddleSelectATM()">ATM</button>
+  <label style="margin-left:14px;">Interval:</label>
+  <div style="display:flex;gap:4px;">
+    <button class="btn straddle-int-btn active" id="straddle-int-1" onclick="setStraddleInterval(1)">1 min</button>
+    <button class="btn straddle-int-btn" id="straddle-int-3" onclick="setStraddleInterval(3)">3 min</button>
+    <button class="btn straddle-int-btn" id="straddle-int-5" onclick="setStraddleInterval(5)">5 min</button>
+  </div>
+  <span style="color:#aaa;font-size:11px;" id="straddle-status">Waiting for data…</span>
+</div>
+
+<!-- Live straddle readout -->
+<div class="ltp-bar" id="straddle-live-bar">
+  <div class="ltp-box"><span class="ltp-label" id="straddle-ce-sym">— CE</span><span class="ltp-val" id="straddle-ce-ltp">—</span><span class="ltp-tag">LTP</span></div>
+  <div class="ltp-divider"></div>
+  <div class="ltp-box"><span class="ltp-label" id="straddle-pe-sym">— PE</span><span class="ltp-val" id="straddle-pe-ltp">—</span><span class="ltp-tag">LTP</span></div>
+  <div class="ltp-divider"></div>
+  <div class="ltp-box"><span class="ltp-label">Straddle</span><span class="ltp-val" id="straddle-live-val" style="font-size:24px;font-weight:600;">—</span><span class="ltp-tag">CE + PE</span></div>
+  <div class="ltp-pulse" id="straddle-pulse"></div>
 </div>
 
 <!-- Summary cards -->
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px;" id="ivh-summary-cards">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:12px;">
   <div style="background:var(--color-background-secondary);border-radius:8px;padding:12px;">
-    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Rows loaded</div>
-    <div style="font-size:22px;font-weight:500;" id="ivh-row-count">—</div>
+    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Day open</div>
+    <div style="font-size:20px;font-weight:500;" id="straddle-day-open">—</div>
   </div>
   <div style="background:var(--color-background-secondary);border-radius:8px;padding:12px;">
-    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Avg RR (OTM)</div>
-    <div style="font-size:22px;font-weight:500;" id="ivh-avg-rr-day">—</div>
+    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Last close</div>
+    <div style="font-size:20px;font-weight:500;" id="straddle-last-close">—</div>
   </div>
   <div style="background:var(--color-background-secondary);border-radius:8px;padding:12px;">
-    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Max 10Δ RR</div>
-    <div style="font-size:22px;font-weight:500;" id="ivh-max-rr10">—</div>
+    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Change (day)</div>
+    <div style="font-size:20px;font-weight:500;" id="straddle-day-chg">—</div>
   </div>
   <div style="background:var(--color-background-secondary);border-radius:8px;padding:12px;">
-    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Min 25Δ RR</div>
-    <div style="font-size:22px;font-weight:500;" id="ivh-min-rr25">—</div>
+    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Day high</div>
+    <div style="font-size:20px;font-weight:500;" id="straddle-day-high">—</div>
   </div>
   <div style="background:var(--color-background-secondary);border-radius:8px;padding:12px;">
-    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">50Δ ATM range</div>
-    <div style="font-size:22px;font-weight:500;" id="ivh-atm-range">—</div>
+    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Day low</div>
+    <div style="font-size:20px;font-weight:500;" id="straddle-day-low">—</div>
+  </div>
+  <div style="background:var(--color-background-secondary);border-radius:8px;padding:12px;">
+    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Trend (last 6 candles)</div>
+    <div style="font-size:16px;font-weight:600;" id="straddle-trend">—</div>
   </div>
 </div>
 
-<!-- RR chart -->
+<!-- Straddle chart -->
 <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;">
-  <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Risk Reversal over the day</div>
-  <div style="font-size:11px;color:#aaa;margin-bottom:10px;">10Δ · 25Δ · 50Δ ATM — put IV minus call IV at each candle close</div>
-  <div style="position:relative;height:220px;">
-    <canvas id="ivh-rr-chart" role="img" aria-label="IV Risk Reversal chart over the trading day"></canvas>
+  <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;" id="straddle-chart-title">Straddle premium over the day</div>
+  <div style="font-size:11px;color:#aaa;margin-bottom:10px;">Solid line = candle close of CE+PE combined premium · dashed = SMA(5) trend reference · shaded band = candle high/low range</div>
+  <div style="position:relative;height:280px;">
+    <canvas id="straddle-chart" role="img" aria-label="Straddle premium chart over the trading day"></canvas>
   </div>
 </div>
 
-<!-- ATM IV chart -->
-<div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px;">
-  <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">ATM IV over the day</div>
-  <div style="font-size:11px;color:#aaa;margin-bottom:10px;">50Δ Call IV vs 50Δ Put IV — divergence shows skew direction</div>
-  <div style="position:relative;height:200px;">
-    <canvas id="ivh-atm-chart" role="img" aria-label="ATM IV chart"></canvas>
-  </div>
-</div>
-
-<!-- Full per-minute table -->
+<!-- Recent candles table -->
 <div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;">
-  <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Per-minute IV log</div>
+  <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;" id="straddle-table-title">Recent candles (newest first)</div>
   <div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-size:12px;">
       <thead>
         <tr style="background:#f8f8f5;">
           <th style="padding:6px 10px;text-align:left;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">Time</th>
-          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">Spot</th>
-          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">10Δ RR</th>
-          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">15Δ RR</th>
-          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">25Δ RR</th>
-          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#534AB7;font-size:11px;font-weight:500;">50Δ ATM</th>
-          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#185FA5;font-size:11px;font-weight:500;">70Δ ITM</th>
-          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">ATM CE IV</th>
-          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">ATM PE IV</th>
-          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">Avg RR</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#1D9E75;font-size:11px;font-weight:500;">CE close</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#D85A30;font-size:11px;font-weight:500;">PE close</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">Open</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">High</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">Low</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#185FA5;font-size:11px;font-weight:500;">Straddle close</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;">Δ vs prev</th>
         </tr>
       </thead>
-      <tbody id="ivh-table-body">
-        <tr><td colspan="10" style="text-align:center;padding:24px;color:#aaa;">Select a date and click Load.</td></tr>
+      <tbody id="straddle-table-body">
+        <tr><td colspan="8" style="text-align:center;padding:24px;color:#aaa;">Waiting for data…</td></tr>
       </tbody>
     </table>
   </div>
 </div>
 
-</div><!-- end tab-iv-history-panel -->
+</div><!-- end tab-straddle-panel -->
 
 <script>
 // ═══════════════════════════════════════════════════════════════
@@ -1868,7 +1873,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 function switchTab(tabName) {
-  ['dashboard', 'option-chain', 'oi-movers', 'oi-change', 'paper-trade', 'iv-skew', 'iv-history'].forEach(name => {
+  ['dashboard', 'option-chain', 'oi-movers', 'oi-change', 'paper-trade', 'iv-skew', 'straddle'].forEach(name => {
     const panel = document.getElementById('tab-' + name + '-panel');
     const btn = document.getElementById('tab-' + name + '-btn');
     const active = name === tabName;
@@ -1897,10 +1902,9 @@ function switchTab(tabName) {
   if (tabName === 'iv-skew') {
     fetchIV();
   }
-  if (tabName === 'iv-history') {
-    const picker = document.getElementById('ivh-date-picker');
-    if (picker && !picker.value) picker.value = todayIST();
-    fetchIVHistory();
+  if (tabName === 'straddle') {
+    populateStraddleStrikes();
+    renderStraddle();
   }
 }
 
@@ -2027,6 +2031,11 @@ async function loadHistoricalData(date) {
     // Update paper trades
     if (document.getElementById('tab-paper-trade-panel')?.classList.contains('active')) {
       ptRenderAll();
+    }
+    // Update straddle tracker
+    if (document.getElementById('tab-straddle-panel')?.classList.contains('active')) {
+      populateStraddleStrikes();
+      renderStraddle();
     }
     if (minuteRows.length) {
       const firstRow = minuteRows[0];
@@ -2523,6 +2532,7 @@ async function fetchLTP() {
 }
 
 function updateLTP(data) {
+  window.__lastLtpData = data;   // used by Straddle tab live readout
   if (data.spot) {
     currentSpot = data.spot;
     document.getElementById('spot-val').textContent = fmt(data.spot);
@@ -2686,6 +2696,11 @@ async function fetchHistory() {
     // Update paper trades if that tab is visible
     if (document.getElementById('tab-paper-trade-panel')?.classList.contains('active')) {
       ptRenderAll();
+    }
+    // Update straddle tracker if that tab is visible
+    if (document.getElementById('tab-straddle-panel')?.classList.contains('active')) {
+      populateStraddleStrikes();
+      renderStraddle();
     }
     rebuildCharts();
   } catch(e) {}
@@ -5724,167 +5739,284 @@ setInterval(() => {
 }, 1000);
 
 // ══════════════════════════════════════════════════════════════════
-// IV HISTORY TAB
+// STRADDLE TRACKER TAB — combined CE+PE premium for a selected strike
+// Data source: minuteRows (per-strike LTP columns from /oi/history),
+// live readout from the 1-second /ltp poll.
 // ══════════════════════════════════════════════════════════════════
 
-let ivhRRChart  = null;
-let ivhATMChart = null;
+let straddleInterval       = 1;      // 1 / 3 / 5 minutes
+let straddleChart          = null;
+let straddleSelectedStrike = null;
+let _straddlePrevLive      = 0;
 
-function ivhFmtRR(v) {
-  if (v == null) return '—';
-  return (v >= 0 ? '+' : '') + parseFloat(v).toFixed(1) + '%';
+const straddleFmt = v => (v == null || !isFinite(v)) ? '—' : v.toFixed(2);
+
+function populateStraddleStrikes() {
+  const sel = document.getElementById('straddle-strike');
+  if (!sel) return;
+  if (!allStrikes.length) { sel.innerHTML = '<option>Waiting…</option>'; return; }
+  if (!straddleSelectedStrike || !allStrikes.includes(straddleSelectedStrike)) {
+    straddleSelectedStrike = atmStrike || allStrikes[Math.floor(allStrikes.length / 2)];
+  }
+  sel.innerHTML = allStrikes.map(s =>
+    `<option value="${s}"${s === straddleSelectedStrike ? ' selected' : ''}>${s}${s === atmStrike ? ' (ATM)' : ''}</option>`
+  ).join('');
 }
-function ivhRRColor(v) {
-  if (v == null) return '#888';
-  if (v > 6)  return '#D85A30';
-  if (v > 2)  return '#EF9F27';
-  if (v < -2) return '#1D9E75';
-  return '#888';
+
+function straddleOnStrikeChange() {
+  const sel = document.getElementById('straddle-strike');
+  if (sel) straddleSelectedStrike = parseInt(sel.value, 10) || null;
+  _straddlePrevLive = 0;
+  renderStraddle();
 }
 
-async function fetchIVHistory(mode) {
-  const statusEl = document.getElementById('ivh-status');
-  const picker   = document.getElementById('ivh-date-picker');
-  const strikes  = document.getElementById('ivh-include-strikes')?.checked ? '1' : '0';
+function straddleSelectATM() {
+  if (!atmStrike) return;
+  straddleSelectedStrike = atmStrike;
+  const sel = document.getElementById('straddle-strike');
+  if (sel) sel.value = String(atmStrike);
+  _straddlePrevLive = 0;
+  renderStraddle();
+}
 
-  let dateStr = mode === 'today' ? todayIST() : (picker?.value || todayIST());
-  if (picker && mode === 'today') picker.value = todayIST();
-  if (statusEl) statusEl.textContent = 'Loading…';
+function setStraddleInterval(mins) {
+  straddleInterval = mins;
+  [1, 3, 5].forEach(m => {
+    const b = document.getElementById('straddle-int-' + m);
+    if (b) b.classList.toggle('active', m === mins);
+  });
+  renderStraddle();
+}
 
-  try {
-    const res  = await fetch(`/iv/history?date=${dateStr}&strikes=${strikes}`);
-    const rows = await res.json();
-
-    if (!Array.isArray(rows) || !rows.length) {
-      if (statusEl) statusEl.textContent = `No IV data for ${dateStr}. Data is saved from the current session onwards.`;
-      document.getElementById('ivh-table-body').innerHTML =
-        '<tr><td colspan="10" style="text-align:center;padding:24px;color:#aaa;">No IV data for this date.</td></tr>';
-      ['ivh-row-count','ivh-avg-rr-day','ivh-max-rr10','ivh-min-rr25','ivh-atm-range']
-        .forEach(id => { const el=document.getElementById(id); if(el) el.textContent='—'; });
-      return;
+// Build N-minute straddle candles from minuteRows.
+// Reuses the same field-name detection logic as buildCandlesForStrike,
+// since the bridge may store per-strike LTP as _ltp / _close / _price.
+function buildStraddleCandles(rows, strike, mins) {
+  if (!rows || !rows.length || !strike) return [];
+  const detect = base => {
+    for (const sfx of ['_ltp', '_close', '_price']) {
+      if (rows.some(r => pf(r[base + sfx]) > 0)) return base + sfx;
     }
+    return null;
+  };
+  const ceF = detect(`s${strike}_ce`);
+  const peF = detect(`s${strike}_pe`);
+  if (!ceF || !peF) return [];
 
-    if (statusEl) statusEl.textContent = `${rows.length} candles loaded for ${dateStr}`;
+  const out = [];
+  for (let i = 0; i < rows.length; i += mins) {
+    const slice = rows.slice(i, i + mins);
+    const vals = [], ceArr = [], peArr = [];
+    slice.forEach(r => {
+      const ce = pf(r[ceF]), pe = pf(r[peF]);
+      if (ce > 0 && pe > 0) { vals.push(ce + pe); ceArr.push(ce); peArr.push(pe); }
+    });
+    if (!vals.length) continue;
+    out.push({
+      label: slice[0].time_label,
+      open:  vals[0],
+      high:  Math.max(...vals),
+      low:   Math.min(...vals),
+      close: vals[vals.length - 1],
+      ce:    ceArr[ceArr.length - 1],
+      pe:    peArr[peArr.length - 1],
+    });
+  }
+  return out;
+}
 
-    // Summary stats
-    const validRR    = rows.filter(r => r.iv_avg_rr != null).map(r => r.iv_avg_rr);
-    const validRR10  = rows.filter(r => r.iv_rr_10  != null).map(r => r.iv_rr_10);
-    const validRR25  = rows.filter(r => r.iv_rr_25  != null).map(r => r.iv_rr_25);
-    const atmCeVals  = rows.filter(r => r.iv_atm_ce != null).map(r => r.iv_atm_ce);
-    const atmPeVals  = rows.filter(r => r.iv_atm_pe != null).map(r => r.iv_atm_pe);
+function _straddleSMA(arr, n) {
+  return arr.map((_, i) => {
+    if (i < n - 1) return null;
+    let s = 0;
+    for (let j = i - n + 1; j <= i; j++) s += arr[j];
+    return s / n;
+  });
+}
 
-    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-    setEl('ivh-row-count',  rows.length);
-    setEl('ivh-avg-rr-day', validRR.length  ? ivhFmtRR(validRR.reduce((a,b)=>a+b,0)/validRR.length) : '—');
-    setEl('ivh-max-rr10',   validRR10.length ? ivhFmtRR(Math.max(...validRR10)) : '—');
-    setEl('ivh-min-rr25',   validRR25.length ? ivhFmtRR(Math.min(...validRR25)) : '—');
+function renderStraddle() {
+  const statusEl = document.getElementById('straddle-status');
+  const sel = document.getElementById('straddle-strike');
+  if (sel && (!sel.options.length || sel.options[0].text === 'Waiting…')) populateStraddleStrikes();
+  const st = straddleSelectedStrike;
 
-    if (atmCeVals.length && atmPeVals.length) {
-      const atm_lo = Math.min(...[...atmCeVals,...atmPeVals]).toFixed(1);
-      const atm_hi = Math.max(...[...atmCeVals,...atmPeVals]).toFixed(1);
-      setEl('ivh-atm-range', `${atm_lo}–${atm_hi}%`);
+  // Header symbols on the live bar
+  const ceSym = document.getElementById('straddle-ce-sym');
+  const peSym = document.getElementById('straddle-pe-sym');
+  if (ceSym) ceSym.textContent = st ? st + ' CE' : '— CE';
+  if (peSym) peSym.textContent = st ? st + ' PE' : '— PE';
+
+  const titleEl = document.getElementById('straddle-chart-title');
+  if (titleEl) titleEl.textContent = (st ? st + ' straddle' : 'Straddle') + ' premium — ' + straddleInterval + ' min candles';
+  const tblTitle = document.getElementById('straddle-table-title');
+  if (tblTitle) tblTitle.textContent = 'Recent ' + straddleInterval + '-min candles (newest first)';
+
+  const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const tbody = document.getElementById('straddle-table-body');
+
+  const candles = buildStraddleCandles(minuteRows, st, straddleInterval);
+
+  if (!candles.length) {
+    if (statusEl) statusEl.textContent = st
+      ? `No per-minute LTP data found for strike ${st}. The bridge stores LTPs only for strikes it is subscribed to — pick a strike nearer ATM.`
+      : 'Waiting for strikes…';
+    ['straddle-day-open','straddle-last-close','straddle-day-chg','straddle-day-high','straddle-day-low','straddle-trend']
+      .forEach(id => setEl(id, '—'));
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#aaa;">No straddle data for this strike.</td></tr>';
+    if (straddleChart) { straddleChart.destroy(); straddleChart = null; }
+    return;
+  }
+
+  if (statusEl) statusEl.textContent = `${candles.length} × ${straddleInterval}-min candles` + (selectedDate ? ` · ${selectedDate}` : ' · today');
+
+  // ── Summary stats ────────────────────────────────────────────────
+  const dayOpen  = candles[0].open;
+  const last     = candles[candles.length - 1];
+  const dayHigh  = Math.max(...candles.map(c => c.high));
+  const dayLow   = Math.min(...candles.map(c => c.low));
+  const chg      = last.close - dayOpen;
+  const chgPct   = dayOpen ? (chg / dayOpen) * 100 : 0;
+
+  setEl('straddle-day-open',  straddleFmt(dayOpen));
+  setEl('straddle-last-close', straddleFmt(last.close));
+  setEl('straddle-day-high',  straddleFmt(dayHigh));
+  setEl('straddle-day-low',   straddleFmt(dayLow));
+
+  const chgEl = document.getElementById('straddle-day-chg');
+  if (chgEl) {
+    chgEl.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + ' (' + (chg >= 0 ? '+' : '') + chgPct.toFixed(1) + '%)';
+    chgEl.style.color = chg > 0 ? '#D85A30' : chg < 0 ? '#1D9E75' : '#1a1a1a';
+  }
+
+  // ── Trend over the last 6 candles ────────────────────────────────
+  // Compare latest close vs SMA(5) of the preceding candles + net direction.
+  const trendEl = document.getElementById('straddle-trend');
+  if (trendEl) {
+    const closes = candles.map(c => c.close);
+    if (closes.length >= 3) {
+      const win   = closes.slice(-6);
+      const base  = win.slice(0, -1);
+      const ref   = base.reduce((a, b) => a + b, 0) / base.length;
+      const lastC = win[win.length - 1];
+      const dev   = ref ? ((lastC - ref) / ref) * 100 : 0;
+      if (dev > 0.4)       { trendEl.textContent = '▲ Premium expanding'; trendEl.style.color = '#D85A30'; }
+      else if (dev < -0.4) { trendEl.textContent = '▼ Premium decaying';  trendEl.style.color = '#1D9E75'; }
+      else                 { trendEl.textContent = '→ Flat / rangebound'; trendEl.style.color = '#888'; }
     } else {
-      setEl('ivh-atm-range', '—');
+      trendEl.textContent = 'Need more candles'; trendEl.style.color = '#aaa';
     }
+  }
 
-    // Color summary cards by direction
-    const avgRrEl = document.getElementById('ivh-avg-rr-day');
-    if (avgRrEl && validRR.length) {
-      const avg = validRR.reduce((a,b)=>a+b,0)/validRR.length;
-      avgRrEl.style.color = avg > 3 ? '#D85A30' : avg < -1 ? '#1D9E75' : '#1a1a1a';
-    }
+  // ── Chart ────────────────────────────────────────────────────────
+  const labels = candles.map(c => c.label || '');
+  const closes = candles.map(c => c.close);
+  const highs  = candles.map(c => c.high);
+  const lows   = candles.map(c => c.low);
+  const sma5   = _straddleSMA(closes, 5);
 
-    // RR chart
-    const labels = rows.map(r => r.time_label || '');
-    const rr10d  = rows.map(r => r.iv_rr_10  ?? null);
-    const rr25d  = rows.map(r => r.iv_rr_25  ?? null);
-    const rr50d  = rows.map(r => r.iv_rr_50  ?? null);
-
-    if (ivhRRChart)  { ivhRRChart.destroy();  ivhRRChart  = null; }
-    if (ivhATMChart) { ivhATMChart.destroy(); ivhATMChart = null; }
-
-    const rrCanvas = document.getElementById('ivh-rr-chart');
-    if (rrCanvas) {
-      ivhRRChart = new Chart(rrCanvas, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [
-            { label: '10Δ RR', data: rr10d, borderColor: '#D85A30', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, spanGaps: true },
-            { label: '25Δ RR', data: rr25d, borderColor: '#EF9F27', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, spanGaps: true },
-            { label: '50Δ ATM', data: rr50d, borderColor: '#534AB7', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, borderDash: [4,3], spanGaps: true },
-          ]
+  if (straddleChart) { straddleChart.destroy(); straddleChart = null; }
+  const canvas = document.getElementById('straddle-chart');
+  if (canvas) {
+    straddleChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Straddle close', data: closes, borderColor: '#185FA5', backgroundColor: 'transparent',
+            borderWidth: 2, pointRadius: 0, tension: 0.15, spanGaps: true, order: 1 },
+          { label: 'SMA(5)', data: sma5, borderColor: '#534AB7', backgroundColor: 'transparent',
+            borderWidth: 1.5, borderDash: [4, 3], pointRadius: 0, tension: 0.2, spanGaps: true, order: 2 },
+          { label: 'High', data: highs, borderColor: 'transparent', pointRadius: 0,
+            fill: '+1', backgroundColor: 'rgba(24,95,165,0.08)', tension: 0.15, order: 3 },
+          { label: 'Low', data: lows, borderColor: 'transparent', pointRadius: 0,
+            fill: false, tension: 0.15, order: 4 },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: true, labels: { boxWidth: 12, font: { size: 10 },
+            filter: item => item.text !== 'High' && item.text !== 'Low' } },
+          tooltip: {
+            callbacks: {
+              afterBody: items => {
+                const i = items[0]?.dataIndex;
+                if (i == null || !candles[i]) return '';
+                const c = candles[i];
+                return [`O ${c.open.toFixed(2)}  H ${c.high.toFixed(2)}`,
+                        `L ${c.low.toFixed(2)}  C ${c.close.toFixed(2)}`,
+                        `CE ${c.ce.toFixed(2)} · PE ${c.pe.toFixed(2)}`];
+              }
+            }
+          }
         },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: true, labels: { boxWidth: 12, font: { size: 10 } } } },
-          scales: {
-            x: { ticks: { color: '#888', font: { size: 10 }, maxRotation: 0,
-                  callback: (v, i) => i % Math.max(1, Math.ceil(labels.length/12)) === 0 ? labels[i] : '' } },
-            y: { ticks: { color: '#888', font: { size: 10 },
-                  callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%' },
-                 grid: { color: 'rgba(136,135,128,0.1)' } }
-          },
-          animation: { duration: 300 }
-        }
-      });
-    }
-
-    // ATM IV chart
-    const atmCe = rows.map(r => r.iv_atm_ce ?? null);
-    const atmPe = rows.map(r => r.iv_atm_pe ?? null);
-    const atmCanvas = document.getElementById('ivh-atm-chart');
-    if (atmCanvas) {
-      ivhATMChart = new Chart(atmCanvas, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [
-            { label: 'ATM Call IV', data: atmCe, borderColor: '#1D9E75', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, spanGaps: true },
-            { label: 'ATM Put IV',  data: atmPe, borderColor: '#D85A30', backgroundColor: 'transparent', borderWidth: 1.5, pointRadius: 0, tension: 0.2, spanGaps: true },
-          ]
+        scales: {
+          x: { ticks: { color: '#888', font: { size: 10 }, maxRotation: 0,
+                callback: (v, i) => i % Math.max(1, Math.ceil(labels.length / 12)) === 0 ? labels[i] : '' } },
+          y: { ticks: { color: '#888', font: { size: 10 }, callback: v => v.toFixed(1) },
+               grid: { color: 'rgba(136,135,128,0.1)' } }
         },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: true, labels: { boxWidth: 12, font: { size: 10 } } } },
-          scales: {
-            x: { ticks: { color: '#888', font: { size: 10 }, maxRotation: 0,
-                  callback: (v, i) => i % Math.max(1, Math.ceil(labels.length/12)) === 0 ? labels[i] : '' } },
-            y: { ticks: { color: '#888', font: { size: 10 },
-                  callback: v => v.toFixed(1) + '%' },
-                 grid: { color: 'rgba(136,135,128,0.1)' } }
-          },
-          animation: { duration: 300 }
-        }
-      });
-    }
+        animation: { duration: 250 }
+      }
+    });
+  }
 
-    // Table
-    const tbody = document.getElementById('ivh-table-body');
-    if (tbody) {
-      tbody.innerHTML = [...rows].reverse().map(r => {
-        return `<tr>
-          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;color:#888;font-size:11px;">${r.time_label || '—'}</td>
-          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;font-variant-numeric:tabular-nums;">${r.spot_close ? r.spot_close.toLocaleString('en-IN') : '—'}</td>
-          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;font-weight:500;color:${ivhRRColor(r.iv_rr_10)};">${ivhFmtRR(r.iv_rr_10)}</td>
-          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;color:${ivhRRColor(r.iv_rr_15)};">${ivhFmtRR(r.iv_rr_15)}</td>
-          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;color:${ivhRRColor(r.iv_rr_25)};">${ivhFmtRR(r.iv_rr_25)}</td>
-          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;color:#534AB7;">${ivhFmtRR(r.iv_rr_50)}</td>
-          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;color:#185FA5;">${ivhFmtRR(r.iv_rr_70)}</td>
-          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;">${r.iv_atm_ce != null ? r.iv_atm_ce.toFixed(1)+'%' : '—'}</td>
-          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;">${r.iv_atm_pe != null ? r.iv_atm_pe.toFixed(1)+'%' : '—'}</td>
-          <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;color:${ivhRRColor(r.iv_avg_rr)};font-weight:500;">${ivhFmtRR(r.iv_avg_rr)}</td>
-        </tr>`;
-      }).join('');
-    }
-
-  } catch(e) {
-    if (statusEl) statusEl.textContent = 'Error loading IV history: ' + e.message;
+  // ── Table (last 40 candles, newest first) ────────────────────────
+  if (tbody) {
+    const recent = candles.slice(-40);
+    tbody.innerHTML = recent.map((c, i) => {
+      const prev = i > 0 ? recent[i - 1] : null;
+      const d    = prev ? c.close - prev.close : null;
+      const dCol = d == null ? '#aaa' : d > 0 ? '#D85A30' : d < 0 ? '#1D9E75' : '#888';
+      const dTxt = d == null ? '—' : (d >= 0 ? '+' : '') + d.toFixed(2);
+      return `<tr>
+        <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;color:#888;font-size:11px;">${c.label || '—'}</td>
+        <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;color:#1D9E75;">${c.ce.toFixed(2)}</td>
+        <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;color:#D85A30;">${c.pe.toFixed(2)}</td>
+        <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;">${c.open.toFixed(2)}</td>
+        <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;">${c.high.toFixed(2)}</td>
+        <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;">${c.low.toFixed(2)}</td>
+        <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;font-weight:600;color:#185FA5;">${c.close.toFixed(2)}</td>
+        <td style="padding:5px 10px;border-bottom:0.5px solid #f0f0ec;text-align:right;font-weight:500;color:${dCol};">${dTxt}</td>
+      </tr>`;
+    }).reverse().join('');
   }
 }
 
-// Trigger fetchIVHistory when switching to this tab
-// (handled in switchTab below)
+// ── Live straddle readout — refreshed every second from /ltp poll ──
+setInterval(() => {
+  const panel = document.getElementById('tab-straddle-panel');
+  if (!panel || !panel.classList.contains('active')) return;
+  if (pollingSuspended) return;                    // historical replay → no live tick
+  const st = straddleSelectedStrike;
+  const lastLtpData = window.__lastLtpData;
+  if (!st || !lastLtpData) return;
+
+  const ceD = lastLtpData.options?.[rk(st, 'ce')];
+  const peD = lastLtpData.options?.[rk(st, 'pe')];
+  const ceEl = document.getElementById('straddle-ce-ltp');
+  const peEl = document.getElementById('straddle-pe-ltp');
+  const sEl  = document.getElementById('straddle-live-val');
+
+  if (ceEl) ceEl.textContent = ceD?.ltp ? ceD.ltp.toFixed(2) : '—';
+  if (peEl) peEl.textContent = peD?.ltp ? peD.ltp.toFixed(2) : '—';
+
+  if (sEl && ceD?.ltp && peD?.ltp) {
+    const v = ceD.ltp + peD.ltp;
+    sEl.textContent = v.toFixed(2);
+    if (_straddlePrevLive && Math.abs(v - _straddlePrevLive) > 1e-9) {
+      const cls = v > _straddlePrevLive ? 'flash-up' : 'flash-down';
+      sEl.classList.add(cls);
+      setTimeout(() => sEl.classList.remove(cls), 600);
+    }
+    _straddlePrevLive = v;
+    const pulse = document.getElementById('straddle-pulse');
+    if (pulse) { pulse.classList.add('live'); setTimeout(() => pulse.classList.remove('live'), 700); }
+  } else if (sEl) {
+    sEl.textContent = '—';
+  }
+}, 1000);
 
 // ── TIMERS ────────────────────────────────────────────────────────
 let cdOI=POLL_OI_SEC, cdHX=POLL_HX_SEC;
@@ -5914,9 +6046,6 @@ fetchOI().then(()=>fetchHistory());
 fetchLTP();
 fetchLiveCandle();
 fetchIV();
-// Pre-fill IV history date picker
-const _ivhPicker = document.getElementById('ivh-date-picker');
-if (_ivhPicker) _ivhPicker.value = todayIST();
 </script>
 </body>
 </html>
