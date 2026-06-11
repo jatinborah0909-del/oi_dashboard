@@ -38,7 +38,7 @@ import os
 import threading
 import queue
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, time as dtime
 
 IST = timezone(timedelta(hours=5, minutes=30))
 def now_ist(): return datetime.now(IST)
@@ -702,6 +702,53 @@ minute_buffer = {
 state_lock = threading.Lock()
 oi_history = collections.deque(maxlen=OI_HISTORY_MAXLEN)   # in-memory fallback
 
+# ── SETTLEMENT VWAP (projected close) ────────────────────────────────────────
+# NSE computes each constituent's close as its VWAP over 15:00–15:30, then
+# recomputes the index — the expiry settlement price. We approximate it with
+# a time-weighted (1 sample/second) running average of Nifty spot over the
+# same window. Typically lands within ~1–3 pts of official settlement.
+settlement_vwap = {
+    "date":     None,   # YYYY-MM-DD guard — resets on a new trading day
+    "sum":      0.0,
+    "n":        0,
+    "value":    None,   # running average, persists (frozen) after 15:30
+    "last_sec": None,   # last sampled second key, ensures 1 sample/sec
+}
+
+SETTLE_WIN_START = dtime(15, 0, 0)
+SETTLE_WIN_END   = dtime(15, 30, 0)
+
+def _update_settlement_vwap(spot):
+    """Accumulate spot into the 15:00–15:30 IST time-weighted average.
+    Caller must hold state_lock. Samples at most once per second."""
+    if spot is None:
+        return
+    now = now_ist()
+    today = now.strftime("%Y-%m-%d")
+    if settlement_vwap["date"] != today:
+        settlement_vwap.update({"date": today, "sum": 0.0, "n": 0,
+                                "value": None, "last_sec": None})
+    t = now.time()
+    if t < SETTLE_WIN_START or t > SETTLE_WIN_END:
+        return
+    sec_key = now.strftime("%H:%M:%S")
+    if sec_key == settlement_vwap["last_sec"]:
+        return
+    settlement_vwap["last_sec"] = sec_key
+    settlement_vwap["sum"] += float(spot)
+    settlement_vwap["n"]   += 1
+    settlement_vwap["value"] = settlement_vwap["sum"] / settlement_vwap["n"]
+
+def _settlement_vwap_payload():
+    """Browser-friendly snapshot. Caller must hold state_lock."""
+    t = now_ist().time()
+    return {
+        "value":  round(settlement_vwap["value"], 2) if settlement_vwap["value"] else None,
+        "n":      settlement_vwap["n"],
+        "active": SETTLE_WIN_START <= t <= SETTLE_WIN_END,
+        "done":   t > SETTLE_WIN_END and settlement_vwap["value"] is not None,
+    }
+
 # ── BROWSER LIVE STREAM (Server-Sent Events) ─────────────────────────────────
 # The Kite WebSocket already gives tick-by-tick updates to this backend.
 # These queues let Flask push the latest snapshot to all connected browsers
@@ -721,6 +768,7 @@ def _make_live_payload_unlocked(elapsed_override=None):
         "bear_strike": state["bear_strike"],
         "bull_strike": state["bull_strike"],
         "expiry_date": state["expiry_date"],
+        "settlement_vwap": _settlement_vwap_payload(),
         "options": {},
         "live_candle": {"available": False},
     }
@@ -1005,6 +1053,7 @@ def build_ticker():
                     new_spot = tick.get("last_price", state["spot"])
                     state["spot"] = new_spot
                     _update_spot_ohlc(new_spot)
+                    _update_settlement_vwap(new_spot)
                     _check_roll(new_spot)
                     continue
 
@@ -1211,6 +1260,7 @@ def get_ltp():
         result = {
             "spot":    state["spot"],
             "as_of":   now_ist().strftime("%H:%M:%S"),
+            "settlement_vwap": _settlement_vwap_payload(),
             "options": {},
         }
         for token, meta in state["tokens"].items():
