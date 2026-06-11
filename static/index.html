@@ -954,6 +954,8 @@ tr:last-child td{border-bottom:none;}
             <span style="font-size:11px;color:#888;">Top Pain <span style="font-size:9px;color:#aaa;font-weight:400;">(OI)</span>: <span id="oc-ticker-top-pain" style="color:#534AB7;font-weight:600;">—</span></span>
             <span style="width:0.5px;height:14px;background:#ddd;display:inline-block;margin:0 4px;"></span>
             <span style="font-size:11px;color:#888;">Top Chg <span style="font-size:9px;color:#aaa;font-weight:400;">(ΔOI)</span>: <span id="oc-ticker-top-chg" style="font-weight:600;">—</span></span>
+            <span style="width:0.5px;height:14px;background:#ddd;display:inline-block;margin:0 4px;"></span>
+            <span style="font-size:11px;color:#888;" title="Projected settlement: time-weighted average of Nifty spot 15:00–15:30 IST — approximates NSE's official close/expiry settlement (constituent 30-min VWAPs). Accuracy ±2–3 pts.">Proj. Settle: <span id="oc-ticker-vwap" style="color:#854F0B;font-weight:600;font-variant-numeric:tabular-nums;">—</span> <span id="oc-ticker-vwap-diff" style="font-size:10px;font-variant-numeric:tabular-nums;"></span></span>
           </span>
         </div>
         <div class="oc-meta" id="oc-meta">Waiting for data…</div>
@@ -2621,6 +2623,9 @@ function updateLTP(data) {
 
   // ── Index Ticker (Option Chain tab)
   updateOCTicker(data.spot, data.expiry_date);
+
+  // ── Projected Settlement (15:00–15:30 IST spot VWAP)
+  updateSettlementVwap(data.settlement_vwap, data.spot);
 }
 
 // ── FETCH /oi ─────────────────────────────────────────────────────
@@ -4791,6 +4796,34 @@ function updateOCTicker(spot, expiryDate) {
   // Time (IST)
   const timeEl = document.getElementById('oc-ticker-time');
   if (timeEl) timeEl.textContent = new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'Asia/Kolkata'}) + ' IST';
+}
+
+// ── PROJECTED SETTLEMENT (15:00–15:30 IST spot VWAP) ─────────────────
+// NSE settles expiry at the index close = constituents' 30-min VWAPs.
+// Backend approximates this with a 1-sample/sec running average of spot.
+function updateSettlementVwap(sv, spot) {
+  const valEl  = document.getElementById('oc-ticker-vwap');
+  const diffEl = document.getElementById('oc-ticker-vwap-diff');
+  if (!valEl) return;
+
+  if (!sv || sv.value == null) {
+    valEl.textContent = 'from 15:00';
+    valEl.style.color = '#aaa';
+    valEl.style.fontWeight = '400';
+    if (diffEl) diffEl.textContent = '';
+    return;
+  }
+
+  valEl.textContent = fmt(sv.value) + (sv.done ? ' 🔒' : '');
+  valEl.style.color = sv.done ? '#534AB7' : '#854F0B';
+  valEl.style.fontWeight = '600';
+
+  // Diff: spot vs running settlement average — where LTP sits vs likely settle
+  if (diffEl && spot && sv.value) {
+    const d = spot - sv.value;
+    diffEl.textContent = '(spot ' + (d >= 0 ? '+' : '') + d.toFixed(1) + ')';
+    diffEl.style.color = Math.abs(d) >= 10 ? '#B14419' : '#aaa';
+  }
 }
 
 // ── MAX PAIN ──────────────────────────────────────────────────────
