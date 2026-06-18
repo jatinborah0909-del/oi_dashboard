@@ -176,6 +176,14 @@ select{font-size:13px;padding:5px 10px;border:0.5px solid #ccc;border-radius:6px
 .ltp-divider{width:0.5px;height:32px;background:#ddd;margin:0 20px;}
 .ltp-pulse{width:7px;height:7px;border-radius:50%;background:#ccc;position:absolute;right:14px;top:50%;transform:translateY(-50%);transition:background .3s;}
 .ltp-pulse.live{background:#1D9E75;animation:blink 1.5s infinite;}
+/* ── OPENHIGHLOW TAB ── */
+.oho-card{background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:1rem 1.25rem;}
+.oho-table th{padding:6px 10px;text-align:right;border-bottom:0.5px solid #ddd;color:#888;font-size:11px;font-weight:500;}
+.oho-table td{padding:6px 10px;border-bottom:0.5px solid #f0f0ec;font-size:12px;font-variant-numeric:tabular-nums;}
+.oho-ltp.flash-up{color:#1D9E75!important;font-weight:600;} .oho-ltp.flash-down{color:#D85A30!important;font-weight:600;}
+.oho-badge{font-size:10px;padding:2px 9px;border-radius:20px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;}
+.oho-badge.pending{background:#FAEEDA;color:#854F0B;}
+.oho-badge.filled{background:#E1F5EE;color:#085041;}
 @keyframes blink{0%{opacity:1;transform:translateY(-50%) scale(1)}50%{opacity:.4;transform:translateY(-50%) scale(1.4)}100%{opacity:1;transform:translateY(-50%) scale(1)}}
 
 .chart-scroll-outer{overflow-x:auto;overflow-y:hidden;width:100%;border-radius:4px;margin-bottom:10px;}
@@ -500,6 +508,7 @@ tr:last-child td{border-bottom:none;}
   <button class="tab-btn" id="tab-paper-trade-btn" onclick="switchTab('paper-trade')">🤖 Paper Trades</button>
   <button class="tab-btn" id="tab-iv-skew-btn" onclick="switchTab('iv-skew')">📐 IV Skew</button>
   <button class="tab-btn" id="tab-straddle-btn" onclick="switchTab('straddle')">🎯 Straddle</button>
+  <button class="tab-btn" id="tab-openhighlow-btn" onclick="switchTab('openhighlow')">📍 OpenHighLow</button>
   <span class="tab-hint">Move heavy tables away from the main trading view</span>
 </div>
 
@@ -1480,6 +1489,72 @@ tr:last-child td{border-bottom:none;}
 
 </div><!-- end tab-straddle-panel -->
 
+<div class="tab-panel" id="tab-openhighlow-panel">
+
+<div class="date-bar" style="margin-bottom:12px;flex-wrap:wrap;row-gap:8px;">
+  <span style="font-size:12px;color:#666;">Live scan of every tracked strike's CE/PE premium vs its opening print today.</span>
+  <span style="color:#aaa;font-size:11px;margin-left:auto;">As of <span id="oho-as-of">—</span></span>
+  <button class="btn" onclick="fetchOpenHighLow()">Refresh now</button>
+</div>
+
+<div class="oho-card" style="margin-bottom:12px;">
+  <div style="font-size:12px;color:#666;line-height:1.5;">
+    <b>Open = High</b> — the leg's premium has not traded above its opening tick all day (sellers in control since the open; bearish for that leg).
+    <b style="margin-left:10px;">Open = Low</b> — the leg's premium has not traded below its opening tick all day (buyers in control since the open; bullish for that leg).
+    A strike drops off a list the instant a new extreme prints beyond the open. <b>Pending</b> = registered, not yet retested. <b>Filled</b> = price has come back and retested the open level — the classic re-entry trigger.
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:12px;">
+
+  <div class="oho-card">
+    <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Open = High strikes</div>
+    <div style="overflow-x:auto;">
+      <table class="oho-table" style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:#f8f8f5;">
+            <th style="text-align:left;">Strike</th>
+            <th style="color:#1D9E75;">CE Open/High</th>
+            <th style="color:#1D9E75;">CE LTP</th>
+            <th style="text-align:center;color:#1D9E75;">CE Status</th>
+            <th style="color:#D85A30;">PE Open/High</th>
+            <th style="color:#D85A30;">PE LTP</th>
+            <th style="text-align:center;color:#D85A30;">PE Status</th>
+          </tr>
+        </thead>
+        <tbody id="oho-high-body">
+          <tr><td colspan="7" style="text-align:center;padding:20px;color:#aaa;">Waiting for data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="oho-card">
+    <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Open = Low strikes</div>
+    <div style="overflow-x:auto;">
+      <table class="oho-table" style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:#f8f8f5;">
+            <th style="text-align:left;">Strike</th>
+            <th style="color:#1D9E75;">CE Open/Low</th>
+            <th style="color:#1D9E75;">CE LTP</th>
+            <th style="text-align:center;color:#1D9E75;">CE Status</th>
+            <th style="color:#D85A30;">PE Open/Low</th>
+            <th style="color:#D85A30;">PE LTP</th>
+            <th style="text-align:center;color:#D85A30;">PE Status</th>
+          </tr>
+        </thead>
+        <tbody id="oho-low-body">
+          <tr><td colspan="7" style="text-align:center;padding:20px;color:#aaa;">Waiting for data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+</div><!-- end tab-openhighlow-panel -->
+
 <script>
 // ═══════════════════════════════════════════════════════════════
 // DEPTH WATCH — JS  (SSE streaming, up to 10 min)
@@ -1883,7 +1958,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 function switchTab(tabName) {
-  ['dashboard', 'option-chain', 'oi-movers', 'oi-change', 'paper-trade', 'iv-skew', 'straddle'].forEach(name => {
+  ['dashboard', 'option-chain', 'oi-movers', 'oi-change', 'paper-trade', 'iv-skew', 'straddle', 'openhighlow'].forEach(name => {
     const panel = document.getElementById('tab-' + name + '-panel');
     const btn = document.getElementById('tab-' + name + '-btn');
     const active = name === tabName;
@@ -1915,6 +1990,11 @@ function switchTab(tabName) {
   if (tabName === 'straddle') {
     populateStraddleStrikes();
     renderStraddle();
+  }
+  if (tabName === 'openhighlow') {
+    // Render instantly from the last /ltp poll, then let the 1s poll keep it live.
+    renderOpenHighLow(window.__lastLtpData && window.__lastLtpData.open_high_low);
+    fetchOpenHighLow();
   }
 }
 
@@ -2626,6 +2706,60 @@ function updateLTP(data) {
 
   // ── Projected Settlement (15:00–15:30 IST spot VWAP)
   updateSettlementVwap(data.settlement_vwap, data.spot);
+
+  // ── OpenHighLow tab — piggybacks on this same 1s tick poll
+  renderOpenHighLow(data.open_high_low);
+}
+
+// ── OPENHIGHLOW ──────────────────────────────────────────────────
+// Standalone fetch used only for the instant render when the tab is opened;
+// ongoing tick-by-tick refresh rides on the existing /ltp poll above.
+async function fetchOpenHighLow() {
+  try {
+    const res = await fetch(BRIDGE + '/oi/openhighlow');
+    if (!res.ok) return;
+    renderOpenHighLow(await res.json());
+  } catch (e) {}
+}
+
+let ohoPrevLtp = {};
+
+function ohoLegCells(leg, prevKey) {
+  if (!leg) {
+    return '<td style="text-align:right;color:#ccc;">—</td><td style="text-align:right;color:#ccc;">—</td><td style="text-align:center;color:#ccc;">—</td>';
+  }
+  const prev = ohoPrevLtp[prevKey] || 0;
+  const cls = (prev && leg.ltp !== prev) ? (leg.ltp > prev ? 'flash-up' : 'flash-down') : '';
+  ohoPrevLtp[prevKey] = leg.ltp;
+  const filled = leg.status === 'filled';
+  return `<td style="text-align:right;">${leg.open.toFixed(2)}</td>` +
+         `<td style="text-align:right;" class="oho-ltp ${cls}">${leg.ltp.toFixed(2)}</td>` +
+         `<td style="text-align:center;"><span class="oho-badge ${filled ? 'filled' : 'pending'}">${filled ? 'Filled' : 'Pending'}</span></td>`;
+}
+
+function ohoRenderTable(bodyId, rows, emptyMsg) {
+  const tbody = document.getElementById(bodyId);
+  if (!tbody) return;
+  if (!rows || !rows.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:#aaa;">${emptyMsg}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `<tr>
+      <td style="text-align:left;font-weight:500;">${r.strike}</td>
+      ${ohoLegCells(r.ce, bodyId + '-' + r.strike + '-ce')}
+      ${ohoLegCells(r.pe, bodyId + '-' + r.strike + '-pe')}
+    </tr>`).join('');
+}
+
+function renderOpenHighLow(d) {
+  if (!d) return;
+  const panel = document.getElementById('tab-openhighlow-panel');
+  if (!panel || !panel.classList.contains('active')) return;   // skip DOM work off-tab
+
+  const asOf = document.getElementById('oho-as-of');
+  if (asOf) asOf.textContent = d.as_of || '—';
+  ohoRenderTable('oho-high-body', d.open_high, 'No strikes currently have Open = High.');
+  ohoRenderTable('oho-low-body',  d.open_low,  'No strikes currently have Open = Low.');
 }
 
 // ── FETCH /oi ─────────────────────────────────────────────────────
