@@ -24,6 +24,7 @@ Endpoints (unchanged):
     GET  /oi/history       → 1-min rows for today (all strikes + OHLC)
     GET  /oi/live-candle   → currently forming 1-min candle
     GET  /strikes          → strike list
+    GET  /oi/openhighlow   → OpenHighLow tab snapshot (also piggybacked on /ltp)
     POST /depth/watch/start            → create depth watcher (strike, type, seconds up to 600)
     GET  /depth/watch/stream/<id>      → SSE: live tick-by-tick depth events
     POST /depth/watch/stop/<id>        → cancel early
@@ -921,6 +922,123 @@ def _update_ltp_ohlc(token, ltp):
         buf[token]["close"] = ltp
 
 
+# ── DAY-LEVEL OPEN/HIGH/LOW TRACKER (OpenHighLow tab) ─────────────────────────
+# Classic intraday "OHL scanner" logic, applied per option leg (CE/PE):
+#   Open = High  → premium has not traded above its opening print all day
+#                  (every subsequent tick has been <= open) — bearish-for-that-
+#                  leg signal, sellers in control from the first tick.
+#   Open = Low   → premium has not traded below its opening print all day
+#                  (every subsequent tick has been >= open) — bullish-for-that-
+#                  leg signal, buyers in control from the first tick.
+# "Open" is captured from the first tick observed for that token each trading
+# day (i.e. effectively the 09:15 print, since the strike window is fixed for
+# the whole session and the bridge is started fresh each morning).
+# A leg "fills" once price moves away from the open and then comes back to
+# exactly retest that same level — the classic OHL retest entry trigger.
+day_oh      = {}                     # token -> {open, high, low, moved_dn, moved_up, filled_oh, filled_ol}
+day_oh_meta = {"date": None}
+
+
+def _reset_day_oh_if_new_day():
+    today = now_ist().strftime("%Y-%m-%d")
+    if day_oh_meta["date"] != today:
+        day_oh.clear()
+        day_oh_meta["date"] = today
+
+
+def _update_day_oh(token, ltp):
+    """Update the day Open/High/Low + fill state for one option leg.
+    Caller must hold state_lock."""
+    if ltp is None or ltp <= 0:
+        return
+    _reset_day_oh_if_new_day()
+    d = day_oh.get(token)
+    if d is None:
+        day_oh[token] = {
+            "open": ltp, "high": ltp, "low": ltp,
+            "moved_dn": False, "moved_up": False,
+            "filled_oh": False, "filled_ol": False,
+        }
+        return
+
+    if ltp > d["high"]:
+        d["high"] = ltp
+    if ltp < d["low"]:
+        d["low"] = ltp
+
+    op = d["open"]
+    if ltp < op:
+        d["moved_dn"] = True
+    elif ltp == op and d["moved_dn"] and d["high"] == op:
+        d["filled_oh"] = True       # retested the Open=High level from below
+
+    if ltp > op:
+        d["moved_up"] = True
+    elif ltp == op and d["moved_up"] and d["low"] == op:
+        d["filled_ol"] = True       # retested the Open=Low level from above
+
+
+def _open_high_low_snapshot_unlocked():
+    """Build the OpenHighLow tab payload — one row per strike, CE and PE side
+    by side. A strike only appears in a list if at least one leg currently
+    satisfies that condition. Caller must hold state_lock."""
+    by_strike = {}
+    for token, meta in state["tokens"].items():
+        by_strike.setdefault(meta["strike"], {})[meta["instrument_type"].lower()] = token
+
+    def leg_info(token):
+        if token is None:
+            return None
+        d = day_oh.get(token)
+        if not d:
+            return None
+        snap = state["oi"].get(token, {})
+        return {
+            "open":      round(d["open"], 2),
+            "high":      round(d["high"], 2),
+            "low":       round(d["low"], 2),
+            "ltp":       snap.get("ltp", 0),
+            "is_oh":     d["high"] == d["open"],
+            "is_ol":     d["low"]  == d["open"],
+            "filled_oh": d["filled_oh"],
+            "filled_ol": d["filled_ol"],
+        }
+
+    open_high, open_low = [], []
+    for strike in sorted(by_strike):
+        toks = by_strike[strike]
+        ce = leg_info(toks.get("ce"))
+        pe = leg_info(toks.get("pe"))
+
+        if (ce and ce["is_oh"]) or (pe and pe["is_oh"]):
+            open_high.append({
+                "strike": strike,
+                "ce": {"open": ce["open"], "ltp": ce["ltp"],
+                       "status": "filled" if ce["filled_oh"] else "pending"}
+                      if (ce and ce["is_oh"]) else None,
+                "pe": {"open": pe["open"], "ltp": pe["ltp"],
+                       "status": "filled" if pe["filled_oh"] else "pending"}
+                      if (pe and pe["is_oh"]) else None,
+            })
+
+        if (ce and ce["is_ol"]) or (pe and pe["is_ol"]):
+            open_low.append({
+                "strike": strike,
+                "ce": {"open": ce["open"], "ltp": ce["ltp"],
+                       "status": "filled" if ce["filled_ol"] else "pending"}
+                      if (ce and ce["is_ol"]) else None,
+                "pe": {"open": pe["open"], "ltp": pe["ltp"],
+                       "status": "filled" if pe["filled_ol"] else "pending"}
+                      if (pe and pe["is_ol"]) else None,
+            })
+
+    return {
+        "as_of":     now_ist().strftime("%H:%M:%S"),
+        "open_high": open_high,
+        "open_low":  open_low,
+    }
+
+
 # ── 1-MINUTE AGGREGATOR ───────────────────────────────────────────────────────
 
 def _append_history():
@@ -1081,6 +1199,7 @@ def build_ticker():
                     "depth": {"buy": buy_levels, "sell": sell_levels},
                 }
                 _update_ltp_ohlc(token, current_ltp)
+                _update_day_oh(token, current_ltp)
 
             _append_history()
             _broadcast_live_from_state_unlocked()
@@ -1271,7 +1390,18 @@ def get_ltp():
                 "symbol": meta["tradingsymbol"],
                 "ltp":    snap.get("ltp", 0),
             }
+        # Piggyback the OpenHighLow snapshot on the existing 1-second LTP poll
+        # so that tab gets tick-by-tick refresh for free, with no extra timer.
+        result["open_high_low"] = _open_high_low_snapshot_unlocked()
     return jsonify(result)
+
+
+@app.route("/oi/openhighlow")
+def get_open_high_low():
+    """Standalone snapshot — same data as the open_high_low key inside /ltp.
+    Used for the initial render when the OpenHighLow tab is opened."""
+    with state_lock:
+        return jsonify(_open_high_low_snapshot_unlocked())
 
 
 @app.route("/strikes")
@@ -2016,6 +2146,7 @@ if __name__ == "__main__":
     print(f"  GET  /oi/live-candle  latest forming candle snapshot")
     print(f"  GET  /stream          browser SSE stream for tick-by-tick chart updates")
     print(f"  GET  /strikes         strike list")
+    print(f"  GET  /oi/openhighlow  OpenHighLow tab snapshot (CE/PE Open=High & Open=Low)")
     print(f"  GET  /oi/history      1-min rows + spot OHLC (today, or ?date=YYYY-MM-DD)")
     print(f"  GET  /iv/history      per-minute IV + RR values (today, or ?date=YYYY-MM-DD&strikes=1)")
     print(f"  GET  /iv/dates        dates that have IV data")
