@@ -1495,6 +1495,8 @@ tr:last-child td{border-bottom:none;}
   <span style="font-size:12px;color:#666;">Live scan of every tracked strike's CE/PE premium vs its opening print today.</span>
   <span style="color:#aaa;font-size:11px;margin-left:auto;">As of <span id="oho-as-of">—</span></span>
   <button class="btn" onclick="fetchOpenHighLow()">Refresh now</button>
+  <button class="btn btn-primary" onclick="reseedOpenHighLow()" title="Re-pull today's real exchange Open/High/Low for every leg. Use this once after (re)starting the bridge mid-session.">Reseed from exchange</button>
+  <span style="font-size:11px;color:#aaa;" id="oho-reseed-status"></span>
 </div>
 
 <div class="oho-card" style="margin-bottom:12px;">
@@ -1502,6 +1504,7 @@ tr:last-child td{border-bottom:none;}
     <b>Open = High</b> — the leg's premium has not traded above its opening tick all day (sellers in control since the open; bearish for that leg).
     <b style="margin-left:10px;">Open = Low</b> — the leg's premium has not traded below its opening tick all day (buyers in control since the open; bullish for that leg).
     A strike drops off a list the instant a new extreme prints beyond the open. <b>Pending</b> = registered, not yet retested. <b>Filled</b> = price has come back and retested the open level — the classic re-entry trigger.
+    "Open" comes from the exchange's own day OHLC, seeded once at startup — if it ever looks wrong (e.g. right after redeploying mid-session), hit <b>Reseed from exchange</b> above.
   </div>
 </div>
 
@@ -2720,6 +2723,27 @@ async function fetchOpenHighLow() {
     if (!res.ok) return;
     renderOpenHighLow(await res.json());
   } catch (e) {}
+}
+
+// Re-pulls today's real exchange Open/High/Low for every leg. Use this once
+// after the bridge has been (re)started mid-session, so "Open" stops showing
+// whatever the price happened to be at restart and shows the true 09:15 print.
+async function reseedOpenHighLow() {
+  const statusEl = document.getElementById('oho-reseed-status');
+  if (statusEl) statusEl.textContent = 'Reseeding…';
+  try {
+    const res = await fetch(BRIDGE + '/oi/openhighlow/reseed', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok && data.status === 'ok') {
+      if (statusEl) statusEl.textContent = 'Reseeded from exchange at ' + data.as_of;
+      ohoPrevLtp = {};   // clear so the next render doesn't flash stale deltas
+      fetchOpenHighLow();
+    } else {
+      if (statusEl) statusEl.textContent = 'Reseed failed: ' + (data.message || 'unknown error');
+    }
+  } catch (e) {
+    if (statusEl) statusEl.textContent = 'Reseed failed — network error.';
+  }
 }
 
 let ohoPrevLtp = {};
