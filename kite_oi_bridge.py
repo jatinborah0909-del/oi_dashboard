@@ -25,6 +25,7 @@ Endpoints (unchanged):
     GET  /oi/live-candle   → currently forming 1-min candle
     GET  /strikes          → strike list
     GET  /oi/openhighlow   → OpenHighLow tab snapshot (also piggybacked on /ltp)
+    POST /oi/openhighlow/reseed → re-pull today's Open/High/Low from the exchange
     POST /depth/watch/start            → create depth watcher (strike, type, seconds up to 600)
     GET  /depth/watch/stream/<id>      → SSE: live tick-by-tick depth events
     POST /depth/watch/stop/<id>        → cancel early
@@ -930,9 +931,14 @@ def _update_ltp_ohlc(token, ltp):
 #   Open = Low   → premium has not traded below its opening print all day
 #                  (every subsequent tick has been >= open) — bullish-for-that-
 #                  leg signal, buyers in control from the first tick.
-# "Open" is captured from the first tick observed for that token each trading
-# day (i.e. effectively the 09:15 print, since the strike window is fixed for
-# the whole session and the bridge is started fresh each morning).
+# "Open" is seeded from the EXCHANGE's own OHLC for each leg via _seed_day_oh()
+# (called once at startup) — NOT from whatever tick happens to arrive first.
+# That matters because this bridge can be (re)started mid-session; without the
+# exchange seed, "Open" would silently become "whatever the price was when the
+# process happened to restart," which is wrong and is what produced the
+# Open == LTP / all-PENDING table when the feature was first deployed mid-day.
+# The first-tick capture below only kicks in as a fallback if the seed call
+# fails (e.g. API hiccup) for a given leg.
 # A leg "fills" once price moves away from the open and then comes back to
 # exactly retest that same level — the classic OHL retest entry trigger.
 day_oh      = {}                     # token -> {open, high, low, moved_dn, moved_up, filled_oh, filled_ol}
@@ -946,6 +952,46 @@ def _reset_day_oh_if_new_day():
         day_oh_meta["date"] = today
 
 
+def _seed_day_oh():
+    """Seed day_oh with the exchange-reported day Open/High/Low for every
+    tracked leg, via one kite.ohlc() REST call. Run this once at startup (and
+    it's safe to re-run any time, e.g. after a reconnect) so 'Open' is always
+    the real 09:15 print — correct even if the bridge restarts at, say, 11:30.
+    Does its own locking; do NOT call while already holding state_lock."""
+    with state_lock:
+        tokens = dict(state["tokens"])
+    if not tokens:
+        return
+
+    key_to_token = {f"{EXCHANGE}:{meta['tradingsymbol']}": token for token, meta in tokens.items()}
+    try:
+        quotes = kite.ohlc(list(key_to_token.keys()))
+    except Exception as e:
+        print(f"[OpenHighLow] kite.ohlc() seed failed ({e}) — will fall back to first-tick capture per leg.")
+        return
+
+    _reset_day_oh_if_new_day()
+    seeded = 0
+    with state_lock:
+        for key, token in key_to_token.items():
+            q = quotes.get(key)
+            if not q:
+                continue
+            ohlc = q.get("ohlc", {})
+            o = ohlc.get("open")
+            if not o:
+                continue
+            h = ohlc.get("high") or o
+            l = ohlc.get("low") or o
+            day_oh[token] = {
+                "open": o, "high": h, "low": l,
+                "moved_dn": l < o, "moved_up": h > o,
+                "filled_oh": False, "filled_ol": False,
+            }
+            seeded += 1
+    print(f"[OpenHighLow] Seeded day Open/High/Low for {seeded}/{len(tokens)} legs from the exchange.")
+
+
 def _update_day_oh(token, ltp):
     """Update the day Open/High/Low + fill state for one option leg.
     Caller must hold state_lock."""
@@ -954,6 +1000,8 @@ def _update_day_oh(token, ltp):
     _reset_day_oh_if_new_day()
     d = day_oh.get(token)
     if d is None:
+        # Fallback only — normally _seed_day_oh() has already populated this
+        # leg with the real exchange Open before any ticks arrive.
         day_oh[token] = {
             "open": ltp, "high": ltp, "low": ltp,
             "moved_dn": False, "moved_up": False,
@@ -961,21 +1009,31 @@ def _update_day_oh(token, ltp):
         }
         return
 
+    op = d["open"]
+
+    # Evaluate fill conditions BEFORE updating high/low — otherwise a tick that
+    # simultaneously sets a new high AND crosses the open level would update the
+    # high first, breaking the d["high"] == op guard before we can check it.
+
+    # Open = High: leg dipped below open at some point, now LTP has climbed
+    # back to or beyond the open level — mark filled.
+    if ltp < op:
+        d["moved_dn"] = True
+    elif ltp >= op and d["moved_dn"] and d["high"] == op and not d["filled_oh"]:
+        d["filled_oh"] = True       # price touched/crossed back up to the Open=High level
+
+    # Open = Low: leg rose above open at some point, now LTP has fallen
+    # back to or beyond the open level — mark filled.
+    if ltp > op:
+        d["moved_up"] = True
+    elif ltp <= op and d["moved_up"] and d["low"] == op and not d["filled_ol"]:
+        d["filled_ol"] = True       # price touched/crossed back down to the Open=Low level
+
+    # Now update running high/low for the day.
     if ltp > d["high"]:
         d["high"] = ltp
     if ltp < d["low"]:
         d["low"] = ltp
-
-    op = d["open"]
-    if ltp < op:
-        d["moved_dn"] = True
-    elif ltp == op and d["moved_dn"] and d["high"] == op:
-        d["filled_oh"] = True       # retested the Open=High level from below
-
-    if ltp > op:
-        d["moved_up"] = True
-    elif ltp == op and d["moved_up"] and d["low"] == op:
-        d["filled_ol"] = True       # retested the Open=Low level from above
 
 
 def _open_high_low_snapshot_unlocked():
@@ -1327,6 +1385,9 @@ def initialise(seed_spot):
         if front_expiry:
             state["expiry_date"] = front_expiry
 
+    print("\nSeeding OpenHighLow day levels from exchange OHLC...")
+    _seed_day_oh()
+
     build_ticker()
 
 
@@ -1402,6 +1463,21 @@ def get_open_high_low():
     Used for the initial render when the OpenHighLow tab is opened."""
     with state_lock:
         return jsonify(_open_high_low_snapshot_unlocked())
+
+
+@app.route("/oi/openhighlow/reseed", methods=["POST"])
+def reseed_open_high_low():
+    """Re-pull today's Open/High/Low from the exchange for every tracked leg.
+    Use this to fix a wrong 'Open' without restarting the whole bridge — e.g.
+    if the bridge was (re)deployed mid-session before this seed existed, or
+    after any temporary kite.ohlc() failure at startup."""
+    try:
+        _seed_day_oh()
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    with state_lock:
+        snap = _open_high_low_snapshot_unlocked()
+    return jsonify({"status": "ok", "as_of": snap["as_of"]})
 
 
 @app.route("/strikes")
@@ -2147,6 +2223,7 @@ if __name__ == "__main__":
     print(f"  GET  /stream          browser SSE stream for tick-by-tick chart updates")
     print(f"  GET  /strikes         strike list")
     print(f"  GET  /oi/openhighlow  OpenHighLow tab snapshot (CE/PE Open=High & Open=Low)")
+    print(f"  POST /oi/openhighlow/reseed  re-pull today's Open/High/Low from the exchange")
     print(f"  GET  /oi/history      1-min rows + spot OHLC (today, or ?date=YYYY-MM-DD)")
     print(f"  GET  /iv/history      per-minute IV + RR values (today, or ?date=YYYY-MM-DD&strikes=1)")
     print(f"  GET  /iv/dates        dates that have IV data")
