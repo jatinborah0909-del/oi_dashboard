@@ -689,6 +689,8 @@ state = {
     "oi_prev_snap":   {},
     "roll_log":       [],
     "expiry_date":    None,   # front-month expiry as YYYY-MM-DD string
+    "fut_token":      None,   # front-month Nifty Futures instrument token
+    "fut_ltp":        None,   # latest futures LTP (updated by on_ticks)
 }
 
 minute_buffer = {
@@ -706,30 +708,61 @@ oi_history = collections.deque(maxlen=OI_HISTORY_MAXLEN)   # in-memory fallback
 
 # ── SETTLEMENT VWAP (projected close) ────────────────────────────────────────
 # NSE computes each constituent's close as its VWAP over 15:00–15:30, then
-# recomputes the index — the expiry settlement price. We approximate it with
-# a time-weighted (1 sample/second) running average of Nifty spot over the
-# same window. Typically lands within ~1–3 pts of official settlement.
+# recomputes the index — the expiry settlement price. We track three estimates:
+#
+#  1. spot_twap  — time-weighted average of Nifty spot (1 sample/sec), same as
+#                  before. Proxy because spot has no volume.
+#  2. fut_vwap   — true volume-weighted average of Nifty Futures LTP over the
+#                  window. Futures have real volume and closely track spot minus
+#                  basis. We subtract the live basis to convert back to spot.
+#  3. synth_spot — put-call parity synthetic: CE_ltp - PE_ltp + ATM_strike.
+#                  Time-averaged over the 15:00–15:30 window. Requires only the
+#                  options we're already tracking — no extra token needed.
+#
+# All three are exposed in _settlement_vwap_payload() and shown in the OC ticker.
 settlement_vwap = {
-    "date":     None,   # YYYY-MM-DD guard — resets on a new trading day
-    "sum":      0.0,
-    "n":        0,
-    "value":    None,   # running average, persists (frozen) after 15:30
-    "last_sec": None,   # last sampled second key, ensures 1 sample/sec
+    "date":           None,
+    # --- spot TWAP (existing) ---
+    "sum":            0.0,
+    "n":              0,
+    "value":          None,
+    "last_sec":       None,
+    # --- futures true VWAP ---
+    "fut_vol_sum":    0.0,   # Σ (price × traded_qty in window)
+    "fut_vol_n":      0.0,   # Σ traded_qty in window
+    "fut_vwap":       None,  # running VWAP value
+    "fut_last_sec":   None,
+    # --- synth spot TWAP (ATM CE - PE + K, minus basis) ---
+    "synth_sum":      0.0,
+    "synth_n":        0,
+    "synth_value":    None,
+    "synth_last_sec": None,
 }
+
+# Live basis tracker: futures LTP − spot, kept as a short rolling buffer so we
+# can report the median basis without being spiked by a single bad tick.
+_basis_samples = collections.deque(maxlen=60)   # last ~60 ticks ≈ ~1 min
 
 SETTLE_WIN_START = dtime(15, 0, 0)
 SETTLE_WIN_END   = dtime(15, 30, 0)
 
+def _reset_settlement_vwap_if_new_day(today):
+    if settlement_vwap["date"] != today:
+        settlement_vwap.update({
+            "date": today,
+            "sum": 0.0, "n": 0, "value": None, "last_sec": None,
+            "fut_vol_sum": 0.0, "fut_vol_n": 0.0, "fut_vwap": None, "fut_last_sec": None,
+            "synth_sum": 0.0, "synth_n": 0, "synth_value": None, "synth_last_sec": None,
+        })
+
+
 def _update_settlement_vwap(spot):
-    """Accumulate spot into the 15:00–15:30 IST time-weighted average.
+    """Accumulate spot into the 15:00–15:30 IST time-weighted average (spot TWAP).
     Caller must hold state_lock. Samples at most once per second."""
     if spot is None:
         return
     now = now_ist()
-    today = now.strftime("%Y-%m-%d")
-    if settlement_vwap["date"] != today:
-        settlement_vwap.update({"date": today, "sum": 0.0, "n": 0,
-                                "value": None, "last_sec": None})
+    _reset_settlement_vwap_if_new_day(now.strftime("%Y-%m-%d"))
     t = now.time()
     if t < SETTLE_WIN_START or t > SETTLE_WIN_END:
         return
@@ -741,14 +774,96 @@ def _update_settlement_vwap(spot):
     settlement_vwap["n"]   += 1
     settlement_vwap["value"] = settlement_vwap["sum"] / settlement_vwap["n"]
 
+
+def _update_basis(fut_ltp, spot):
+    """Track live basis (fut − spot) in a rolling 60-sample buffer.
+    Caller must hold state_lock."""
+    if fut_ltp and spot and spot > 0:
+        _basis_samples.append(fut_ltp - spot)
+
+
+def _median_basis():
+    """Median of recent basis samples, or None if not enough data."""
+    s = sorted(_basis_samples)
+    n = len(s)
+    if n == 0:
+        return None
+    return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2
+
+
+def _update_fut_vwap(fut_ltp, traded_qty):
+    """Accumulate futures tick into volume-weighted average during 15:00–15:30.
+    Uses traded_qty (the tick's last_traded_quantity) as the volume weight.
+    Falls back to equal weighting (qty=1) if qty is zero.
+    Caller must hold state_lock."""
+    if fut_ltp is None or fut_ltp <= 0:
+        return
+    now = now_ist()
+    _reset_settlement_vwap_if_new_day(now.strftime("%Y-%m-%d"))
+    t = now.time()
+    if t < SETTLE_WIN_START or t > SETTLE_WIN_END:
+        return
+    sec_key = now.strftime("%H:%M:%S")
+    if sec_key == settlement_vwap["fut_last_sec"]:
+        return   # one sample per second to match spot TWAP cadence
+    settlement_vwap["fut_last_sec"] = sec_key
+    qty = max(1, traded_qty or 1)
+    settlement_vwap["fut_vol_sum"] += fut_ltp * qty
+    settlement_vwap["fut_vol_n"]   += qty
+    settlement_vwap["fut_vwap"] = settlement_vwap["fut_vol_sum"] / settlement_vwap["fut_vol_n"]
+
+
+def _update_synth_vwap(ce_ltp, pe_ltp, atm_strike):
+    """Accumulate synthetic spot = CE − PE + K into the 15:00–15:30 TWAP.
+    Caller must hold state_lock."""
+    if ce_ltp is None or pe_ltp is None or atm_strike is None:
+        return
+    if ce_ltp <= 0 or pe_ltp <= 0:
+        return
+    now = now_ist()
+    _reset_settlement_vwap_if_new_day(now.strftime("%Y-%m-%d"))
+    t = now.time()
+    if t < SETTLE_WIN_START or t > SETTLE_WIN_END:
+        return
+    sec_key = now.strftime("%H:%M:%S")
+    if sec_key == settlement_vwap["synth_last_sec"]:
+        return
+    settlement_vwap["synth_last_sec"] = sec_key
+    synth = ce_ltp - pe_ltp + atm_strike
+    settlement_vwap["synth_sum"] += synth
+    settlement_vwap["synth_n"]   += 1
+    settlement_vwap["synth_value"] = settlement_vwap["synth_sum"] / settlement_vwap["synth_n"]
+
+
 def _settlement_vwap_payload():
-    """Browser-friendly snapshot. Caller must hold state_lock."""
-    t = now_ist().time()
+    """Browser-friendly snapshot of all three settlement estimates.
+    Caller must hold state_lock."""
+    t     = now_ist().time()
+    in_w  = SETTLE_WIN_START <= t <= SETTLE_WIN_END
+    done  = t > SETTLE_WIN_END
+
+    basis = _median_basis()
+
+    # Futures VWAP → subtract basis to get implied spot
+    fut_vwap_raw   = settlement_vwap["fut_vwap"]
+    fut_spot_equiv = round(fut_vwap_raw - basis, 2) if (fut_vwap_raw and basis is not None) else None
+
     return {
-        "value":  round(settlement_vwap["value"], 2) if settlement_vwap["value"] else None,
-        "n":      settlement_vwap["n"],
-        "active": SETTLE_WIN_START <= t <= SETTLE_WIN_END,
-        "done":   t > SETTLE_WIN_END and settlement_vwap["value"] is not None,
+        # --- spot TWAP (existing field name preserved for frontend compat) ---
+        "value":         round(settlement_vwap["value"], 2) if settlement_vwap["value"] else None,
+        "n":             settlement_vwap["n"],
+        "active":        in_w,
+        "done":          done and settlement_vwap["value"] is not None,
+        # --- futures VWAP ---
+        "fut_vwap_raw":  round(fut_vwap_raw,   2) if fut_vwap_raw   else None,
+        "fut_spot":      fut_spot_equiv,
+        "fut_n":         settlement_vwap["fut_vol_n"],
+        # --- synth spot (put-call parity) ---
+        "synth_value":   round(settlement_vwap["synth_value"], 2) if settlement_vwap["synth_value"] else None,
+        "synth_n":       settlement_vwap["synth_n"],
+        # --- basis info ---
+        "basis":         round(basis, 2) if basis is not None else None,
+        "basis_samples": len(_basis_samples),
     }
 
 # ── BROWSER LIVE STREAM (Server-Sent Events) ─────────────────────────────────
@@ -765,6 +880,7 @@ def _make_live_payload_unlocked(elapsed_override=None):
         "type": "tick",
         "as_of": now_ist().strftime("%H:%M:%S"),
         "spot": state["spot"],
+        "fut_ltp": state["fut_ltp"],
         "session_id": state["session_id"],
         "atm_strike": state["atm_strike"],
         "bear_strike": state["bear_strike"],
@@ -872,6 +988,27 @@ def get_instruments_for_strikes(strikes):
     if missing:
         print(f"  Warning: strikes not found in {EXCHANGE}: {sorted(missing)}")
     return result
+
+
+def get_futures_token():
+    """Find the front-month Nifty/Sensex Futures instrument token.
+    Returns (token, tradingsymbol) or (None, None) on failure."""
+    try:
+        instruments = kite.instruments(EXCHANGE)
+        futs = [
+            i for i in instruments
+            if i["name"] == INSTRUMENT_NAME and i["instrument_type"] == "FUT"
+        ]
+        if not futs:
+            print(f"[Futures] No FUT instruments found for {INSTRUMENT_NAME} on {EXCHANGE}")
+            return None, None
+        futs.sort(key=lambda i: i["expiry"])
+        front = futs[0]
+        print(f"[Futures] Front-month FUT: {front['tradingsymbol']}  token={front['instrument_token']}  expiry={front['expiry']}")
+        return front["instrument_token"], front["tradingsymbol"]
+    except Exception as e:
+        print(f"[Futures] Failed to fetch FUT instrument: {e}")
+        return None, None
 
 
 def get_live_spot():
@@ -1231,6 +1368,19 @@ def build_ticker():
                     _update_spot_ohlc(new_spot)
                     _update_settlement_vwap(new_spot)
                     _check_roll(new_spot)
+                    # Refresh basis whenever spot updates
+                    if state["fut_ltp"]:
+                        _update_basis(state["fut_ltp"], new_spot)
+                    continue
+
+                if token == state["fut_token"]:
+                    fut_ltp = tick.get("last_price", 0)
+                    qty     = tick.get("last_traded_quantity", 0) or tick.get("volume_traded", 0) or 1
+                    if fut_ltp and fut_ltp > 0:
+                        state["fut_ltp"] = fut_ltp
+                        _update_fut_vwap(fut_ltp, qty)
+                        if state["spot"]:
+                            _update_basis(fut_ltp, state["spot"])
                     continue
 
                 if token not in state["tokens"]:
@@ -1258,6 +1408,20 @@ def build_ticker():
                 }
                 _update_ltp_ohlc(token, current_ltp)
                 _update_day_oh(token, current_ltp)
+                _update_day_ft(token, current_ltp)
+
+            # ── Synthetic spot from ATM CE − PE + K ─────────────────────────
+            # Computed once per tick batch (after all ticks processed) using
+            # the latest ATM strike and its CE/PE LTPs from state["oi"].
+            atm = state["atm_strike"]
+            if atm:
+                ce_rk = f"s{int(atm)}_ce"
+                pe_rk = f"s{int(atm)}_pe"
+                ce_tok = next((t for t, m in state["tokens"].items() if m["role_key"] == ce_rk), None)
+                pe_tok = next((t for t, m in state["tokens"].items() if m["role_key"] == pe_rk), None)
+                ce_ltp = state["oi"].get(ce_tok, {}).get("ltp") if ce_tok else None
+                pe_ltp = state["oi"].get(pe_tok, {}).get("ltp") if pe_tok else None
+                _update_synth_vwap(ce_ltp, pe_ltp, atm)
 
             _append_history()
             _broadcast_live_from_state_unlocked()
@@ -1265,9 +1429,14 @@ def build_ticker():
     def on_connect(ws, response):
         with state_lock:
             all_tokens = [SPOT_TOKEN] + list(state["tokens"].keys())
+            fut_token  = state["fut_token"]
+        if fut_token:
+            all_tokens.append(fut_token)
         ws.subscribe(all_tokens)
         ws.set_mode(ws.MODE_FULL, all_tokens)
-        print(f"[{now_ist().strftime('%H:%M:%S')}] Subscribed: {INDEX_LABEL} spot + {len(state['tokens'])} option tokens")
+        n_opts = len(all_tokens) - 1 - (1 if fut_token else 0)
+        print(f"[{now_ist().strftime('%H:%M:%S')}] Subscribed: {INDEX_LABEL} spot + {n_opts} option tokens" +
+              (f" + futures" if fut_token else ""))
 
     def on_error(ws, code, reason):
         print(f"Ticker error {code}: {reason}")
@@ -1385,6 +1554,15 @@ def initialise(seed_spot):
         if front_expiry:
             state["expiry_date"] = front_expiry
 
+    print("\nFetching front-month Futures token...")
+    fut_token, fut_sym = get_futures_token()
+    with state_lock:
+        state["fut_token"] = fut_token
+    if fut_token:
+        print(f"[Futures] Subscribed: {fut_sym} (token {fut_token})")
+    else:
+        print("[Futures] No FUT token — futures VWAP estimate will be unavailable.")
+
     print("\nSeeding OpenHighLow day levels from exchange OHLC...")
     _seed_day_oh()
 
@@ -1439,6 +1617,7 @@ def get_ltp():
     with state_lock:
         result = {
             "spot":    state["spot"],
+            "fut_ltp": state["fut_ltp"],
             "as_of":   now_ist().strftime("%H:%M:%S"),
             "settlement_vwap": _settlement_vwap_payload(),
             "options": {},
