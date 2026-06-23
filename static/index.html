@@ -4974,10 +4974,10 @@ function updateOCTicker(spot, expiryDate) {
 }
 
 // ── PROJECTED SETTLEMENT (15:00–15:30 IST) ────────────────────────
-// Three independent estimates, all shown in the OC ticker:
-//   Spot TWAP  — time-avg of Nifty spot index (amber, existing)
-//   Fut VWAP   — volume-weighted avg of Nifty Futures, basis-adjusted (blue)
-//   Synth Spot — put-call parity: ATM CE − PE + K (green)
+// Three independent estimates shown in the OC ticker:
+//   Spot TWAP  — time-avg of Nifty spot index (amber) — window only
+//   Fut        — live futures basis-adj spot all day; VWAP avg during/after window (blue)
+//   Synth      — live CE−PE+K all day; TWAP avg during/after window (green)
 function updateSettlementVwap(sv, spot) {
   const valEl    = document.getElementById('oc-ticker-vwap');
   const diffEl   = document.getElementById('oc-ticker-vwap-diff');
@@ -4990,12 +4990,12 @@ function updateSettlementVwap(sv, spot) {
   const done     = sv && sv.done;
   const lock     = done ? ' 🔒' : '';
 
-  // ── Spot TWAP (amber) ──────────────────────────────────────────
+  // ── Spot TWAP (amber) — only meaningful during/after window ───────
   if (!sv || sv.value == null) {
-    valEl.textContent     = inWindow ? 'accumulating…' : 'from 15:00';
-    valEl.style.color     = '#aaa';
+    valEl.textContent      = inWindow ? 'accumulating…' : 'from 15:00';
+    valEl.style.color      = '#aaa';
     valEl.style.fontWeight = '400';
-    if (diffEl)  diffEl.textContent  = '';
+    if (diffEl) diffEl.textContent = '';
   } else {
     valEl.textContent      = fmt(sv.value) + lock;
     valEl.style.color      = done ? '#534AB7' : '#854F0B';
@@ -5007,35 +5007,56 @@ function updateSettlementVwap(sv, spot) {
     }
   }
 
-  // ── Futures VWAP basis-adjusted (blue) ─────────────────────────
+  // ── Futures basis-adjusted spot (blue) — live all day ─────────────
+  // Before/during window: shows live fut LTP − basis (updates every tick)
+  // After window: shows the VWAP average locked in 🔒
   if (futEl) {
-    if (sv && sv.fut_spot != null) {
-      futEl.textContent  = '· F:' + fmt(sv.fut_spot) + lock;
-      futEl.style.color  = done ? '#534AB7' : '#1A5E9E';
-      futEl.title        = `Nifty Futures VWAP (basis-adj): raw fut VWAP ${sv.fut_vwap_raw != null ? fmt(sv.fut_vwap_raw) : '—'}, basis ${sv.basis != null ? sv.basis.toFixed(1) : '?'}`;
-    } else if (inWindow) {
-      futEl.textContent = '· F:…';
+    const windowAvg  = sv && sv.fut_spot != null;      // VWAP average exists
+    const liveFut    = sv && sv.fut_live_spot != null; // live fut−basis
+
+    if (done && windowAvg) {
+      futEl.textContent = '· F:' + fmt(sv.fut_spot) + ' 🔒';
+      futEl.style.color = '#534AB7';
+      futEl.title = `Nifty Fut VWAP (15:00–15:30, basis-adj). Raw: ${sv.fut_vwap_raw != null ? fmt(sv.fut_vwap_raw) : '—'}, basis: ${sv.basis != null ? sv.basis.toFixed(1) : '?'}`;
+    } else if (liveFut) {
+      futEl.textContent = '· F:' + fmt(sv.fut_live_spot) + (inWindow ? '…' : '');
+      futEl.style.color = inWindow ? '#1A5E9E' : '#4A8EC2';
+      futEl.title = `Live Nifty Futures (basis-adj to spot). Fut LTP: ${sv.fut_ltp != null ? fmt(sv.fut_ltp) : '—'}, basis: ${sv.basis != null ? sv.basis.toFixed(1) : '?'}`;
+    } else if (sv && sv.fut_ltp != null) {
+      // Have futures but no basis yet — show raw
+      futEl.textContent = '· F(raw):' + fmt(sv.fut_ltp);
       futEl.style.color = '#aaa';
+      futEl.title = 'Nifty Futures LTP (basis not yet established)';
     } else {
-      futEl.textContent = '';
+      futEl.textContent = '· F:—';
+      futEl.style.color = '#ccc';
+      futEl.title = 'Futures not connected';
     }
   }
 
-  // ── Synth Spot from put-call parity (green) ─────────────────────
+  // ── Synth spot CE−PE+K (green) — live all day ─────────────────────
+  // Before/during window: shows live synth (updates each tick)
+  // After window: shows the TWAP average locked in 🔒
   if (synthEl) {
-    if (sv && sv.synth_value != null) {
-      synthEl.textContent = '· S:' + fmt(sv.synth_value) + lock;
-      synthEl.style.color = done ? '#534AB7' : '#1D9E75';
-      synthEl.title       = `Synthetic spot (ATM CE − PE + K), ${sv.synth_n} samples`;
-    } else if (inWindow) {
-      synthEl.textContent = '· S:…';
-      synthEl.style.color = '#aaa';
+    const windowAvg  = sv && sv.synth_value != null;
+    const liveSynth  = sv && sv.live_synth  != null;
+
+    if (done && windowAvg) {
+      synthEl.textContent = '· S:' + fmt(sv.synth_value) + ' 🔒';
+      synthEl.style.color = '#534AB7';
+      synthEl.title = `Synth spot TWAP (15:00–15:30), ${sv.synth_n} samples. ATM CE−PE+K.`;
+    } else if (liveSynth) {
+      synthEl.textContent = '· S:' + fmt(sv.live_synth) + (inWindow ? '…' : '');
+      synthEl.style.color = inWindow ? '#1D9E75' : '#4AB88A';
+      synthEl.title = 'Live synthetic spot: ATM CE − PE + K (put-call parity)';
     } else {
-      synthEl.textContent = '';
+      synthEl.textContent = '· S:—';
+      synthEl.style.color = '#ccc';
+      synthEl.title = 'Synth not available (ATM options not tracked)';
     }
   }
 
-  // ── Basis label (always visible when we have data) ──────────────
+  // ── Basis label — always visible when data exists ──────────────────
   if (basisEl) {
     if (sv && sv.basis != null && sv.basis_samples > 5) {
       const b = sv.basis;
