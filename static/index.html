@@ -964,7 +964,14 @@ tr:last-child td{border-bottom:none;}
             <span style="width:0.5px;height:14px;background:#ddd;display:inline-block;margin:0 4px;"></span>
             <span style="font-size:11px;color:#888;">Top Chg <span style="font-size:9px;color:#aaa;font-weight:400;">(ΔOI)</span>: <span id="oc-ticker-top-chg" style="font-weight:600;">—</span></span>
             <span style="width:0.5px;height:14px;background:#ddd;display:inline-block;margin:0 4px;"></span>
-            <span style="font-size:11px;color:#888;" title="Projected settlement: time-weighted average of Nifty spot 15:00–15:30 IST — approximates NSE's official close/expiry settlement (constituent 30-min VWAPs). Accuracy ±2–3 pts.">Proj. Settle: <span id="oc-ticker-vwap" style="color:#854F0B;font-weight:600;font-variant-numeric:tabular-nums;">—</span> <span id="oc-ticker-vwap-diff" style="font-size:10px;font-variant-numeric:tabular-nums;"></span></span>
+            <span style="font-size:11px;color:#888;" title="Projected settlement close — three independent estimates using the 15:00–15:30 IST window. Spot TWAP: time-average of Nifty spot index. Fut VWAP: volume-weighted average of Nifty Futures, basis-adjusted to spot. Synth: put-call parity CE−PE+K at ATM.">
+              Proj. Settle:
+              <span id="oc-ticker-vwap"       style="color:#854F0B;font-weight:600;font-variant-numeric:tabular-nums;">—</span>
+              <span id="oc-ticker-vwap-diff"  style="font-size:10px;font-variant-numeric:tabular-nums;"></span>
+              <span id="oc-ticker-fut-vwap"   style="color:#1A5E9E;font-weight:600;font-variant-numeric:tabular-nums;margin-left:4px;"></span>
+              <span id="oc-ticker-synth"      style="color:#1D9E75;font-weight:600;font-variant-numeric:tabular-nums;margin-left:4px;"></span>
+              <span id="oc-ticker-basis"      style="font-size:10px;color:#aaa;margin-left:2px;"></span>
+            </span>
           </span>
         </div>
         <div class="oc-meta" id="oc-meta">Waiting for data…</div>
@@ -4966,31 +4973,77 @@ function updateOCTicker(spot, expiryDate) {
   if (timeEl) timeEl.textContent = new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', second:'2-digit', timeZone:'Asia/Kolkata'}) + ' IST';
 }
 
-// ── PROJECTED SETTLEMENT (15:00–15:30 IST spot VWAP) ─────────────────
-// NSE settles expiry at the index close = constituents' 30-min VWAPs.
-// Backend approximates this with a 1-sample/sec running average of spot.
+// ── PROJECTED SETTLEMENT (15:00–15:30 IST) ────────────────────────
+// Three independent estimates, all shown in the OC ticker:
+//   Spot TWAP  — time-avg of Nifty spot index (amber, existing)
+//   Fut VWAP   — volume-weighted avg of Nifty Futures, basis-adjusted (blue)
+//   Synth Spot — put-call parity: ATM CE − PE + K (green)
 function updateSettlementVwap(sv, spot) {
-  const valEl  = document.getElementById('oc-ticker-vwap');
-  const diffEl = document.getElementById('oc-ticker-vwap-diff');
+  const valEl    = document.getElementById('oc-ticker-vwap');
+  const diffEl   = document.getElementById('oc-ticker-vwap-diff');
+  const futEl    = document.getElementById('oc-ticker-fut-vwap');
+  const synthEl  = document.getElementById('oc-ticker-synth');
+  const basisEl  = document.getElementById('oc-ticker-basis');
   if (!valEl) return;
 
+  const inWindow = sv && sv.active;
+  const done     = sv && sv.done;
+  const lock     = done ? ' 🔒' : '';
+
+  // ── Spot TWAP (amber) ──────────────────────────────────────────
   if (!sv || sv.value == null) {
-    valEl.textContent = 'from 15:00';
-    valEl.style.color = '#aaa';
+    valEl.textContent     = inWindow ? 'accumulating…' : 'from 15:00';
+    valEl.style.color     = '#aaa';
     valEl.style.fontWeight = '400';
-    if (diffEl) diffEl.textContent = '';
-    return;
+    if (diffEl)  diffEl.textContent  = '';
+  } else {
+    valEl.textContent      = fmt(sv.value) + lock;
+    valEl.style.color      = done ? '#534AB7' : '#854F0B';
+    valEl.style.fontWeight = '600';
+    if (diffEl && spot && sv.value) {
+      const d = spot - sv.value;
+      diffEl.textContent = '(Δ' + (d >= 0 ? '+' : '') + d.toFixed(1) + ')';
+      diffEl.style.color = Math.abs(d) >= 10 ? '#B14419' : '#aaa';
+    }
   }
 
-  valEl.textContent = fmt(sv.value) + (sv.done ? ' 🔒' : '');
-  valEl.style.color = sv.done ? '#534AB7' : '#854F0B';
-  valEl.style.fontWeight = '600';
+  // ── Futures VWAP basis-adjusted (blue) ─────────────────────────
+  if (futEl) {
+    if (sv && sv.fut_spot != null) {
+      futEl.textContent  = '· F:' + fmt(sv.fut_spot) + lock;
+      futEl.style.color  = done ? '#534AB7' : '#1A5E9E';
+      futEl.title        = `Nifty Futures VWAP (basis-adj): raw fut VWAP ${sv.fut_vwap_raw != null ? fmt(sv.fut_vwap_raw) : '—'}, basis ${sv.basis != null ? sv.basis.toFixed(1) : '?'}`;
+    } else if (inWindow) {
+      futEl.textContent = '· F:…';
+      futEl.style.color = '#aaa';
+    } else {
+      futEl.textContent = '';
+    }
+  }
 
-  // Diff: spot vs running settlement average — where LTP sits vs likely settle
-  if (diffEl && spot && sv.value) {
-    const d = spot - sv.value;
-    diffEl.textContent = '(spot ' + (d >= 0 ? '+' : '') + d.toFixed(1) + ')';
-    diffEl.style.color = Math.abs(d) >= 10 ? '#B14419' : '#aaa';
+  // ── Synth Spot from put-call parity (green) ─────────────────────
+  if (synthEl) {
+    if (sv && sv.synth_value != null) {
+      synthEl.textContent = '· S:' + fmt(sv.synth_value) + lock;
+      synthEl.style.color = done ? '#534AB7' : '#1D9E75';
+      synthEl.title       = `Synthetic spot (ATM CE − PE + K), ${sv.synth_n} samples`;
+    } else if (inWindow) {
+      synthEl.textContent = '· S:…';
+      synthEl.style.color = '#aaa';
+    } else {
+      synthEl.textContent = '';
+    }
+  }
+
+  // ── Basis label (always visible when we have data) ──────────────
+  if (basisEl) {
+    if (sv && sv.basis != null && sv.basis_samples > 5) {
+      const b = sv.basis;
+      basisEl.textContent = `[basis ${b >= 0 ? '+' : ''}${b.toFixed(1)}]`;
+      basisEl.style.color = '#bbb';
+    } else {
+      basisEl.textContent = '';
+    }
   }
 }
 
