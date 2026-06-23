@@ -844,26 +844,48 @@ def _settlement_vwap_payload():
 
     basis = _median_basis()
 
-    # Futures VWAP → subtract basis to get implied spot
+    # Futures VWAP → subtract basis to get implied spot (window average)
     fut_vwap_raw   = settlement_vwap["fut_vwap"]
     fut_spot_equiv = round(fut_vwap_raw - basis, 2) if (fut_vwap_raw and basis is not None) else None
 
+    # Live futures spot equivalent — visible all day, not just in window
+    fut_ltp_live  = state.get("fut_ltp")
+    fut_live_spot = round(fut_ltp_live - basis, 2) if (fut_ltp_live and basis is not None) else None
+
+    # Live synth spot (CE - PE + K) — computed from latest ATM LTPs, all day
+    atm = state.get("atm_strike")
+    live_synth = None
+    if atm:
+        ce_rk = f"s{int(atm)}_ce"
+        pe_rk = f"s{int(atm)}_pe"
+        ce_tok = next((t2 for t2, m in state["tokens"].items() if m["role_key"] == ce_rk), None)
+        pe_tok = next((t2 for t2, m in state["tokens"].items() if m["role_key"] == pe_rk), None)
+        ce_ltp = state["oi"].get(ce_tok, {}).get("ltp") if ce_tok else None
+        pe_ltp = state["oi"].get(pe_tok, {}).get("ltp") if pe_tok else None
+        if ce_ltp and pe_ltp and ce_ltp > 0 and pe_ltp > 0:
+            live_synth = round(ce_ltp - pe_ltp + atm, 2)
+
     return {
         # --- spot TWAP (existing field name preserved for frontend compat) ---
-        "value":         round(settlement_vwap["value"], 2) if settlement_vwap["value"] else None,
-        "n":             settlement_vwap["n"],
-        "active":        in_w,
-        "done":          done and settlement_vwap["value"] is not None,
-        # --- futures VWAP ---
-        "fut_vwap_raw":  round(fut_vwap_raw,   2) if fut_vwap_raw   else None,
-        "fut_spot":      fut_spot_equiv,
-        "fut_n":         settlement_vwap["fut_vol_n"],
-        # --- synth spot (put-call parity) ---
-        "synth_value":   round(settlement_vwap["synth_value"], 2) if settlement_vwap["synth_value"] else None,
-        "synth_n":       settlement_vwap["synth_n"],
+        "value":          round(settlement_vwap["value"], 2) if settlement_vwap["value"] else None,
+        "n":              settlement_vwap["n"],
+        "active":         in_w,
+        "done":           done and settlement_vwap["value"] is not None,
+        # --- futures VWAP (window average, only populated 15:00–15:30) ---
+        "fut_vwap_raw":   round(fut_vwap_raw,   2) if fut_vwap_raw   else None,
+        "fut_spot":       fut_spot_equiv,
+        "fut_n":          settlement_vwap["fut_vol_n"],
+        # --- live futures spot (visible all day) ---
+        "fut_live_spot":  fut_live_spot,
+        "fut_ltp":        round(fut_ltp_live, 2) if fut_ltp_live else None,
+        # --- synth spot window average (only populated 15:00–15:30) ---
+        "synth_value":    round(settlement_vwap["synth_value"], 2) if settlement_vwap["synth_value"] else None,
+        "synth_n":        settlement_vwap["synth_n"],
+        # --- live synth spot (visible all day) ---
+        "live_synth":     live_synth,
         # --- basis info ---
-        "basis":         round(basis, 2) if basis is not None else None,
-        "basis_samples": len(_basis_samples),
+        "basis":          round(basis, 2) if basis is not None else None,
+        "basis_samples":  len(_basis_samples),
     }
 
 # ── BROWSER LIVE STREAM (Server-Sent Events) ─────────────────────────────────
