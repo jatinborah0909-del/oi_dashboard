@@ -964,10 +964,11 @@ tr:last-child td{border-bottom:none;}
             <span style="width:0.5px;height:14px;background:#ddd;display:inline-block;margin:0 4px;"></span>
             <span style="font-size:11px;color:#888;">Top Chg <span style="font-size:9px;color:#aaa;font-weight:400;">(ΔOI)</span>: <span id="oc-ticker-top-chg" style="font-weight:600;">—</span></span>
             <span style="width:0.5px;height:14px;background:#ddd;display:inline-block;margin:0 4px;"></span>
-            <span style="font-size:11px;color:#888;" title="Projected settlement close — three independent estimates using the 15:00–15:30 IST window. Spot TWAP: time-average of Nifty spot index. Fut VWAP: volume-weighted average of Nifty Futures, basis-adjusted to spot. Synth: put-call parity CE−PE+K at ATM.">
+            <span style="font-size:11px;color:#888;" title="Projected settlement close — composite weighted estimate: Fut VWAP ×50% + Synth VWAP ×35% + Spot TWAP ×15%. All three averaged over 15:00–15:30 IST. Fut = futures basis-adj; Synth = CE−PE+K put-call parity (volume-weighted); Spot TWAP = time-avg index. Live composite shown before window.">
               Proj. Settle:
               <span id="oc-ticker-vwap"       style="color:#854F0B;font-weight:600;font-variant-numeric:tabular-nums;">—</span>
               <span id="oc-ticker-vwap-diff"  style="font-size:10px;font-variant-numeric:tabular-nums;"></span>
+              <span id="oc-ticker-spot-twap"  style="color:#B07820;font-weight:600;font-variant-numeric:tabular-nums;margin-left:4px;"></span>
               <span id="oc-ticker-fut-vwap"   style="color:#1A5E9E;font-weight:600;font-variant-numeric:tabular-nums;margin-left:4px;"></span>
               <span id="oc-ticker-synth"      style="color:#1D9E75;font-weight:600;font-variant-numeric:tabular-nums;margin-left:4px;"></span>
               <span id="oc-ticker-basis"      style="font-size:10px;color:#aaa;margin-left:2px;"></span>
@@ -4976,34 +4977,60 @@ function updateOCTicker(spot, expiryDate) {
 // ── PROJECTED SETTLEMENT (15:00–15:30 IST) ────────────────────────
 // Three independent estimates shown in the OC ticker:
 //   Spot TWAP  — time-avg of Nifty spot index (amber) — window only
+//   Spot TWAP  — time-average of Nifty spot during 15:00–15:30 (amber, T:)
 //   Fut        — live futures basis-adj spot all day; VWAP avg during/after window (blue)
-//   Synth      — live CE−PE+K all day; TWAP avg during/after window (green)
+//   Synth      — live CE−PE+K all day; volume-weighted avg during/after window (green)
+//   Composite  — weighted blend: 50% Fut + 35% Synth + 15% Spot TWAP (headline amber/purple)
 function updateSettlementVwap(sv, spot) {
-  const valEl    = document.getElementById('oc-ticker-vwap');
-  const diffEl   = document.getElementById('oc-ticker-vwap-diff');
-  const futEl    = document.getElementById('oc-ticker-fut-vwap');
-  const synthEl  = document.getElementById('oc-ticker-synth');
-  const basisEl  = document.getElementById('oc-ticker-basis');
+  const valEl       = document.getElementById('oc-ticker-vwap');
+  const diffEl      = document.getElementById('oc-ticker-vwap-diff');
+  const spotTwapEl  = document.getElementById('oc-ticker-spot-twap');
+  const futEl       = document.getElementById('oc-ticker-fut-vwap');
+  const synthEl     = document.getElementById('oc-ticker-synth');
+  const basisEl     = document.getElementById('oc-ticker-basis');
   if (!valEl) return;
 
   const inWindow = sv && sv.active;
   const done     = sv && sv.done;
   const lock     = done ? ' 🔒' : '';
 
-  // ── Spot TWAP (amber) — only meaningful during/after window ───────
-  if (!sv || sv.value == null) {
+  // ── Composite weighted estimate (headline) ─────────────────────────
+  // During window: sv.composite_live (fut live + synth live + spot)
+  // After window:  sv.composite (fut VWAP + synth VWAP + spot TWAP locked)
+  // Before window: sv.composite_live as a live preview (no lock)
+  const compVal  = done ? sv?.composite : (sv?.composite_live ?? sv?.composite);
+  const refSpot  = spot;
+
+  if (compVal == null) {
     valEl.textContent      = inWindow ? 'accumulating…' : 'from 15:00';
     valEl.style.color      = '#aaa';
     valEl.style.fontWeight = '400';
     if (diffEl) diffEl.textContent = '';
   } else {
-    valEl.textContent      = fmt(sv.value) + lock;
+    valEl.textContent      = fmt(compVal) + lock;
     valEl.style.color      = done ? '#534AB7' : '#854F0B';
     valEl.style.fontWeight = '600';
-    if (diffEl && spot && sv.value) {
-      const d = spot - sv.value;
+    if (diffEl && refSpot && compVal) {
+      const d = refSpot - compVal;
       diffEl.textContent = '(Δ' + (d >= 0 ? '+' : '') + d.toFixed(1) + ')';
       diffEl.style.color = Math.abs(d) >= 10 ? '#B14419' : '#aaa';
+    }
+  }
+
+  // ── Spot TWAP (amber T:) — only meaningful during/after window ─────
+  if (spotTwapEl) {
+    if (done && sv?.value != null) {
+      spotTwapEl.textContent = '· T:' + fmt(sv.value) + ' 🔒';
+      spotTwapEl.style.color = '#534AB7';
+      spotTwapEl.title = `Spot TWAP (15:00–15:30), ${sv.n} samples. Time-average of Nifty spot index.`;
+    } else if (inWindow && sv?.value != null) {
+      spotTwapEl.textContent = '· T:' + fmt(sv.value) + '…';
+      spotTwapEl.style.color = '#B07820';
+      spotTwapEl.title = `Spot TWAP accumulating (${sv.n} samples so far). Time-average of Nifty spot.`;
+    } else {
+      spotTwapEl.textContent = inWindow ? '· T:…' : '';
+      spotTwapEl.style.color = '#ccc';
+      spotTwapEl.title = 'Spot TWAP — accumulates from 15:00';
     }
   }
 
@@ -5057,11 +5084,21 @@ function updateSettlementVwap(sv, spot) {
   }
 
   // ── Basis label — always visible when data exists ──────────────────
+  // Shows window TWAP basis (most accurate) when inside/after 15:00–15:30,
+  // falls back to rolling median before the window.
   if (basisEl) {
-    if (sv && sv.basis != null && sv.basis_samples > 5) {
-      const b = sv.basis;
-      basisEl.textContent = `[basis ${b >= 0 ? '+' : ''}${b.toFixed(1)}]`;
-      basisEl.style.color = '#bbb';
+    if (sv && sv.basis != null) {
+      const b          = sv.basis;
+      const usingTwap  = sv.basis_twap != null;
+      const label      = usingTwap
+        ? `[basis⌀ ${b >= 0 ? '+' : ''}${b.toFixed(1)}, n=${sv.basis_n}]`
+        : `[basis ${b >= 0 ? '+' : ''}${b.toFixed(1)}]`;
+      const tip = usingTwap
+        ? `Basis TWAP over 15:00–15:30 window (${sv.basis_n} samples) — same interval as Fut VWAP`
+        : `Rolling median basis (pre-window, ${sv.basis_samples} samples)`;
+      basisEl.textContent = label;
+      basisEl.style.color = usingTwap ? '#9b8fcc' : '#bbb';  // purple tint when window-locked
+      basisEl.title       = tip;
     } else {
       basisEl.textContent = '';
     }
