@@ -727,16 +727,22 @@ settlement_vwap = {
     "n":              0,
     "value":          None,
     "last_sec":       None,
-    # --- futures true VWAP ---
+    # --- futures true VWAP (every tick counted, no throttle) ---
     "fut_vol_sum":    0.0,   # Σ (price × traded_qty in window)
     "fut_vol_n":      0.0,   # Σ traded_qty in window
     "fut_vwap":       None,  # running VWAP value
-    "fut_last_sec":   None,
-    # --- synth spot TWAP (ATM CE - PE + K, minus basis) ---
+    # --- synth spot VWAP (ATM CE - PE + K, volume-weighted by CE+PE qty) ---
     "synth_sum":      0.0,
-    "synth_n":        0,
+    "synth_n":        0.0,
     "synth_value":    None,
     "synth_last_sec": None,
+    # --- basis TWAP over 15:00–15:30 (fut_ltp − spot, 1 sample/sec) ---
+    # Used to convert fut_vwap → spot_equiv with the same window average,
+    # so numerator and denominator are both averaged over identical intervals.
+    "basis_sum":      0.0,
+    "basis_n":        0,
+    "basis_twap":     None,  # window-average basis; None until window starts
+    "basis_last_sec": None,
 }
 
 # Live basis tracker: futures LTP − spot, kept as a short rolling buffer so we
@@ -751,8 +757,9 @@ def _reset_settlement_vwap_if_new_day(today):
         settlement_vwap.update({
             "date": today,
             "sum": 0.0, "n": 0, "value": None, "last_sec": None,
-            "fut_vol_sum": 0.0, "fut_vol_n": 0.0, "fut_vwap": None, "fut_last_sec": None,
-            "synth_sum": 0.0, "synth_n": 0, "synth_value": None, "synth_last_sec": None,
+            "fut_vol_sum": 0.0, "fut_vol_n": 0.0, "fut_vwap": None,
+            "synth_sum": 0.0, "synth_n": 0.0, "synth_value": None, "synth_last_sec": None,
+            "basis_sum": 0.0, "basis_n": 0, "basis_twap": None, "basis_last_sec": None,
         })
 
 
@@ -780,6 +787,29 @@ def _update_basis(fut_ltp, spot):
     Caller must hold state_lock."""
     if fut_ltp and spot and spot > 0:
         _basis_samples.append(fut_ltp - spot)
+        _update_basis_twap(fut_ltp, spot)
+
+
+def _update_basis_twap(fut_ltp, spot):
+    """Accumulate (fut_ltp − spot) into a TWAP over the 15:00–15:30 window,
+    sampled at most once per second.  This window-average basis is then used
+    to convert fut_vwap → spot_equiv so both are averaged over the exact same
+    interval — eliminating the error from using a pre-window rolling median.
+    Caller must hold state_lock."""
+    if not (fut_ltp and spot and spot > 0):
+        return
+    now = now_ist()
+    _reset_settlement_vwap_if_new_day(now.strftime("%Y-%m-%d"))
+    t = now.time()
+    if t < SETTLE_WIN_START or t > SETTLE_WIN_END:
+        return
+    sec_key = now.strftime("%H:%M:%S")
+    if sec_key == settlement_vwap["basis_last_sec"]:
+        return
+    settlement_vwap["basis_last_sec"] = sec_key
+    settlement_vwap["basis_sum"] += fut_ltp - spot
+    settlement_vwap["basis_n"]   += 1
+    settlement_vwap["basis_twap"] = settlement_vwap["basis_sum"] / settlement_vwap["basis_n"]
 
 
 def _median_basis():
@@ -794,6 +824,8 @@ def _median_basis():
 def _update_fut_vwap(fut_ltp, traded_qty):
     """Accumulate futures tick into volume-weighted average during 15:00–15:30.
     Uses traded_qty (the tick's last_traded_quantity) as the volume weight.
+    Every distinct tick is counted — no 1-sec throttle — so true VWAP is
+    preserved across all traded lots in the settlement window.
     Falls back to equal weighting (qty=1) if qty is zero.
     Caller must hold state_lock."""
     if fut_ltp is None or fut_ltp <= 0:
@@ -803,18 +835,17 @@ def _update_fut_vwap(fut_ltp, traded_qty):
     t = now.time()
     if t < SETTLE_WIN_START or t > SETTLE_WIN_END:
         return
-    sec_key = now.strftime("%H:%M:%S")
-    if sec_key == settlement_vwap["fut_last_sec"]:
-        return   # one sample per second to match spot TWAP cadence
-    settlement_vwap["fut_last_sec"] = sec_key
     qty = max(1, traded_qty or 1)
     settlement_vwap["fut_vol_sum"] += fut_ltp * qty
     settlement_vwap["fut_vol_n"]   += qty
     settlement_vwap["fut_vwap"] = settlement_vwap["fut_vol_sum"] / settlement_vwap["fut_vol_n"]
 
 
-def _update_synth_vwap(ce_ltp, pe_ltp, atm_strike):
-    """Accumulate synthetic spot = CE − PE + K into the 15:00–15:30 TWAP.
+def _update_synth_vwap(ce_ltp, pe_ltp, atm_strike, ce_qty=1, pe_qty=1):
+    """Accumulate synthetic spot = CE − PE + K into a volume-weighted average
+    during 15:00–15:30.  ce_qty / pe_qty are the last_traded_quantity values
+    from the most recent CE/PE ticks; their average is used as the weight so
+    ticks with real traded volume are emphasised over quiet ticks.
     Caller must hold state_lock."""
     if ce_ltp is None or pe_ltp is None or atm_strike is None:
         return
@@ -829,10 +860,27 @@ def _update_synth_vwap(ce_ltp, pe_ltp, atm_strike):
     if sec_key == settlement_vwap["synth_last_sec"]:
         return
     settlement_vwap["synth_last_sec"] = sec_key
-    synth = ce_ltp - pe_ltp + atm_strike
-    settlement_vwap["synth_sum"] += synth
-    settlement_vwap["synth_n"]   += 1
+    synth  = ce_ltp - pe_ltp + atm_strike
+    weight = max(1, ((ce_qty or 1) + (pe_qty or 1)) / 2)
+    settlement_vwap["synth_sum"] += synth * weight
+    settlement_vwap["synth_n"]   += weight
     settlement_vwap["synth_value"] = settlement_vwap["synth_sum"] / settlement_vwap["synth_n"]
+
+
+def _composite_settle(fut_spot, synth, spot_twap):
+    """Weighted composite settlement estimate.
+    Weights: Fut VWAP/live 50% + Synth VWAP/live 35% + Spot TWAP/live 15%.
+    If a component is missing, remaining weights are renormalised so the
+    estimate degrades gracefully rather than returning None."""
+    components = []
+    if fut_spot  is not None: components.append((fut_spot,  0.50))
+    if synth     is not None: components.append((synth,     0.35))
+    if spot_twap is not None: components.append((spot_twap, 0.15))
+    if not components:
+        return None
+    total_w = sum(w for _, w in components)
+    value   = sum(v * w for v, w in components) / total_w
+    return round(value, 2)
 
 
 def _settlement_vwap_payload():
@@ -842,15 +890,24 @@ def _settlement_vwap_payload():
     in_w  = SETTLE_WIN_START <= t <= SETTLE_WIN_END
     done  = t > SETTLE_WIN_END
 
-    basis = _median_basis()
+    # Basis selection:
+    #   During/after window → use basis_twap (same 15:00–15:30 average as
+    #     fut_vwap, so numerator and denominator span identical intervals).
+    #   Before window       → fall back to rolling median basis (best available).
+    basis_twap   = settlement_vwap["basis_twap"]   # None until window starts
+    median_basis = _median_basis()
+    basis        = basis_twap if basis_twap is not None else median_basis
 
-    # Futures VWAP → subtract basis to get implied spot (window average)
+    # Futures VWAP → subtract window-average basis to get implied spot
     fut_vwap_raw   = settlement_vwap["fut_vwap"]
     fut_spot_equiv = round(fut_vwap_raw - basis, 2) if (fut_vwap_raw and basis is not None) else None
 
     # Live futures spot equivalent — visible all day, not just in window
+    # Before window: uses median_basis (best available live estimate)
+    # During/after:  uses basis_twap so the live display is also window-consistent
+    live_basis    = basis  # same selection logic applies
     fut_ltp_live  = state.get("fut_ltp")
-    fut_live_spot = round(fut_ltp_live - basis, 2) if (fut_ltp_live and basis is not None) else None
+    fut_live_spot = round(fut_ltp_live - live_basis, 2) if (fut_ltp_live and live_basis is not None) else None
 
     # Live synth spot (CE - PE + K) — computed from latest ATM LTPs, all day
     atm = state.get("atm_strike")
@@ -883,9 +940,18 @@ def _settlement_vwap_payload():
         "synth_n":        settlement_vwap["synth_n"],
         # --- live synth spot (visible all day) ---
         "live_synth":     live_synth,
-        # --- basis info ---
+        # --- basis info (window TWAP preferred; median shown before window) ---
         "basis":          round(basis, 2) if basis is not None else None,
+        "basis_twap":     round(basis_twap, 2) if basis_twap is not None else None,
+        "basis_n":        settlement_vwap["basis_n"],
         "basis_samples":  len(_basis_samples),
+        # --- composite weighted estimate (headline Proj. Settle) ---
+        # Weights: Fut VWAP 50% (true volume, most reliable) +
+        #          Synth VWAP 35% (arb-enforced, volume-weighted) +
+        #          Spot TWAP 15% (no volume, proxy only)
+        # Falls back gracefully if any component is missing.
+        "composite":      _composite_settle(fut_spot_equiv, settlement_vwap.get("synth_value"), settlement_vwap.get("value")),
+        "composite_live": _composite_settle(fut_live_spot,  live_synth,                         state.get("spot")),
     }
 
 # ── BROWSER LIVE STREAM (Server-Sent Events) ─────────────────────────────────
@@ -1410,6 +1476,7 @@ def build_ticker():
 
                 current_oi  = tick.get("oi", 0)
                 current_ltp = tick.get("last_price", 0)
+                current_qty = tick.get("last_traded_quantity", 0) or tick.get("volume_traded", 0) or 1
 
                 if current_oi == 0:
                     continue
@@ -1426,6 +1493,7 @@ def build_ticker():
                 state["oi"][token] = {
                     "oi":   current_oi,
                     "ltp":  current_ltp,
+                    "qty":  current_qty,
                     "depth": {"buy": buy_levels, "sell": sell_levels},
                 }
                 _update_ltp_ohlc(token, current_ltp)
@@ -1434,15 +1502,21 @@ def build_ticker():
             # ── Synthetic spot from ATM CE − PE + K ─────────────────────────
             # Computed once per tick batch (after all ticks processed) using
             # the latest ATM strike and its CE/PE LTPs from state["oi"].
+            # CE/PE traded quantities are passed so the synth VWAP is volume-
+            # weighted (busy ticks count more than quiet ones).
             atm = state["atm_strike"]
             if atm:
                 ce_rk = f"s{int(atm)}_ce"
                 pe_rk = f"s{int(atm)}_pe"
                 ce_tok = next((t for t, m in state["tokens"].items() if m["role_key"] == ce_rk), None)
                 pe_tok = next((t for t, m in state["tokens"].items() if m["role_key"] == pe_rk), None)
-                ce_ltp = state["oi"].get(ce_tok, {}).get("ltp") if ce_tok else None
-                pe_ltp = state["oi"].get(pe_tok, {}).get("ltp") if pe_tok else None
-                _update_synth_vwap(ce_ltp, pe_ltp, atm)
+                ce_data = state["oi"].get(ce_tok, {}) if ce_tok else {}
+                pe_data = state["oi"].get(pe_tok, {}) if pe_tok else {}
+                ce_ltp  = ce_data.get("ltp")
+                pe_ltp  = pe_data.get("ltp")
+                ce_qty  = ce_data.get("qty", 1)
+                pe_qty  = pe_data.get("qty", 1)
+                _update_synth_vwap(ce_ltp, pe_ltp, atm, ce_qty, pe_qty)
 
             _append_history()
             _broadcast_live_from_state_unlocked()
