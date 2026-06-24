@@ -1429,8 +1429,7 @@ def build_ticker():
                     "depth": {"buy": buy_levels, "sell": sell_levels},
                 }
                 _update_ltp_ohlc(token, current_ltp)
-                _update_day_oh(token, current_ltp)
-                _update_day_ft(token, current_ltp)
+                _update_day_oh(token, current_ltp)  # first-tick fallback handled inside
 
             # ── Synthetic spot from ATM CE − PE + K ─────────────────────────
             # Computed once per tick batch (after all ticks processed) using
