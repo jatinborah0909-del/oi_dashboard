@@ -1192,7 +1192,7 @@ tr:last-child td{border-bottom:none;}
     <strong>SELL Setup C (reversal candle breakdown):</strong> After a falling candle, if the next candle is bullish (bounce) <em>and</em> ATM put OI unwinds ≥ 2L on that bounce candle → the bounce is just short-covering. Arm a SELL. Entry when any subsequent candle breaks <em>below</em> the reversal candle's low. Target = next lower 50-pt strike. SL = reversal candle's high + 30 pts.<br>
     <strong>BUY Setup B (post-cross):</strong> Spot crosses above a strike. CE unwind ≥ 3L at cross → BUY immediately. Otherwise wait for a retracement (bearish candle), then CE unwind ≥ 3L on the next rising candle → BUY, ≥ 40 pts gap to next higher strike. SL = entry − 20 pts.<br>
     <strong>BUY Setup C (reversal candle breakout):</strong> After a rising candle, bearish reversal candle with ATM CE unwind ≥ 2L → arm a BUY. Entry when price breaks <em>above</em> the reversal candle's high. Target = next higher strike. SL = reversal candle's low − 30 pts.<br>
-    <strong>Setup D (momentum exhaustion reversal, 1-min candles, price-only):</strong> ≥4 consecutive same-colour 1-min candles with total move ≥ 30 pts → the first opposite-colour candle is the <em>base candle</em>. After a green run, base = red candle → arm SELL; entry when any later candle <em>closes below</em> the base candle's low, SL = high of the entry candle, target = 1:1. After a red run, base = green candle → arm BUY; entry when any later candle <em>closes above</em> the base candle's high, SL = low of the entry candle, target = 1:1. Setup invalidated if any candle closes back beyond the base candle (above its high for SELL / below its low for BUY) before entry triggers.
+    <strong>Setup D (momentum exhaustion reversal, 1-min candles, price-only):</strong> ≥4 consecutive same-colour 1-min candles with total move ≥ 30 pts → the first opposite-colour candle is the <em>base candle</em>. After a green run, base = red candle → arm SELL; entry when any later candle <em>closes below</em> the base candle's low, SL = high of the entry candle. After a red run, base = green candle → arm BUY; entry when any later candle <em>closes above</em> the base candle's high, SL = low of the entry candle. Exit is on a <em>trail</em> basis — hold until the first opposite-colour candle closes (a green candle closes a SELL, a red candle closes a BUY), exiting at that candle's close, unless the SL is hit first. Setup invalidated if any candle closes back beyond the base candle (above its high for SELL / below its low for BUY) before entry triggers.
   </div>
   <!-- Setup filter -->
   <div class="pt-filter-row" id="pt-filter-row">
@@ -4222,8 +4222,10 @@ function ptBuild1MinCandles(rows1min) {
 // opposite-colour candle is the "base candle". Arm a reversal in the
 // opposite direction of the run. Entry triggers when a later candle
 // CLOSES beyond the base candle (below its low for SELL / above its high
-// for BUY). SL = the entry candle's own high (SELL) / low (BUY).
-// Target = 1:1 (same distance as SL, in the profit direction).
+// for BUY). SL = the entry candle's own high (SELL) / low (BUY) — hard stop.
+// Exit is on a TRAIL basis: hold until the first opposite-colour candle
+// CLOSES (green candle closes a SELL, red candle closes a BUY), exiting at
+// that candle's close — unless the SL is hit first.
 // Setup is invalidated if a candle closes back beyond the base candle's
 // far side (above base high for SELL / below base low for BUY) before entry.
 function ptRunSetupD(rows1min) {
@@ -4247,14 +4249,15 @@ function ptRunSetupD(rows1min) {
 
     // ── Check exit on open Setup-D trade ──────────────────────────
     if (openTrade) {
-      const { dir, sl, target } = openTrade;
+      const { dir, sl } = openTrade;
+      const color = colorOf(c);
       let exitPrice = null, exitReason = null, exitStatus = null;
       if (dir === 'SELL') {
-        if (c.high >= sl)        { exitPrice = sl;     exitReason = 'SL Hit';     exitStatus = 'sl';     }
-        else if (c.low <= target){ exitPrice = target; exitReason = 'Target Hit'; exitStatus = 'target'; }
+        if (c.high >= sl) { exitPrice = sl; exitReason = 'SL Hit'; exitStatus = 'sl'; }
+        else if (color === 'green') { exitPrice = c.close; exitReason = `Trail Exit — opposite candle@${c.label}`; exitStatus = 'trail'; }
       } else {
-        if (c.low <= sl)         { exitPrice = sl;     exitReason = 'SL Hit';     exitStatus = 'sl';     }
-        else if (c.high >= target){ exitPrice = target; exitReason = 'Target Hit'; exitStatus = 'target'; }
+        if (c.low <= sl) { exitPrice = sl; exitReason = 'SL Hit'; exitStatus = 'sl'; }
+        else if (color === 'red') { exitPrice = c.close; exitReason = `Trail Exit — opposite candle@${c.label}`; exitStatus = 'trail'; }
       }
       if (exitPrice != null) {
         openTrade.exitTime   = c.label;
@@ -4277,14 +4280,12 @@ function ptRunSetupD(rows1min) {
           armed = null;  // invalidated — closed back above base candle
         } else if (c.close < armed.baseLow) {
           const entryPx = c.close;
-          const slPx    = c.high;            // SL = high of entry candle
-          const risk    = slPx - entryPx;
-          const tgt     = entryPx - risk;    // 1:1 target
+          const slPx    = c.high;            // SL = high of entry candle (hard stop)
           openTrade = {
             id: 0, dir: 'SELL', setup: 'D',
             entryTime: c.label, entryPrice: entryPx,
-            target: tgt, sl: slPx, status: 'open',
-            reason: `[D-SELL] ${armed.streakCount} green candles ${armed.streakStartLabel}→${armed.streakEndLabel} (move +${armed.movePts.toFixed(0)}pts) → base candle@${armed.baseLabel} (L:${armed.baseLow.toFixed(0)} H:${armed.baseHigh.toFixed(0)}) → close broke below base-low @${c.label} (C:${c.close.toFixed(0)}) | Entry@${entryPx.toFixed(0)} SL:${slPx.toFixed(0)} (entry-candle high) Tgt:${tgt.toFixed(0)} (1:1)`,
+            target: null, sl: slPx, status: 'open',
+            reason: `[D-SELL] ${armed.streakCount} green candles ${armed.streakStartLabel}→${armed.streakEndLabel} (move +${armed.movePts.toFixed(0)}pts) → base candle@${armed.baseLabel} (L:${armed.baseLow.toFixed(0)} H:${armed.baseHigh.toFixed(0)}) → close broke below base-low @${c.label} (C:${c.close.toFixed(0)}) | Entry@${entryPx.toFixed(0)} SL:${slPx.toFixed(0)} (entry-candle high) | Exit: trail until first green candle closes`,
           };
           armed = null;
         }
@@ -4293,14 +4294,12 @@ function ptRunSetupD(rows1min) {
           armed = null;  // invalidated — closed back below base candle
         } else if (c.close > armed.baseHigh) {
           const entryPx = c.close;
-          const slPx    = c.low;             // SL = low of entry candle
-          const risk    = entryPx - slPx;
-          const tgt     = entryPx + risk;    // 1:1 target
+          const slPx    = c.low;             // SL = low of entry candle (hard stop)
           openTrade = {
             id: 0, dir: 'BUY', setup: 'D',
             entryTime: c.label, entryPrice: entryPx,
-            target: tgt, sl: slPx, status: 'open',
-            reason: `[D-BUY] ${armed.streakCount} red candles ${armed.streakStartLabel}→${armed.streakEndLabel} (move -${armed.movePts.toFixed(0)}pts) → base candle@${armed.baseLabel} (L:${armed.baseLow.toFixed(0)} H:${armed.baseHigh.toFixed(0)}) → close broke above base-high @${c.label} (C:${c.close.toFixed(0)}) | Entry@${entryPx.toFixed(0)} SL:${slPx.toFixed(0)} (entry-candle low) Tgt:${tgt.toFixed(0)} (1:1)`,
+            target: null, sl: slPx, status: 'open',
+            reason: `[D-BUY] ${armed.streakCount} red candles ${armed.streakStartLabel}→${armed.streakEndLabel} (move -${armed.movePts.toFixed(0)}pts) → base candle@${armed.baseLabel} (L:${armed.baseLow.toFixed(0)} H:${armed.baseHigh.toFixed(0)}) → close broke above base-high @${c.label} (C:${c.close.toFixed(0)}) | Entry@${entryPx.toFixed(0)} SL:${slPx.toFixed(0)} (entry-candle low) | Exit: trail until first red candle closes`,
           };
           armed = null;
         }
@@ -4727,7 +4726,7 @@ function ptRenderAll() {
           <td>${t.entryTime}</td>
           <td>${dirBadge}</td>
           <td><strong>${ptFmt(t.entryPrice)}</strong></td>
-          <td style="color:#1D9E75;">${ptFmt(t.target)}</td>
+          <td style="color:#1D9E75;">${t.target != null ? ptFmt(t.target) : '<em>Trail</em>'}</td>
           <td style="color:#D85A30;">${ptFmt(t.sl)}</td>
           <td>${setupBadge}</td>
           <td class="pt-reason">${t.reason ? t.reason.split(' — ').map((s,i)=>`<span class="reason-line">${i>0?'— ':''  }${s}</span>`).join('') : '—'}</td>
@@ -4750,6 +4749,8 @@ function ptRenderAll() {
           : `<span class="pt-badge pt-buy">▲ BUY</span>`;
         const resultBadge = t.status === 'target'
           ? `<span class="pt-badge pt-win">✓ Target</span>`
+          : t.status === 'trail'
+          ? `<span class="pt-badge pt-win">↻ Trail</span>`
           : t.status === 'sl'
           ? `<span class="pt-badge pt-sl">✕ SL</span>`
           : `<span class="pt-badge">—</span>`;
@@ -4760,7 +4761,7 @@ function ptRenderAll() {
           <td><strong>${ptFmt(t.entryPrice)}</strong></td>
           <td>${ptFmt(t.exitPrice)}</td>
           <td style="color:#D85A30;">${ptFmt(t.sl)}</td>
-          <td style="color:#1D9E75;">${ptFmt(t.target)}</td>
+          <td style="color:#1D9E75;">${t.target != null ? ptFmt(t.target) : '<em>Trail</em>'}</td>
           <td>${ptFmtPnl(t.pnl)}</td>
           <td>${resultBadge}</td>
           <td class="pt-reason">${t.reason ? t.reason.split(' — ').map((s,i)=>`<span class="reason-line">${i>0?'— ':''  }${s}</span>`).join('') : '—'}</td>
