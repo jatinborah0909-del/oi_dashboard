@@ -1524,10 +1524,10 @@ tr:last-child td{border-bottom:none;}
 
 <div class="oho-card" style="margin-bottom:12px;">
   <div style="font-size:12px;color:#666;line-height:1.5;">
-    <b>Open = High</b> — the leg's premium has not traded above its opening tick all day (sellers in control since the open; bearish for that leg).
-    <b style="margin-left:10px;">Open = Low</b> — the leg's premium has not traded below its opening tick all day (buyers in control since the open; bullish for that leg).
-    A strike drops off a list the instant a new extreme prints beyond the open. <b>Pending</b> = registered, not yet retested. <b>Filled</b> = price has come back and retested the open level — the classic re-entry trigger.
-    "Open" comes from the exchange's own day OHLC. The bridge now auto-reseeds itself just after 09:15 IST (and on every new session day), so a pre-market or overnight start no longer poisons the levels — the manual <b>Reseed from exchange</b> button remains as a backup.
+    <b>Open = High</b> — the leg moved down off its opening print without first trading above it (sellers in control since the open; bearish for that leg).
+    <b style="margin-left:10px;">Open = Low</b> — the leg moved up off its opening print without first trading below it (buyers in control since the open; bullish for that leg).
+    Once registered, a strike <b>stays on the list all day</b> — even if the open later breaks. <b>Pending</b> = the open level hasn't been revisited yet. <b>Filled</b> = price has come back to (or through) the open — the classic re-entry trigger.
+    "Open" comes from the exchange's own day OHLC. The bridge auto-reseeds itself just after 09:15 IST (and on every new session day); the manual <b>Reseed from exchange</b> button remains as a backup.
   </div>
 </div>
 
