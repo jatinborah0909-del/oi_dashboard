@@ -1150,13 +1150,18 @@ def _update_ltp_ohlc(token, ltp):
 
 
 # ── DAY-LEVEL OPEN/HIGH/LOW TRACKER (OpenHighLow tab) ─────────────────────────
-# Classic intraday "OHL scanner" logic, applied per option leg (CE/PE):
-#   Open = High  → premium has not traded above its opening print all day
-#                  (every subsequent tick has been <= open) — bearish-for-that-
-#                  leg signal, sellers in control from the first tick.
-#   Open = Low   → premium has not traded below its opening print all day
-#                  (every subsequent tick has been >= open) — bullish-for-that-
-#                  leg signal, buyers in control from the first tick.
+# Classic intraday "OHL scanner" logic, applied per option leg (CE/PE) and the
+# front-month future — with LATCHED semantics:
+#   Open = Low   → the leg moved UP off its opening print while never trading
+#                  below it. Once that happens the condition is LATCHED for the
+#                  rest of the day: a later tick at/below the open does NOT
+#                  remove the strike from the list — it flips its status from
+#                  Pending to Filled (the open level got retested/broken).
+#   Open = High  → mirror image: leg moved DOWN off the open while never
+#                  trading above it; a later tick at/above the open = Filled.
+# A leg that breaks its open on the very first move (before ever moving away
+# in the qualifying direction) never latches and never appears — it was never
+# a genuine OHL candidate.
 # "Open" is seeded from the EXCHANGE's own OHLC for each leg via _seed_day_oh()
 # (called once at startup) — NOT from whatever tick happens to arrive first.
 # That matters because this bridge can be (re)started mid-session; without the
@@ -1233,9 +1238,18 @@ def _seed_day_oh():
                 continue
             h = ohlc.get("high") or o
             l = ohlc.get("low") or o
+            moved_dn = l < o - OHL_EPS
+            moved_up = h > o + OHL_EPS
             day_oh[token] = {
                 "open": o, "high": h, "low": l,
-                "moved_dn": l < o - OHL_EPS, "moved_up": h > o + OHL_EPS,
+                "moved_dn": moved_dn, "moved_up": moved_up,
+                # Latch what the exchange OHLC can prove at seed time: the leg
+                # has moved away in the qualifying direction while the opposite
+                # extreme still sits exactly on the open. (If the open is
+                # already broken by seed time — normally ~09:15:20 — we can't
+                # reconstruct the tick order, so it's treated as never-OHL.)
+                "latched_ol": moved_up and _feq(l, o),
+                "latched_oh": moved_dn and _feq(h, o),
                 "filled_oh": False, "filled_ol": False,
             }
             seeded += 1
@@ -1280,29 +1294,39 @@ def _update_day_oh(token, ltp):
         day_oh[token] = {
             "open": ltp, "high": ltp, "low": ltp,
             "moved_dn": False, "moved_up": False,
+            "latched_ol": False, "latched_oh": False,
             "filled_oh": False, "filled_ol": False,
         }
         return
 
     op = d["open"]
 
-    # Evaluate fill conditions BEFORE updating high/low — otherwise a tick that
-    # simultaneously sets a new high AND crosses the open level would update the
-    # high first, breaking the high == open guard before we can check it.
+    # Latch checks run BEFORE updating high/low: on the very tick that breaks
+    # the open, the opposite extreme still equals the open, so a leg that held
+    # its open until now latches on this tick and is immediately marked Filled
+    # — it stays on the list instead of vanishing.
 
-    # Open = High: leg dipped below open at some point, now LTP has climbed
-    # back to or beyond the open level — mark filled.
-    if ltp < op - OHL_EPS:
-        d["moved_dn"] = True
-    elif ltp >= op - OHL_EPS and d["moved_dn"] and _feq(d["high"], op) and not d["filled_oh"]:
-        d["filled_oh"] = True       # price touched/crossed back up to the Open=High level
-
-    # Open = Low: leg rose above open at some point, now LTP has fallen
-    # back to or beyond the open level — mark filled.
+    # ── Open = Low side ──
     if ltp > op + OHL_EPS:
         d["moved_up"] = True
-    elif ltp <= op + OHL_EPS and d["moved_up"] and _feq(d["low"], op) and not d["filled_ol"]:
-        d["filled_ol"] = True       # price touched/crossed back down to the Open=Low level
+        if not d["latched_ol"] and _feq(d["low"], op):
+            d["latched_ol"] = True          # moved up while holding the open → registered
+    elif d["moved_up"]:                      # ltp is back at/below the open
+        if not d["latched_ol"] and _feq(d["low"], op):
+            d["latched_ol"] = True          # held the open right up to this tick
+        if d["latched_ol"] and not d["filled_ol"]:
+            d["filled_ol"] = True           # open retested/broken → Filled (leg stays listed)
+
+    # ── Open = High side ──
+    if ltp < op - OHL_EPS:
+        d["moved_dn"] = True
+        if not d["latched_oh"] and _feq(d["high"], op):
+            d["latched_oh"] = True          # moved down while holding the open → registered
+    elif d["moved_dn"]:                      # ltp is back at/above the open
+        if not d["latched_oh"] and _feq(d["high"], op):
+            d["latched_oh"] = True          # held the open right up to this tick
+        if d["latched_oh"] and not d["filled_oh"]:
+            d["filled_oh"] = True           # open retested/broken → Filled (leg stays listed)
 
     # Now update running high/low for the day.
     if ltp > d["high"]:
@@ -1331,8 +1355,11 @@ def _open_high_low_snapshot_unlocked():
             "high":      round(d["high"], 2),
             "low":       round(d["low"], 2),
             "ltp":       snap.get("ltp", 0),
-            "is_oh":     _feq(d["high"], d["open"]),
-            "is_ol":     _feq(d["low"],  d["open"]),
+            # Latched → stays listed all day even if the open later breaks;
+            # the _feq fallback keeps freshly-opened legs (still sitting on
+            # their open, not yet latched) visible too.
+            "is_oh":     d.get("latched_oh", False) or _feq(d["high"], d["open"]),
+            "is_ol":     d.get("latched_ol", False) or _feq(d["low"],  d["open"]),
             "filled_oh": d["filled_oh"],
             "filled_ol": d["filled_ol"],
         }
@@ -1349,8 +1376,8 @@ def _open_high_low_snapshot_unlocked():
                 "high":      round(d["high"], 2),
                 "low":       round(d["low"], 2),
                 "ltp":       state.get("fut_ltp") or 0,
-                "is_oh":     _feq(d["high"], d["open"]),
-                "is_ol":     _feq(d["low"],  d["open"]),
+                "is_oh":     d.get("latched_oh", False) or _feq(d["high"], d["open"]),
+                "is_ol":     d.get("latched_ol", False) or _feq(d["low"],  d["open"]),
                 "filled_oh": d["filled_oh"],
                 "filled_ol": d["filled_ol"],
             }
@@ -1831,6 +1858,88 @@ def reseed_open_high_low():
     with state_lock:
         snap = _open_high_low_snapshot_unlocked()
     return jsonify({"status": "ok", "as_of": snap["as_of"]})
+
+
+@app.route("/oi/openhighlow/debug")
+def openhighlow_debug():
+    """Explain exactly why a given strike is / is not on the OHL lists.
+    Usage: /oi/openhighlow/debug?strike=24000
+    For each leg (CE/PE) it returns:
+      - tracked: is the token subscribed at all (strike inside the window)?
+      - internal: the bridge's own day_oh entry (open/high/low + flags)
+      - exchange: a LIVE kite.ohlc() pull for the same leg
+      - verdict: 'not tracked' / 'ohl seed missing' / diff between the two views
+    If internal.low < internal.open but exchange.low == exchange.open, a tick
+    the exchange later cancelled/adjusted (or a bad tick) contaminated the
+    internal low — hit /oi/openhighlow/reseed to resync from the exchange."""
+    strike = request.args.get("strike", type=float)
+    if strike is None:
+        return jsonify({"status": "error", "message": "pass ?strike=24000"}), 400
+
+    with state_lock:
+        window   = sorted(state["strikes"]) if state["strikes"] else []
+        legs = {}
+        for token, meta in state["tokens"].items():
+            if float(meta["strike"]) == strike:
+                legs[meta["instrument_type"].upper()] = {
+                    "token": token, "tradingsymbol": meta["tradingsymbol"],
+                }
+        internal = {}
+        for side, leg in legs.items():
+            d = day_oh.get(leg["token"])
+            internal[side] = dict(d) if d else None
+        seeded = day_oh_meta.get("seeded", False)
+
+    if not legs:
+        return jsonify({
+            "status": "ok", "strike": strike, "tracked": False,
+            "verdict": f"Strike {strike:g} is NOT in the subscribed window "
+                       f"({window[0]:g}–{window[-1]:g})" if window else "No window initialised",
+            "window": window,
+        })
+
+    # Live exchange view for the same legs (single REST call)
+    keys = {f"{EXCHANGE}:{leg['tradingsymbol']}": side for side, leg in legs.items()}
+    exchange = {}
+    try:
+        quotes = kite.ohlc(list(keys.keys()))
+        for key, side in keys.items():
+            q = quotes.get(key) or {}
+            exchange[side] = {"ohlc": q.get("ohlc"), "last_price": q.get("last_price")}
+    except Exception as e:
+        exchange = {"error": str(e)}
+
+    out = {"status": "ok", "strike": strike, "tracked": True, "seeded": seeded,
+           "window": [window[0], window[-1]] if window else None, "legs": {}}
+    for side, leg in legs.items():
+        d  = internal.get(side)
+        ex = exchange.get(side) if isinstance(exchange, dict) else None
+        verdict = []
+        if d is None:
+            verdict.append("no internal day_oh entry — leg never seeded and no tick seen yet")
+        else:
+            if d.get("latched_ol"):
+                verdict.append("OPEN = LOW latched ✓ — stays listed all day"
+                               + (" (Filled: open was retested/broken)" if d["filled_ol"] else " (Pending)"))
+            elif _feq(d["low"], d["open"]):
+                verdict.append("currently holding Open = Low (not yet latched — no up-move seen)")
+            else:
+                verdict.append(f"never latched Open=Low: low {d['low']} broke open {d['open']} "
+                               f"before any qualifying up-move")
+            if d.get("latched_oh"):
+                verdict.append("OPEN = HIGH latched ✓ — stays listed all day"
+                               + (" (Filled: open was retested/broken)" if d["filled_oh"] else " (Pending)"))
+            elif _feq(d["high"], d["open"]):
+                verdict.append("currently holding Open = High (not yet latched — no down-move seen)")
+        if ex and ex.get("ohlc") and d:
+            eo, el, eh = ex["ohlc"].get("open"), ex["ohlc"].get("low"), ex["ohlc"].get("high")
+            if eo is not None and abs(eo - d["open"]) > OHL_EPS:
+                verdict.append(f"MISMATCH: exchange open {eo} vs internal open {d['open']} → stale seed, hit /oi/openhighlow/reseed")
+            if el is not None and abs(el - d["low"]) > OHL_EPS:
+                verdict.append(f"MISMATCH: exchange low {el} vs internal low {d['low']} → bad/contaminating tick, hit /oi/openhighlow/reseed")
+        out["legs"][side] = {"tradingsymbol": leg["tradingsymbol"],
+                             "internal": d, "exchange": ex, "verdict": verdict}
+    return jsonify(out)
 
 
 @app.route("/strikes")
