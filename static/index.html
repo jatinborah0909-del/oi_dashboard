@@ -1527,8 +1527,13 @@ tr:last-child td{border-bottom:none;}
     <b>Open = High</b> — the leg's premium has not traded above its opening tick all day (sellers in control since the open; bearish for that leg).
     <b style="margin-left:10px;">Open = Low</b> — the leg's premium has not traded below its opening tick all day (buyers in control since the open; bullish for that leg).
     A strike drops off a list the instant a new extreme prints beyond the open. <b>Pending</b> = registered, not yet retested. <b>Filled</b> = price has come back and retested the open level — the classic re-entry trigger.
-    "Open" comes from the exchange's own day OHLC, seeded once at startup — if it ever looks wrong (e.g. right after redeploying mid-session), hit <b>Reseed from exchange</b> above.
+    "Open" comes from the exchange's own day OHLC. The bridge now auto-reseeds itself just after 09:15 IST (and on every new session day), so a pre-market or overnight start no longer poisons the levels — the manual <b>Reseed from exchange</b> button remains as a backup.
   </div>
+</div>
+
+<div class="oho-card" style="margin-bottom:12px;" id="oho-fut-card">
+  <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Active-month future</div>
+  <div id="oho-fut-body" style="font-size:13px;color:#666;">Waiting for data…</div>
 </div>
 
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:12px;">
@@ -2808,6 +2813,33 @@ function ohoRenderTable(bodyId, rows, emptyMsg) {
     </tr>`).join('');
 }
 
+function renderOpenHighLowFuture(f, seeded) {
+  const el = document.getElementById('oho-fut-body');
+  if (!el) return;
+  if (!f) {
+    el.innerHTML = '<span style="color:#aaa;">No futures data yet — OHL levels appear once the first FUT tick arrives after 09:15.</span>';
+    return;
+  }
+  const badge = (label, on, filled, color) => on
+    ? `<span class="oho-badge ${filled ? 'filled' : 'pending'}" style="margin-left:6px;">${label} · ${filled ? 'Filled' : 'Pending'}</span>`
+    : '';
+  const signal =
+    badge('OPEN = HIGH', f.is_oh, f.filled_oh) +
+    badge('OPEN = LOW',  f.is_ol, f.filled_ol);
+  const seedWarn = seeded === false
+    ? '<div style="margin-top:6px;font-size:11px;color:#D85A30;">⚠ Levels not yet seeded from exchange OHLC (pre-open / first-tick fallback in effect). Auto-reseed runs just after 09:15 IST.</div>'
+    : '';
+  el.innerHTML =
+    `<div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center;">
+       <b style="color:#333;">${f.symbol}</b>
+       <span>Open <b>${f.open.toFixed(2)}</b></span>
+       <span>High <b>${f.high.toFixed(2)}</b></span>
+       <span>Low <b>${f.low.toFixed(2)}</b></span>
+       <span>LTP <b>${(f.ltp || 0).toFixed(2)}</b></span>
+       ${signal || '<span style="color:#aaa;font-size:12px;">No OHL condition active — price has traded on both sides of the open.</span>'}
+     </div>` + seedWarn;
+}
+
 function renderOpenHighLow(d) {
   if (!d) return;
   const panel = document.getElementById('tab-openhighlow-panel');
@@ -2815,6 +2847,7 @@ function renderOpenHighLow(d) {
 
   const asOf = document.getElementById('oho-as-of');
   if (asOf) asOf.textContent = d.as_of || '—';
+  renderOpenHighLowFuture(d.future, d.seeded);
   ohoRenderTable('oho-high-body', d.open_high, 'No strikes currently have Open = High.');
   ohoRenderTable('oho-low-body',  d.open_low,  'No strikes currently have Open = Low.');
 }
