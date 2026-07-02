@@ -608,6 +608,16 @@ def init_db():
                     ON {DB_TABLE} ((data->>'iv_avg_rr'));
                 CREATE INDEX IF NOT EXISTS idx_{DB_TABLE}_date_time
                     ON {DB_TABLE} (trade_date, ts);
+                -- OpenHighLow latch-state persistence: one JSONB blob per
+                -- (day, index) holding the whole day_oh dict, so latched /
+                -- filled flags survive redeploys and restarts.
+                CREATE TABLE IF NOT EXISTS ohl_day_state (
+                    trade_date  DATE NOT NULL,
+                    index_name  TEXT NOT NULL,
+                    updated_ts  DOUBLE PRECISION,
+                    data        JSONB NOT NULL,
+                    PRIMARY KEY (trade_date, index_name)
+                );
             """)
         conn.commit()
     print(f"DB initialised — table {DB_TABLE} ready.")
@@ -1238,24 +1248,48 @@ def _seed_day_oh():
                 continue
             h = ohlc.get("high") or o
             l = ohlc.get("low") or o
-            moved_dn = l < o - OHL_EPS
-            moved_up = h > o + OHL_EPS
-            day_oh[token] = {
-                "open": o, "high": h, "low": l,
-                "moved_dn": moved_dn, "moved_up": moved_up,
-                # Latch what the exchange OHLC can prove at seed time: the leg
-                # has moved away in the qualifying direction while the opposite
-                # extreme still sits exactly on the open. (If the open is
-                # already broken by seed time — normally ~09:15:20 — we can't
-                # reconstruct the tick order, so it's treated as never-OHL.)
-                "latched_ol": moved_up and _feq(l, o),
-                "latched_oh": moved_dn and _feq(h, o),
-                "filled_oh": False, "filled_ol": False,
-            }
+
+            e = day_oh.get(token)
+            if e and _feq(e.get("open", 0), o):
+                # ── MERGE: same open → the accumulated latch/fill flags are
+                # valid; never destroy them. Fold in the exchange extremes
+                # (they may reveal moves that happened while we were down).
+                held_low  = _feq(e["low"],  o)   # was still holding open when last seen
+                held_high = _feq(e["high"], o)
+                moved_up  = e["moved_up"] or h > o + OHL_EPS
+                moved_dn  = e["moved_dn"] or l < o - OHL_EPS
+                # Late latch: it held its open as long as we watched it, and
+                # the exchange proves it moved away in the qualifying
+                # direction → register it (inclusive by design).
+                if not e["latched_ol"] and held_low and moved_up:
+                    e["latched_ol"] = True
+                if not e["latched_oh"] and held_high and moved_dn:
+                    e["latched_oh"] = True
+                e["moved_up"], e["moved_dn"] = moved_up, moved_dn
+                e["high"] = max(e["high"], h)
+                e["low"]  = min(e["low"],  l)
+                # A latched leg whose open is broken per exchange → Filled.
+                if e["latched_ol"] and e["low"] < o - OHL_EPS:
+                    e["filled_ol"] = True
+                if e["latched_oh"] and e["high"] > o + OHL_EPS:
+                    e["filled_oh"] = True
+            else:
+                # ── REPLACE: no prior entry, or the stored open disagrees
+                # with the exchange (stale/poisoned) — rebuild from scratch.
+                moved_dn = l < o - OHL_EPS
+                moved_up = h > o + OHL_EPS
+                day_oh[token] = {
+                    "open": o, "high": h, "low": l,
+                    "moved_dn": moved_dn, "moved_up": moved_up,
+                    "latched_ol": moved_up and _feq(l, o),
+                    "latched_oh": moved_dn and _feq(h, o),
+                    "filled_oh": False, "filled_ol": False,
+                }
             seeded += 1
         if seeded > 0:
             day_oh_meta["seeded"] = True
     print(f"[OpenHighLow] Seeded day Open/High/Low for {seeded}/{len(key_to_token)} instruments from the exchange.")
+    _db_save_day_oh()
 
 
 def _auto_reseed_day_oh_loop():
@@ -1273,6 +1307,91 @@ def _auto_reseed_day_oh_loop():
         except Exception as e:
             print(f"[OpenHighLow] auto-reseed loop error: {e}")
         time.sleep(20)
+
+
+# ── OHL latch-state persistence ──────────────────────────────────────────────
+# Latched / Filled flags are derived from the OBSERVED tick sequence, so they
+# can't be reconstructed from the exchange's day OHLC after a restart (open,
+# high, low alone can't tell "moved up first, broke later → Filled" apart from
+# "broke immediately → never a candidate"). Persisting day_oh to Postgres and
+# restoring it at startup is what keeps registered strikes on the list across
+# redeploys.
+
+def _db_save_day_oh():
+    """Upsert today's full day_oh dict as one JSONB blob. Cheap (one row)."""
+    with state_lock:
+        if not day_oh:
+            return
+        payload = {str(tok): dict(d) for tok, d in day_oh.items()}
+        date_str = day_oh_meta.get("date")
+    if not date_str:
+        return
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO ohl_day_state (trade_date, index_name, updated_ts, data)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (trade_date, index_name)
+                    DO UPDATE SET updated_ts = EXCLUDED.updated_ts, data = EXCLUDED.data
+                    """,
+                    (date_str, DB_TABLE, time.time(), psycopg2.extras.Json(payload)),
+                )
+            conn.commit()
+    except Exception as e:
+        print(f"[OpenHighLow] persist failed: {e}")
+
+
+def _db_load_day_oh():
+    """Restore today's day_oh from Postgres (if present). Run once at startup,
+    BEFORE _seed_day_oh(), so the seed merges into restored latch state
+    instead of starting blind."""
+    today = now_ist().strftime("%Y-%m-%d")
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT data FROM ohl_day_state WHERE trade_date = %s AND index_name = %s",
+                    (today, DB_TABLE),
+                )
+                row = cur.fetchone()
+    except Exception as e:
+        print(f"[OpenHighLow] restore failed ({e}) — starting with empty latch state.")
+        return
+    if not row or not row[0]:
+        print("[OpenHighLow] No saved latch state for today — fresh start.")
+        return
+    restored = 0
+    with state_lock:
+        day_oh_meta["date"] = today
+        for tok_str, d in row[0].items():
+            try:
+                # Tolerate entries saved by older code without latch keys
+                d.setdefault("latched_ol", False)
+                d.setdefault("latched_oh", False)
+                day_oh[int(tok_str)] = d
+                restored += 1
+            except (ValueError, TypeError):
+                continue
+    print(f"[OpenHighLow] Restored latch state for {restored} instruments from DB.")
+
+
+def _day_oh_persist_loop():
+    """Save the latch state every 30s during market hours (and once shortly
+    after close, so the final Filled/Pending picture is kept)."""
+    last_saved_after_close = None
+    while True:
+        try:
+            if is_market_open():
+                _db_save_day_oh()
+                last_saved_after_close = None
+            elif last_saved_after_close != now_ist().strftime("%Y-%m-%d"):
+                _db_save_day_oh()
+                last_saved_after_close = now_ist().strftime("%Y-%m-%d")
+        except Exception as e:
+            print(f"[OpenHighLow] persist loop error: {e}")
+        time.sleep(30)
 
 
 def _update_day_oh(token, ltp):
@@ -1761,11 +1880,15 @@ def initialise(seed_spot):
     else:
         print("[Futures] No FUT token — futures VWAP estimate will be unavailable.")
 
-    print("\nSeeding OpenHighLow day levels from exchange OHLC...")
+    print("\nRestoring OpenHighLow latch state from DB (survives redeploys)...")
+    _db_load_day_oh()
+
+    print("Seeding OpenHighLow day levels from exchange OHLC...")
     _seed_day_oh()
     # Guarantees a valid same-day seed even if the bridge started pre-market,
     # runs overnight into a new session, or the startup seed call failed.
     threading.Thread(target=_auto_reseed_day_oh_loop, daemon=True).start()
+    threading.Thread(target=_day_oh_persist_loop,     daemon=True).start()
 
     build_ticker()
 
