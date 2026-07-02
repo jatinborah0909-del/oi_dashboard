@@ -690,6 +690,7 @@ state = {
     "roll_log":       [],
     "expiry_date":    None,   # front-month expiry as YYYY-MM-DD string
     "fut_token":      None,   # front-month Nifty Futures instrument token
+    "fut_symbol":     None,   # front-month Futures tradingsymbol (for ohlc() seeding)
     "fut_ltp":        None,   # latest futures LTP (updated by on_ticks)
 }
 
@@ -1167,37 +1168,61 @@ def _update_ltp_ohlc(token, ltp):
 # A leg "fills" once price moves away from the open and then comes back to
 # exactly retest that same level — the classic OHL retest entry trigger.
 day_oh      = {}                     # token -> {open, high, low, moved_dn, moved_up, filled_oh, filled_ol}
-day_oh_meta = {"date": None}
+day_oh_meta = {"date": None, "seeded": False}
+
+# Prices from the REST ohlc() seed and from the binary websocket ticks are two
+# independent float sources. Exact `==` between them is fragile, so all
+# "Open equals High/Low" checks use a half-tick tolerance instead.
+OHL_EPS = 0.02   # NSE/BSE option tick size is 0.05 — anything within 0.02 is "equal"
+
+def _feq(a, b):
+    return abs(a - b) <= OHL_EPS
 
 
 def _reset_day_oh_if_new_day():
     today = now_ist().strftime("%Y-%m-%d")
     if day_oh_meta["date"] != today:
         day_oh.clear()
-        day_oh_meta["date"] = today
+        day_oh_meta["date"]   = today
+        day_oh_meta["seeded"] = False   # force a fresh exchange seed for the new session
 
 
 def _seed_day_oh():
     """Seed day_oh with the exchange-reported day Open/High/Low for every
-    tracked leg, via one kite.ohlc() REST call. Run this once at startup (and
-    it's safe to re-run any time, e.g. after a reconnect) so 'Open' is always
+    tracked leg + the front-month future, via one kite.ohlc() REST call.
+    Safe to re-run any time (e.g. after a reconnect) so 'Open' is always
     the real 09:15 print — correct even if the bridge restarts at, say, 11:30.
+
+    IMPORTANT: before 09:15 IST kite.ohlc() still returns the PREVIOUS
+    session's OHLC. Seeding from that poisons every Open with yesterday's
+    value and silently kills the whole scanner for the day, so we refuse
+    to seed outside market hours and let the auto-reseed loop do it right
+    after the open instead.
     Does its own locking; do NOT call while already holding state_lock."""
+    if not is_market_open():
+        print("[OpenHighLow] Seed skipped — market not open yet (pre-open ohlc() "
+              "would return YESTERDAY's values). Auto-reseed will run just after 09:15 IST.")
+        return
+
     with state_lock:
-        tokens = dict(state["tokens"])
-    if not tokens:
+        tokens     = dict(state["tokens"])
+        fut_token  = state.get("fut_token")
+        fut_symbol = state.get("fut_symbol")
+    if not tokens and not fut_token:
         return
 
     key_to_token = {f"{EXCHANGE}:{meta['tradingsymbol']}": token for token, meta in tokens.items()}
+    if fut_token and fut_symbol:
+        key_to_token[f"{EXCHANGE}:{fut_symbol}"] = fut_token
     try:
         quotes = kite.ohlc(list(key_to_token.keys()))
     except Exception as e:
-        print(f"[OpenHighLow] kite.ohlc() seed failed ({e}) — will fall back to first-tick capture per leg.")
+        print(f"[OpenHighLow] kite.ohlc() seed failed ({e}) — will retry via auto-reseed loop.")
         return
 
-    _reset_day_oh_if_new_day()
     seeded = 0
     with state_lock:
+        _reset_day_oh_if_new_day()
         for key, token in key_to_token.items():
             q = quotes.get(key)
             if not q:
@@ -1210,23 +1235,48 @@ def _seed_day_oh():
             l = ohlc.get("low") or o
             day_oh[token] = {
                 "open": o, "high": h, "low": l,
-                "moved_dn": l < o, "moved_up": h > o,
+                "moved_dn": l < o - OHL_EPS, "moved_up": h > o + OHL_EPS,
                 "filled_oh": False, "filled_ol": False,
             }
             seeded += 1
-    print(f"[OpenHighLow] Seeded day Open/High/Low for {seeded}/{len(tokens)} legs from the exchange.")
+        if seeded > 0:
+            day_oh_meta["seeded"] = True
+    print(f"[OpenHighLow] Seeded day Open/High/Low for {seeded}/{len(key_to_token)} instruments from the exchange.")
+
+
+def _auto_reseed_day_oh_loop():
+    """Background loop that guarantees a valid same-day exchange seed:
+    - process started pre-market  → seeds shortly after 09:15
+    - process running overnight   → new-day reset clears the flag, re-seeds next open
+    - startup seed failed (API hiccup) → keeps retrying every 20s until it works."""
+    while True:
+        try:
+            now = now_ist()
+            past_open_grace = (now.hour * 60 + now.minute) * 60 + now.second >= \
+                              (MARKET_OPEN_HM[0] * 60 + MARKET_OPEN_HM[1]) * 60 + 20
+            if is_market_open() and past_open_grace and not day_oh_meta.get("seeded"):
+                _seed_day_oh()
+        except Exception as e:
+            print(f"[OpenHighLow] auto-reseed loop error: {e}")
+        time.sleep(20)
 
 
 def _update_day_oh(token, ltp):
-    """Update the day Open/High/Low + fill state for one option leg.
-    Caller must hold state_lock."""
+    """Update the day Open/High/Low + fill state for one instrument
+    (option leg or the front-month future). Caller must hold state_lock."""
     if ltp is None or ltp <= 0:
+        return
+    # Kite pushes a cached snapshot tick immediately on subscribe (last_price =
+    # previous close) and can stream indicative prices pre-open. Letting those
+    # through poisons the first-tick fallback "Open" and the running high/low,
+    # so day-level OHL only ever consumes ticks inside the trading session.
+    if not is_market_open():
         return
     _reset_day_oh_if_new_day()
     d = day_oh.get(token)
     if d is None:
         # Fallback only — normally _seed_day_oh() has already populated this
-        # leg with the real exchange Open before any ticks arrive.
+        # instrument with the real exchange Open before any ticks arrive.
         day_oh[token] = {
             "open": ltp, "high": ltp, "low": ltp,
             "moved_dn": False, "moved_up": False,
@@ -1238,20 +1288,20 @@ def _update_day_oh(token, ltp):
 
     # Evaluate fill conditions BEFORE updating high/low — otherwise a tick that
     # simultaneously sets a new high AND crosses the open level would update the
-    # high first, breaking the d["high"] == op guard before we can check it.
+    # high first, breaking the high == open guard before we can check it.
 
     # Open = High: leg dipped below open at some point, now LTP has climbed
     # back to or beyond the open level — mark filled.
-    if ltp < op:
+    if ltp < op - OHL_EPS:
         d["moved_dn"] = True
-    elif ltp >= op and d["moved_dn"] and d["high"] == op and not d["filled_oh"]:
+    elif ltp >= op - OHL_EPS and d["moved_dn"] and _feq(d["high"], op) and not d["filled_oh"]:
         d["filled_oh"] = True       # price touched/crossed back up to the Open=High level
 
     # Open = Low: leg rose above open at some point, now LTP has fallen
     # back to or beyond the open level — mark filled.
-    if ltp > op:
+    if ltp > op + OHL_EPS:
         d["moved_up"] = True
-    elif ltp <= op and d["moved_up"] and d["low"] == op and not d["filled_ol"]:
+    elif ltp <= op + OHL_EPS and d["moved_up"] and _feq(d["low"], op) and not d["filled_ol"]:
         d["filled_ol"] = True       # price touched/crossed back down to the Open=Low level
 
     # Now update running high/low for the day.
@@ -1281,11 +1331,29 @@ def _open_high_low_snapshot_unlocked():
             "high":      round(d["high"], 2),
             "low":       round(d["low"], 2),
             "ltp":       snap.get("ltp", 0),
-            "is_oh":     d["high"] == d["open"],
-            "is_ol":     d["low"]  == d["open"],
+            "is_oh":     _feq(d["high"], d["open"]),
+            "is_ol":     _feq(d["low"],  d["open"]),
             "filled_oh": d["filled_oh"],
             "filled_ol": d["filled_ol"],
         }
+
+    # ── Active-month future OHL (same scanner logic, one instrument) ──
+    future = None
+    fut_token = state.get("fut_token")
+    if fut_token:
+        d = day_oh.get(fut_token)
+        if d:
+            future = {
+                "symbol":    state.get("fut_symbol") or "FUT",
+                "open":      round(d["open"], 2),
+                "high":      round(d["high"], 2),
+                "low":       round(d["low"], 2),
+                "ltp":       state.get("fut_ltp") or 0,
+                "is_oh":     _feq(d["high"], d["open"]),
+                "is_ol":     _feq(d["low"],  d["open"]),
+                "filled_oh": d["filled_oh"],
+                "filled_ol": d["filled_ol"],
+            }
 
     open_high, open_low = [], []
     for strike in sorted(by_strike):
@@ -1317,6 +1385,8 @@ def _open_high_low_snapshot_unlocked():
 
     return {
         "as_of":     now_ist().strftime("%H:%M:%S"),
+        "seeded":    day_oh_meta.get("seeded", False),
+        "future":    future,
         "open_high": open_high,
         "open_low":  open_low,
     }
@@ -1467,6 +1537,7 @@ def build_ticker():
                     if fut_ltp and fut_ltp > 0:
                         state["fut_ltp"] = fut_ltp
                         _update_fut_vwap(fut_ltp, qty)
+                        _update_day_oh(token, fut_ltp)   # active-month future OHL scan
                         if state["spot"]:
                             _update_basis(fut_ltp, state["spot"])
                     continue
@@ -1477,6 +1548,11 @@ def build_ticker():
                 current_oi  = tick.get("oi", 0)
                 current_ltp = tick.get("last_price", 0)
                 current_qty = tick.get("last_traded_quantity", 0) or tick.get("volume_traded", 0) or 1
+
+                # Day OHL scanner must see every traded tick — deep OTM legs can
+                # briefly report oi=0 early in the session, and skipping those
+                # ticks here used to blind the OpenHighLow tracker to them.
+                _update_day_oh(token, current_ltp)
 
                 if current_oi == 0:
                     continue
@@ -1497,7 +1573,6 @@ def build_ticker():
                     "depth": {"buy": buy_levels, "sell": sell_levels},
                 }
                 _update_ltp_ohlc(token, current_ltp)
-                _update_day_oh(token, current_ltp)  # first-tick fallback handled inside
 
             # ── Synthetic spot from ATM CE − PE + K ─────────────────────────
             # Computed once per tick batch (after all ticks processed) using
@@ -1652,7 +1727,8 @@ def initialise(seed_spot):
     print("\nFetching front-month Futures token...")
     fut_token, fut_sym = get_futures_token()
     with state_lock:
-        state["fut_token"] = fut_token
+        state["fut_token"]  = fut_token
+        state["fut_symbol"] = fut_sym
     if fut_token:
         print(f"[Futures] Subscribed: {fut_sym} (token {fut_token})")
     else:
@@ -1660,6 +1736,9 @@ def initialise(seed_spot):
 
     print("\nSeeding OpenHighLow day levels from exchange OHLC...")
     _seed_day_oh()
+    # Guarantees a valid same-day seed even if the bridge started pre-market,
+    # runs overnight into a new session, or the startup seed call failed.
+    threading.Thread(target=_auto_reseed_day_oh_loop, daemon=True).start()
 
     build_ticker()
 
