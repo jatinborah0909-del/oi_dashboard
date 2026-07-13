@@ -275,6 +275,12 @@ tr:last-child td{border-bottom:none;}
 .oi-change-selected-chip button{border:none;background:transparent;color:inherit;cursor:pointer;margin-left:6px;font-weight:700;}
 .oi-change-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:#666;}
 .oi-change-pill{background:#f8f8f5;border:0.5px solid #e0e0da;border-radius:20px;padding:4px 9px;}
+.oi-mode-toggle{display:inline-flex;border:0.5px solid #ccc;border-radius:8px;overflow:hidden;background:#fff;}
+.oi-mode-btn{font-size:12px;padding:4px 12px;border:none;background:#fff;color:#666;cursor:pointer;transition:all .12s;white-space:nowrap;}
+.oi-mode-btn+.oi-mode-btn{border-left:0.5px solid #ccc;}
+.oi-mode-btn:hover{color:#185FA5;}
+.oi-mode-btn.active{background:#185FA5;color:#fff;font-weight:500;}
+.oi-mode-btn.active:hover{color:#fff;}
 
 @media(max-width:700px){
   #tab-oi-movers-panel .grid-4{grid-template-columns:1fr!important;}
@@ -1118,10 +1124,15 @@ tr:last-child td{border-bottom:none;}
   <div class="oi-change-card">
     <div class="oi-change-header">
       <div>
-        <div class="oi-change-title">Selected strikes — Absolute OI</div>
+        <div class="oi-change-title" id="oi-change-title">Selected strikes — Absolute OI</div>
         <div class="oi-change-sub" id="oi-change-sub">Select one or more strikes. CE (solid, warm colours) and PE (dashed, cool colours) absolute open interest are plotted — rising lines indicate position buildup.</div>
       </div>
       <div class="oi-change-controls">
+        <label>Mode:</label>
+        <div class="oi-mode-toggle">
+          <button class="oi-mode-btn active" id="oi-mode-abs" onclick="setOIChangeMode('abs')">Absolute OI</button>
+          <button class="oi-mode-btn" id="oi-mode-chg" onclick="setOIChangeMode('chg')">Change in OI</button>
+        </div>
         <label>Range around ATM:</label>
         <select id="oi-change-depth" onchange="renderOIChangeStrikeChips(); renderOIChangeChart();">
           <option value="3">±3</option>
@@ -1156,7 +1167,7 @@ tr:last-child td{border-bottom:none;}
       <span style="color:#888;">Colour = strike</span>
     </div>
 
-    <div class="oi-change-section-title">Absolute OI — Position Buildup</div>
+    <div class="oi-change-section-title" id="oi-change-section-title">Absolute OI — Position Buildup</div>
     <div class="oi-change-chart-wrap">
       <div class="oi-change-chart-shell">
         <canvas id="oiAbsYAxis" class="oi-change-yaxis"></canvas>
@@ -2311,6 +2322,7 @@ let STRIKE_STEP    = 50;  // default, overridden from data
 let selectedStrikes = [null, null, null];
 let defaultStrikes  = [null, null, null, null, null];
 let oiChangeSelectedStrikes = [];
+let oiChangeMode = 'abs'; // 'abs' = absolute OI · 'chg' = change in OI since session start
 let oiChangeChartInstance = null;
 let oiAbsChartInstance = null;
 let numCharts       = 5;   // current chart count (1, 3, 5, 7, or 9)
@@ -5711,7 +5723,75 @@ function buildOIAbsDatasets(candleSets) {
   return datasets;
 }
 
-function createOIAbsChart(canvas, labels, datasets, yRange) {
+// ── CHANGE-IN-OI CHART: cumulative OI change since session start ──
+// Same palettes / solid-vs-dashed convention as the absolute chart so the
+// two modes read identically — only the y-values differ.
+function buildOIChgDatasets(candleSets) {
+  const datasets = [];
+  candleSets.forEach((entry, idx) => {
+    const ceColor = OI_CE_PALETTE[idx % OI_CE_PALETTE.length];
+    const peColor = OI_PE_PALETTE[idx % OI_PE_PALETTE.length];
+    const atm = entry.strike === atmStrike ? ' ★ATM' : '';
+
+    // Cumulative sum of per-candle deltas = net OI change since session start
+    let ceCum = 0, peCum = 0;
+    const ceData = entry.candles.map(c => { ceCum += (c.dce || 0); return ceCum; });
+    const peData = entry.candles.map(c => { peCum += (c.dpe || 0); return peCum; });
+
+    datasets.push({
+      label: `${entry.strike.toLocaleString('en-IN')} CE Δ${atm}`,
+      data: ceData,
+      borderColor: ceColor,
+      backgroundColor: ceColor + '22',
+      fill: 'origin',
+      borderWidth: 2.5,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      tension: 0.25,
+      order: (idx + 1) * 2
+    });
+    datasets.push({
+      label: `${entry.strike.toLocaleString('en-IN')} PE Δ${atm}`,
+      data: peData,
+      borderColor: peColor,
+      backgroundColor: peColor + '18',
+      fill: 'origin',
+      borderWidth: 2.5,
+      pointRadius: 0,
+      pointHoverRadius: 4,
+      borderDash: [7, 4],
+      tension: 0.25,
+      order: (idx + 1) * 2 + 1
+    });
+  });
+  return datasets;
+}
+
+function setOIChangeMode(mode) {
+  if (mode !== 'abs' && mode !== 'chg') return;
+  oiChangeMode = mode;
+  const absBtn = document.getElementById('oi-mode-abs');
+  const chgBtn = document.getElementById('oi-mode-chg');
+  if (absBtn) absBtn.classList.toggle('active', mode === 'abs');
+  if (chgBtn) chgBtn.classList.toggle('active', mode === 'chg');
+
+  const title = document.getElementById('oi-change-title');
+  const sub = document.getElementById('oi-change-sub');
+  const secTitle = document.getElementById('oi-change-section-title');
+  if (mode === 'abs') {
+    if (title) title.textContent = 'Selected strikes — Absolute OI';
+    if (secTitle) secTitle.textContent = 'Absolute OI — Position Buildup';
+    if (sub) sub.textContent = 'Select one or more strikes. CE (solid, warm colours) and PE (dashed, cool colours) absolute open interest are plotted — rising lines indicate position buildup.';
+  } else {
+    if (title) title.textContent = 'Selected strikes — Change in OI';
+    if (secTitle) secTitle.textContent = 'Change in OI — Net Buildup / Unwinding since session start';
+    if (sub) sub.textContent = 'Select one or more strikes. CE (solid, warm colours) and PE (dashed, cool colours) cumulative OI change since session start — above zero = net buildup, below zero = net unwinding.';
+  }
+  renderOIChangeStrikeChips();
+  renderOIChangeChart();
+}
+
+function createOIAbsChart(canvas, labels, datasets, yRange, signed = false) {
   return new Chart(canvas, {
     type: 'line',
     data: { labels, datasets },
@@ -5754,7 +5834,7 @@ function createOIAbsChart(canvas, labels, datasets, yRange) {
               const ds = ctx.dataset;
               const arrow = ds._prevVal != null ? (v > ds._prevVal ? ' ▲' : v < ds._prevVal ? ' ▼' : '') : '';
               ds._prevVal = v;
-              return ` ${ds.label}: ${fmtCompactAxis(v, false)}${arrow}`;
+              return ` ${ds.label}: ${fmtCompactAxis(v, signed)}${arrow}`;
             }
           }
         }
@@ -5784,7 +5864,27 @@ function createOIAbsChart(canvas, labels, datasets, yRange) {
         }
       },
       animation: { duration: 300 }
-    }
+    },
+    plugins: [{
+      id: 'oiZeroLine',
+      afterDatasetsDraw(chart) {
+        if (!signed) return;
+        const yScale = chart.scales.y;
+        if (!yScale || yScale.min > 0 || yScale.max < 0) return;
+        const y = yScale.getPixelForValue(0);
+        const { left, right } = chart.chartArea;
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(60,60,60,0.45)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath();
+        ctx.moveTo(left, y);
+        ctx.lineTo(right, y);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }]
   });
 }
 
@@ -5922,26 +6022,37 @@ function renderOIChangeChart() {
   absWrap.style.height = chartH + 'px';
   setCanvas('oiAbsChart', chartW, chartH);
 
-  const absDatasets = buildOIAbsDatasets(candleSets);
-  const absValues = absDatasets.flatMap(ds => ds.data.filter(v => v != null));
-  const absRange = niceRange(absValues, true);
+  const isChg = oiChangeMode === 'chg';
+  const chartDatasets = isChg ? buildOIChgDatasets(candleSets) : buildOIAbsDatasets(candleSets);
+  const chartValues = chartDatasets.flatMap(ds => ds.data.filter(v => v != null));
+  if (isChg) chartValues.push(0); // always keep the zero line in view
+  const chartRange = niceRange(chartValues, !isChg);
 
-  drawStickyOIYAxis('oiAbsYAxis', absRange.min, absRange.max, chartH, v => fmtCompactAxis(v, false), 'Open Interest');
+  drawStickyOIYAxis('oiAbsYAxis', chartRange.min, chartRange.max, chartH,
+    v => fmtCompactAxis(v, isChg),
+    isChg ? 'Change in OI (session)' : 'Open Interest');
 
   if (oiAbsChartInstance) { oiAbsChartInstance.destroy(); oiAbsChartInstance = null; }
 
-  oiAbsChartInstance = createOIAbsChart(absCanvas, labels, absDatasets, absRange);
+  oiAbsChartInstance = createOIAbsChart(absCanvas, labels, chartDatasets, chartRange, isChg);
 
   if (summary) {
     summary.innerHTML = candleSets.map(entry => {
       const last = entry.candles[entry.candles.length-1] || {};
       const first = entry.candles[0] || {};
-      const ceDelta = (last.ce_oi||0) - (first.ce_oi||0);
-      const peDelta = (last.pe_oi||0) - (first.pe_oi||0);
+      const ceDelta = isChg
+        ? entry.candles.reduce((s,c)=>s+(c.dce||0),0)
+        : (last.ce_oi||0) - (first.ce_oi||0);
+      const peDelta = isChg
+        ? entry.candles.reduce((s,c)=>s+(c.dpe||0),0)
+        : (last.pe_oi||0) - (first.pe_oi||0);
       const ceDir = ceDelta > 0 ? '▲' : ceDelta < 0 ? '▼' : '—';
       const peDir = peDelta > 0 ? '▲' : peDelta < 0 ? '▼' : '—';
       const ceColor = ceDelta > 0 ? '#D85A30' : '#1D9E75';
       const peColor = peDelta > 0 ? '#1D9E75' : '#D85A30';
+      if (isChg) {
+        return `<span class="oi-change-pill"><strong>${entry.strike.toLocaleString('en-IN')}</strong> &nbsp;CE Δ: <span style="color:${ceColor};font-weight:600;">${ceDir}${fmtCompactAxis(Math.abs(ceDelta))}</span> <span style="color:#aaa;">(${fmtCompactAxis(last.ce_oi||0)})</span> &nbsp;PE Δ: <span style="color:${peColor};font-weight:600;">${peDir}${fmtCompactAxis(Math.abs(peDelta))}</span> <span style="color:#aaa;">(${fmtCompactAxis(last.pe_oi||0)})</span></span>`;
+      }
       return `<span class="oi-change-pill"><strong>${entry.strike.toLocaleString('en-IN')}</strong> &nbsp;CE: ${fmtCompactAxis(last.ce_oi||0)} <span style="color:${ceColor};font-weight:600;">${ceDir}${fmtCompactAxis(Math.abs(ceDelta))}</span> &nbsp;PE: ${fmtCompactAxis(last.pe_oi||0)} <span style="color:${peColor};font-weight:600;">${peDir}${fmtCompactAxis(Math.abs(peDelta))}</span></span>`;
     }).join('');
   }
