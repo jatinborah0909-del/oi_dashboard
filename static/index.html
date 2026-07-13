@@ -1134,7 +1134,7 @@ tr:last-child td{border-bottom:none;}
           <button class="oi-mode-btn" id="oi-mode-chg" onclick="setOIChangeMode('chg')">Change in OI</button>
         </div>
         <label>Range around ATM:</label>
-        <select id="oi-change-depth" onchange="renderOIChangeStrikeChips(); renderOIChangeChart();">
+        <select id="oi-change-depth" onchange="stopOIReplay(false); renderOIChangeStrikeChips(); renderOIChangeChart();">
           <option value="3">±3</option>
           <option value="5" selected>±5</option>
           <option value="8">±8</option>
@@ -1142,7 +1142,7 @@ tr:last-child td{border-bottom:none;}
           <option value="0">All</option>
         </select>
         <label>Time labels:</label>
-        <select id="oi-change-time-label-step" onchange="renderOIChangeChart();">
+        <select id="oi-change-time-label-step" onchange="stopOIReplay(false); renderOIChangeChart();">
           <option value="auto" selected>Auto</option>
           <option value="3">Every 3 min</option>
           <option value="5">Every 5 min</option>
@@ -1152,6 +1152,24 @@ tr:last-child td{border-bottom:none;}
         <button class="btn btn-primary" onclick="selectOIChangeDefaultStrikes()">ATM ±1</button>
         <button class="btn" onclick="selectAllOIChangeVisibleStrikes()">Select visible</button>
         <button class="btn" onclick="clearOIChangeStrikes()">Clear</button>
+        <span style="width:1px;height:20px;background:#ddd;display:inline-block;"></span>
+        <label>Replay last:</label>
+        <select id="oi-replay-window">
+          <option value="5">5 min</option>
+          <option value="10">10 min</option>
+          <option value="15" selected>15 min</option>
+          <option value="30">30 min</option>
+          <option value="60">60 min</option>
+        </select>
+        <label>Speed:</label>
+        <select id="oi-replay-speed" onchange="oiReplaySetSpeed()">
+          <option value="600">1×</option>
+          <option value="300" selected>2×</option>
+          <option value="120">4×</option>
+          <option value="50">8×</option>
+        </select>
+        <button class="btn btn-primary" id="oi-replay-btn" onclick="toggleOIReplay()">▶ Replay</button>
+        <button class="btn" id="oi-replay-stop" onclick="stopOIReplay()" style="display:none;">⏹ Live</button>
       </div>
     </div>
 
@@ -1168,6 +1186,14 @@ tr:last-child td{border-bottom:none;}
     </div>
 
     <div class="oi-change-section-title" id="oi-change-section-title">Absolute OI — Position Buildup</div>
+    <div id="oi-replay-status" style="display:none;align-items:center;gap:10px;background:#FFF9EE;border:0.5px solid #EFD9A8;border-radius:8px;padding:7px 12px;margin:4px 0 8px;font-size:12px;color:#7A5B14;">
+      <span style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap;"><span id="oi-replay-pulse" style="width:8px;height:8px;border-radius:50%;background:#EF9F27;display:inline-block;"></span><strong>REPLAY</strong></span>
+      <span id="oi-replay-time" style="font-variant-numeric:tabular-nums;white-space:nowrap;">—</span>
+      <input type="range" id="oi-replay-scrub" min="1" max="1" value="1" step="1"
+             oninput="oiReplayScrub(this.value)"
+             style="flex:1;min-width:120px;accent-color:#EF9F27;cursor:pointer;">
+      <span id="oi-replay-frames" style="font-variant-numeric:tabular-nums;white-space:nowrap;color:#A8842B;">0 / 0</span>
+    </div>
     <div class="oi-change-chart-wrap">
       <div class="oi-change-chart-shell">
         <canvas id="oiAbsYAxis" class="oi-change-yaxis"></canvas>
@@ -5560,6 +5586,7 @@ function renderOIChangeStrikeChips() {
 }
 
 function toggleOIChangeStrike(strike) {
+  stopOIReplay(false);
   if (oiChangeSelectedStrikes.includes(strike)) {
     oiChangeSelectedStrikes = oiChangeSelectedStrikes.filter(s => s !== strike);
   } else {
@@ -5571,6 +5598,7 @@ function toggleOIChangeStrike(strike) {
 }
 
 function selectOIChangeDefaultStrikes() {
+  stopOIReplay(false);
   if (!atmStrike || !allStrikes.length) return;
   const idx = allStrikes.indexOf(atmStrike);
   oiChangeSelectedStrikes = [allStrikes[idx-1], atmStrike, allStrikes[idx+1]].filter(Boolean);
@@ -5579,15 +5607,180 @@ function selectOIChangeDefaultStrikes() {
 }
 
 function selectAllOIChangeVisibleStrikes() {
+  stopOIReplay(false);
   oiChangeSelectedStrikes = getOIChangeVisibleStrikes();
   renderOIChangeStrikeChips();
   renderOIChangeChart();
 }
 
 function clearOIChangeStrikes() {
+  stopOIReplay(false);
   oiChangeSelectedStrikes = [];
   renderOIChangeStrikeChips();
   renderOIChangeChart();
+}
+
+// ── REPLAY ENGINE ─────────────────────────────────────────────────
+// Replays the last N minutes of the session candle-by-candle on the
+// selected-strikes chart. Purely client-side: slices minuteRows, builds
+// the full datasets once, then progressively reveals points via
+// chart.update('none') — no chart destroy/recreate per frame.
+let oiReplayState = {
+  active: false,     // replay owns the chart (blocks live re-renders)
+  playing: false,    // timer currently advancing
+  timer: null,
+  frame: 0,          // frames revealed so far (1-based when rendered)
+  frames: 0,
+  labels: [],
+  fullSeries: null,  // per-dataset complete data arrays
+  speedMs: 300
+};
+
+function oiReplaySetSpeed() {
+  const el = document.getElementById('oi-replay-speed');
+  oiReplayState.speedMs = parseInt(el?.value || '300', 10) || 300;
+}
+
+function _oiReplayUpdateUI() {
+  const btn = document.getElementById('oi-replay-btn');
+  const stopBtn = document.getElementById('oi-replay-stop');
+  const status = document.getElementById('oi-replay-status');
+  const pulse = document.getElementById('oi-replay-pulse');
+  const st = oiReplayState;
+  if (btn) btn.textContent = !st.active ? '▶ Replay' : (st.playing ? '⏸ Pause' : (st.frame >= st.frames ? '↺ Restart' : '▶ Resume'));
+  if (stopBtn) stopBtn.style.display = st.active ? '' : 'none';
+  if (status) status.style.display = st.active ? 'flex' : 'none';
+  if (pulse) pulse.style.animation = (st.active && st.playing) ? 'blink 1.2s infinite' : 'none';
+}
+
+function _oiReplayFrame(k) {
+  const st = oiReplayState;
+  if (!st.active || !st.fullSeries || !oiAbsChartInstance) return;
+  k = Math.max(1, Math.min(st.frames, k));
+  st.frame = k;
+  oiAbsChartInstance.data.datasets.forEach((ds, i) => { ds.data = st.fullSeries[i].slice(0, k); });
+  oiAbsChartInstance.update('none');
+  const timeEl = document.getElementById('oi-replay-time');
+  const framesEl = document.getElementById('oi-replay-frames');
+  const scrub = document.getElementById('oi-replay-scrub');
+  if (timeEl) timeEl.textContent = st.labels[k - 1] || '—';
+  if (framesEl) framesEl.textContent = `${k} / ${st.frames}`;
+  if (scrub && String(scrub.value) !== String(k)) scrub.value = k;
+}
+
+function _oiReplayTick() {
+  const st = oiReplayState;
+  if (!st.active || !st.playing) return;
+  if (st.frame >= st.frames) {
+    st.playing = false;
+    const timeEl = document.getElementById('oi-replay-time');
+    if (timeEl) timeEl.textContent = (st.labels[st.frames - 1] || '—') + ' · complete';
+    _oiReplayUpdateUI();
+    return;
+  }
+  _oiReplayFrame(st.frame + 1);
+  st.timer = setTimeout(_oiReplayTick, st.speedMs);
+}
+
+function startOIReplay() {
+  stopOIReplay(false);
+  ensureOIChangeSelection();
+  const strikes = [...new Set(oiChangeSelectedStrikes.filter(Boolean))].sort((a, b) => a - b);
+  const rows = minuteRows || [];
+  const summary = document.getElementById('oi-change-summary');
+  if (!strikes.length || rows.length < 2) {
+    if (summary) summary.innerHTML = '<span class="oi-change-pill">Replay needs at least one selected strike and some session data.</span>';
+    return;
+  }
+  const winMin = parseInt(document.getElementById('oi-replay-window')?.value || '15', 10);
+  const slice = rows.slice(-winMin);   // 1-min rows → last N minutes
+  const candleSets = strikes.map(st => ({ strike: st, candles: buildCandlesForStrike(slice, intervalMin, st) }));
+  const labels = candleSets[0]?.candles.map(c => c.label) || [];
+  if (labels.length < 2) {
+    if (summary) summary.innerHTML = '<span class="oi-change-pill">Not enough candles in that window yet — try a longer replay range or a smaller candle interval.</span>';
+    return;
+  }
+
+  const isChg = oiChangeMode === 'chg';
+  const datasets = isChg ? buildOIChgDatasets(candleSets) : buildOIAbsDatasets(candleSets);
+
+  // Fix the y-range to the whole window up-front so the axis doesn't jump per frame
+  const values = datasets.flatMap(ds => ds.data.filter(v => v != null));
+  if (isChg) values.push(0);
+  const range = niceRange(values, !isChg);
+
+  const absCanvas = document.getElementById('oiAbsChart');
+  const absWrap = document.getElementById('oiAbsChartWrap');
+  const absScroll = document.getElementById('oi-abs-scroll');
+  if (!absCanvas || !absWrap || !absScroll) return;
+
+  const chartW = Math.max(labels.length * Math.max(36, MIN_BAR_PX) + 160, Math.floor(absScroll.getBoundingClientRect().width || window.innerWidth - 120));
+  const chartH = 650;
+  absWrap.style.width = chartW + 'px';
+  absWrap.style.height = chartH + 'px';
+  setCanvas('oiAbsChart', chartW, chartH);
+  drawStickyOIYAxis('oiAbsYAxis', range.min, range.max, chartH,
+    v => fmtCompactAxis(v, isChg),
+    isChg ? 'Change in OI (session)' : 'Open Interest');
+
+  if (oiAbsChartInstance) { oiAbsChartInstance.destroy(); oiAbsChartInstance = null; }
+
+  const st = oiReplayState;
+  st.fullSeries = datasets.map(ds => ds.data.slice());
+  datasets.forEach(ds => { ds.data = []; });
+  oiAbsChartInstance = createOIAbsChart(absCanvas, labels, datasets, range, isChg);
+
+  st.active = true;
+  st.playing = true;
+  st.frame = 0;
+  st.frames = labels.length;
+  st.labels = labels;
+  oiReplaySetSpeed();
+
+  const scrub = document.getElementById('oi-replay-scrub');
+  if (scrub) { scrub.max = st.frames; scrub.value = 1; }
+  if (summary) summary.innerHTML = `<span class="oi-change-pill">🎬 Replaying last ${winMin} min · ${strikes.length} strike(s) · ${isChg ? 'Change in OI' : 'Absolute OI'} mode</span>`;
+
+  absScroll.scrollLeft = 0;
+  _oiReplayUpdateUI();
+  _oiReplayTick();
+}
+
+function toggleOIReplay() {
+  const st = oiReplayState;
+  if (!st.active) { startOIReplay(); return; }
+  if (st.playing) {
+    st.playing = false;
+    if (st.timer) { clearTimeout(st.timer); st.timer = null; }
+  } else {
+    if (st.frame >= st.frames) st.frame = 0;   // restart from beginning
+    st.playing = true;
+    _oiReplayTick();
+  }
+  _oiReplayUpdateUI();
+}
+
+function oiReplayScrub(val) {
+  const st = oiReplayState;
+  if (!st.active) return;
+  st.playing = false;
+  if (st.timer) { clearTimeout(st.timer); st.timer = null; }
+  _oiReplayFrame(parseInt(val, 10) || 1);
+  _oiReplayUpdateUI();
+}
+
+function stopOIReplay(rerender = true) {
+  const st = oiReplayState;
+  if (st.timer) { clearTimeout(st.timer); st.timer = null; }
+  const wasActive = st.active;
+  st.active = false;
+  st.playing = false;
+  st.fullSeries = null;
+  st.frame = 0;
+  st.frames = 0;
+  st.labels = [];
+  _oiReplayUpdateUI();
+  if (wasActive && rerender) renderOIChangeChart();
 }
 
 function drawStickyOIYAxis(axisId, minVal, maxVal, chartH, formatter, title) {
@@ -5769,6 +5962,7 @@ function buildOIChgDatasets(candleSets) {
 
 function setOIChangeMode(mode) {
   if (mode !== 'abs' && mode !== 'chg') return;
+  stopOIReplay(false);
   oiChangeMode = mode;
   const absBtn = document.getElementById('oi-mode-abs');
   const chgBtn = document.getElementById('oi-mode-chg');
@@ -5996,6 +6190,7 @@ function createOIChart(canvas, labels, datasets, yRange, signedAxis, tooltipSuff
 }
 
 function renderOIChangeChart() {
+  if (oiReplayState.active) return;   // replay owns the chart — live updates resume on ⏹ Live
   const absCanvas = document.getElementById('oiAbsChart');
   const absWrap = document.getElementById('oiAbsChartWrap');
   const absScroll = document.getElementById('oi-abs-scroll');
