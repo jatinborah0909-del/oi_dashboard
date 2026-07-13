@@ -1645,6 +1645,279 @@ def _append_history():
     minute_buffer["ltp_ohlc"] = new_ltp_ohlc
 
 
+# ── ITM IV RATE-OF-CHANGE TRACKER ────────────────────────────────────────────
+# Fresh IV engine (replaces the old skew/RR signal):
+#   • Tracks TWO strikes: 2-strike ITM CALL (ATM − 2×step) and
+#     2-strike ITM PUT (ATM + 2×step).  Nifty example: spot 24000 →
+#     CE 23900, PE 24100.
+#   • On EVERY option tick, Black-Scholes IV is computed from tick LTP and
+#     the per-tick rate of change (RoC = iv_now − iv_prev, in IV points)
+#     is recorded.
+#   • Every 5 minutes the window closes: avg tick RoC, net ΔIV and RoC/min
+#     are computed per side, the spot move is measured, and the window is
+#     classified into one of 8 IV scenarios. A summary is PRINTED to the
+#     console and appended to history (served by /iv).
+#   • When spot moves ITM_ROLL_POINTS (default 2×STRIKE_STEP = 100 for
+#     Nifty) from the anchor, strikes re-anchor to the next 2-ITM pair.
+#     The per-tick baseline resets so the strike switch doesn't pollute RoC.
+#
+# All _itm_* functions are called with state_lock ALREADY HELD (from
+# on_ticks) unless noted. itm_iv is guarded by state_lock.
+
+ITM_WINDOW_SEC  = int(os.environ.get("ITM_WINDOW_SEC", 300))      # 5-min window
+ITM_ROLL_POINTS = float(os.environ.get("ITM_ROLL_POINTS", 2 * STRIKE_STEP))
+ITM_OFFSET      = 2 * STRIKE_STEP                                  # "2 strikes ITM"
+ITM_IV_TH       = float(os.environ.get("ITM_IV_TH",   0.15))       # IV pts: rising/falling threshold over window
+ITM_SPOT_TH     = float(os.environ.get("ITM_SPOT_TH", 0.08))       # % spot move: up/down threshold over window
+
+ITM_SCENARIOS = {
+    1: {"label": "Genuine fear — sell-off confirmed",
+        "desc":  "Spot falling + PE IV rising while CE IV is not. Real protective demand — trend continuation likely (SELL-side conviction)."},
+    2: {"label": "Suspect fall — TRAP / reversal risk",
+        "desc":  "Spot falling but PE IV flat or falling. Nobody paying up for protection — market doesn't believe the move. Watch for reversal."},
+    3: {"label": "Real momentum rally",
+        "desc":  "Spot rising + CE IV rising. Upside being chased with premium — genuine directional demand. Very sharp CE IV spikes near range highs can mark exhaustion."},
+    4: {"label": "IV-crush relief rally",
+        "desc":  "Spot rising while both IVs deflate. Hedges unwinding, calm continuation — good for sellers, bad for option buyers even with right direction."},
+    5: {"label": "Pre-event vol build-up",
+        "desc":  "Spot flat but both IVs rising. Market loading energy for a move without picking direction — breakout pending, premiums inflating."},
+    6: {"label": "Theta-crush rangebound",
+        "desc":  "Spot flat and both IVs bleeding. Sellers harvesting decay — no directional signal, short-premium regime."},
+    7: {"label": "Regime-change danger — both tails bid",
+        "desc":  "Spot falling and BOTH CE and PE IV rising. Whole distribution being repriced, not just one tail — genuine uncertainty, high danger."},
+    8: {"label": "Distrusted bounce — hedges held",
+        "desc":  "Spot rising but PE IV rising/elevated too. Smart money keeps protection on through the bounce — retest of lows often follows."},
+    0: {"label": "Neutral / mixed",
+        "desc":  "No clear combination of spot direction and IV behaviour in this window."},
+}
+
+
+def _itm_blank_side():
+    return {
+        "strike":    None,
+        "token":     None,
+        "ltp":       None,
+        "prev_iv":   None,     # last tick IV (baseline for next RoC)
+        "iv_first":  None,     # first IV of current 5-min window
+        "iv_live":   None,     # latest IV
+        "roc_sum":   0.0,      # Σ per-tick RoC (IV points)
+        "roc_last":  None,     # most recent per-tick RoC
+        "ticks":     0,        # ticks with a valid RoC this window
+    }
+
+
+itm_iv = {
+    "anchor_spot":     None,
+    "ce":              _itm_blank_side(),
+    "pe":              _itm_blank_side(),
+    "window_start":    None,   # datetime (IST)
+    "window_spot_open": None,
+    "rolls":           [],     # strike rolls inside the current window
+    "windows":         collections.deque(maxlen=150),   # completed 5-min summaries
+}
+
+
+def _itm_token_for(strike, opt_type):
+    """Find the websocket token for strike+type. state_lock must be held."""
+    rk = f"s{int(strike)}_{opt_type.lower()}"
+    for t, m in state["tokens"].items():
+        if m["role_key"] == rk:
+            return t
+    return None
+
+
+def _itm_T():
+    """Year-fraction to expiry from state. state_lock must be held."""
+    expiry_str = state.get("expiry_date")
+    if not expiry_str:
+        return None
+    try:
+        from datetime import date as _date
+        dte = max(0, (_date.fromisoformat(expiry_str[:10]) - now_ist().date()).days)
+        return max(dte / 365.0, 1 / 365.0)
+    except Exception:
+        return None
+
+
+def _itm_anchor(spot, reason="init"):
+    """(Re)select the 2-ITM strikes around current spot. state_lock held."""
+    atm = round(spot / STRIKE_STEP) * STRIKE_STEP
+    ce_k = atm - ITM_OFFSET        # ITM call = strike below spot
+    pe_k = atm + ITM_OFFSET        # ITM put  = strike above spot
+    old_ce = itm_iv["ce"]["strike"]
+    old_pe = itm_iv["pe"]["strike"]
+
+    for side, k in (("ce", ce_k), ("pe", pe_k)):
+        s = _itm_blank_side()
+        s["strike"] = k
+        s["token"]  = _itm_token_for(k, side.upper())
+        itm_iv[side] = s
+
+    itm_iv["anchor_spot"] = spot
+    if reason == "roll":
+        itm_iv["rolls"].append({
+            "time":  now_ist().strftime("%H:%M:%S"),
+            "spot":  round(spot, 2),
+            "from":  {"ce": old_ce, "pe": old_pe},
+            "to":    {"ce": ce_k,   "pe": pe_k},
+        })
+    print(f"[{now_ist().strftime('%H:%M:%S')}] ITM-IV strikes {reason}: "
+          f"spot={spot:.1f} ATM={atm} → CE {ce_k} / PE {pe_k}")
+
+
+def _itm_on_spot(spot):
+    """Called from on_ticks on every spot tick. state_lock held."""
+    if not spot:
+        return
+    if itm_iv["anchor_spot"] is None:
+        _itm_anchor(spot, "init")
+        itm_iv["window_start"]     = now_ist()
+        itm_iv["window_spot_open"] = spot
+        return
+    if abs(spot - itm_iv["anchor_spot"]) >= ITM_ROLL_POINTS:
+        _itm_anchor(spot, "roll")
+    _itm_maybe_close_window(spot)
+
+
+def _itm_on_option_tick(token, ltp):
+    """Called from on_ticks for every option tick. state_lock held."""
+    if not ltp or ltp <= 0:
+        return
+    side = None
+    if token == itm_iv["ce"]["token"]:
+        side = "ce"
+    elif token == itm_iv["pe"]["token"]:
+        side = "pe"
+    if side is None:
+        return
+
+    spot = state.get("spot")
+    T    = _itm_T()
+    if not spot or T is None:
+        return
+
+    s  = itm_iv[side]
+    iv = compute_iv(float(spot), float(s["strike"]), T, 0.065, float(ltp),
+                    side.upper())
+    if iv is None:
+        return
+    iv_pct = round(iv * 100, 4)
+
+    s["ltp"]     = float(ltp)
+    s["iv_live"] = iv_pct
+    if s["iv_first"] is None:
+        s["iv_first"] = iv_pct
+    if s["prev_iv"] is not None:
+        roc = round(iv_pct - s["prev_iv"], 4)      # IV points per tick
+        s["roc_last"] = roc
+        s["roc_sum"] += roc
+        s["ticks"]   += 1
+    s["prev_iv"] = iv_pct
+
+
+def _itm_side_summary(side_key):
+    """Snapshot metrics for one side of the current window."""
+    s = itm_iv[side_key]
+    d_iv = (round(s["iv_live"] - s["iv_first"], 4)
+            if (s["iv_live"] is not None and s["iv_first"] is not None) else None)
+    avg_roc = round(s["roc_sum"] / s["ticks"], 5) if s["ticks"] else None
+    return {
+        "strike":       s["strike"],
+        "ltp":          s["ltp"],
+        "iv_first":     s["iv_first"],
+        "iv_live":      s["iv_live"],
+        "d_iv":         d_iv,
+        "avg_tick_roc": avg_roc,
+        "roc_last":     s["roc_last"],
+        "ticks":        s["ticks"],
+    }
+
+
+def _itm_classify(spot_chg_pct, ce_d_iv, pe_d_iv):
+    """Map (spot direction × CE/PE IV direction) to one of the 8 scenarios."""
+    if spot_chg_pct is None or ce_d_iv is None or pe_d_iv is None:
+        return 0
+    spot_dir = "up" if spot_chg_pct > ITM_SPOT_TH else ("down" if spot_chg_pct < -ITM_SPOT_TH else "flat")
+    ce_dir   = "up" if ce_d_iv >  ITM_IV_TH else ("down" if ce_d_iv < -ITM_IV_TH else "flat")
+    pe_dir   = "up" if pe_d_iv >  ITM_IV_TH else ("down" if pe_d_iv < -ITM_IV_TH else "flat")
+
+    if spot_dir == "down":
+        if ce_dir == "up" and pe_dir == "up":  return 7   # both tails bid
+        if pe_dir == "up":                     return 1   # genuine fear
+        return 2                                          # PE flat/down → trap
+    if spot_dir == "up":
+        if pe_dir == "up":                     return 8   # distrusted bounce
+        if ce_dir == "up":                     return 3   # real momentum
+        if ce_dir == "down" and pe_dir == "down": return 4  # IV crush rally
+        return 0
+    # spot flat
+    if ce_dir == "up" and pe_dir == "up":      return 5   # pre-event build-up
+    if ce_dir == "down" and pe_dir == "down":  return 6   # theta crush
+    return 0
+
+
+def _itm_maybe_close_window(spot):
+    """Close + summarise the 5-min window when elapsed. state_lock held."""
+    ws = itm_iv["window_start"]
+    if ws is None:
+        return
+    elapsed = (now_ist() - ws).total_seconds()
+    if elapsed < ITM_WINDOW_SEC:
+        return
+
+    spot_open = itm_iv["window_spot_open"]
+    spot_chg_pct = (round((spot - spot_open) / spot_open * 100, 3)
+                    if spot_open else None)
+    minutes = elapsed / 60.0
+
+    summary = {
+        "start":        ws.strftime("%H:%M:%S"),
+        "end":          now_ist().strftime("%H:%M:%S"),
+        "spot_open":    round(spot_open, 2) if spot_open else None,
+        "spot_close":   round(spot, 2),
+        "spot_chg_pct": spot_chg_pct,
+        "rolls":        list(itm_iv["rolls"]),
+    }
+    for side in ("ce", "pe"):
+        sm = _itm_side_summary(side)
+        sm["roc_per_min"] = (round(sm["d_iv"] / minutes, 4)
+                             if sm["d_iv"] is not None and minutes > 0 else None)
+        summary[side] = sm
+
+    sc_id = _itm_classify(spot_chg_pct,
+                          summary["ce"]["d_iv"], summary["pe"]["d_iv"])
+    summary["scenario"] = {"id": sc_id, **ITM_SCENARIOS[sc_id]}
+    itm_iv["windows"].append(summary)
+
+    # ── the every-5-minute PRINT ──
+    def _fmt(sm, tag):
+        if sm["iv_first"] is None:
+            return f"  {tag:5s} s{sm['strike']}: no ticks this window"
+        return (f"  {tag:5s} s{sm['strike']}: IV {sm['iv_first']:.2f} → {sm['iv_live']:.2f}"
+                f"  ΔIV={sm['d_iv']:+.2f}"
+                f"  avgRoC={sm['avg_tick_roc'] if sm['avg_tick_roc'] is not None else 0:+.5f}/tick"
+                f"  ({sm['roc_per_min'] if sm['roc_per_min'] is not None else 0:+.3f} IVpts/min, {sm['ticks']} ticks)")
+    print("─" * 66)
+    print(f"[{summary['end']}] ITM IV 5-min window {summary['start']}–{summary['end']}")
+    print(_fmt(summary["ce"], "CALL"))
+    print(_fmt(summary["pe"], "PUT"))
+    print(f"  Spot: {summary['spot_open']} → {summary['spot_close']} "
+          f"({spot_chg_pct:+.2f}%)" if spot_chg_pct is not None else "  Spot: n/a")
+    print(f"  Scenario {sc_id} — {ITM_SCENARIOS[sc_id]['label']}")
+    print("─" * 66)
+
+    # reset window (keep strikes + prev_iv so tick RoC continues seamlessly)
+    for side in ("ce", "pe"):
+        s = itm_iv[side]
+        s["iv_first"] = s["iv_live"]
+        s["roc_sum"]  = 0.0
+        s["roc_last"] = None
+        s["ticks"]    = 0
+    itm_iv["window_start"]     = now_ist()
+    itm_iv["window_spot_open"] = spot
+    itm_iv["rolls"]            = []
+
+
 # ── TICKER ────────────────────────────────────────────────────────────────────
 
 ticker_instance = None
@@ -1672,6 +1945,7 @@ def build_ticker():
                     _update_spot_ohlc(new_spot)
                     _update_settlement_vwap(new_spot)
                     _check_roll(new_spot)
+                    _itm_on_spot(new_spot)
                     # Refresh basis whenever spot updates
                     if state["fut_ltp"]:
                         _update_basis(state["fut_ltp"], new_spot)
@@ -1719,6 +1993,7 @@ def build_ticker():
                     "depth": {"buy": buy_levels, "sell": sell_levels},
                 }
                 _update_ltp_ohlc(token, current_ltp)
+                _itm_on_option_tick(token, current_ltp)
 
             # ── Synthetic spot from ATM CE − PE + K ─────────────────────────
             # Computed once per tick batch (after all ticks processed) using
@@ -2499,19 +2774,40 @@ def dw_result(watch_id):
 @app.route("/iv")
 def get_iv():
     """
-    Live IV snapshot: per-strike IV + delta, delta-based risk reversals
-    at 25D / 15D / 10D, and a directional signal.
-    """
-    iv_map = compute_iv_snapshot()
+    ITM IV rate-of-change tracker (fresh implementation).
 
+    Tracks the 2-strike ITM CALL (ATM − 2×step) and 2-strike ITM PUT
+    (ATM + 2×step). IV is computed on every tick; the per-tick RoC is
+    averaged over a 5-minute window, classified into one of 8 scenarios,
+    printed to the console and returned here.
+    """
     with state_lock:
         spot       = state["spot"]
         expiry_str = state["expiry_date"]
-        spot_open  = minute_buffer.get("spot_open")
-        spot_close = minute_buffer.get("spot_close")
 
-    if not iv_map or not spot:
-        return jsonify({"available": False, "reason": "IV data not ready — waiting for LTPs"})
+        if not spot or itm_iv["anchor_spot"] is None:
+            return jsonify({"available": False,
+                            "reason": "ITM IV tracker not ready — waiting for ticks"})
+
+        # Safety: also close the window from here in case ticks pause.
+        _itm_maybe_close_window(spot)
+
+        ws = itm_iv["window_start"]
+        elapsed = (now_ist() - ws).total_seconds() if ws else 0
+        spot_open = itm_iv["window_spot_open"]
+        live_window = {
+            "start":        ws.strftime("%H:%M:%S") if ws else None,
+            "elapsed_s":    int(elapsed),
+            "remaining_s":  max(0, ITM_WINDOW_SEC - int(elapsed)),
+            "spot_open":    round(spot_open, 2) if spot_open else None,
+            "spot_chg_pct": (round((spot - spot_open) / spot_open * 100, 3)
+                             if spot_open else None),
+            "ce":           _itm_side_summary("ce"),
+            "pe":           _itm_side_summary("pe"),
+            "rolls":        list(itm_iv["rolls"]),
+        }
+        completed = list(itm_iv["windows"])
+        anchor    = itm_iv["anchor_spot"]
 
     dte = None
     if expiry_str:
@@ -2521,101 +2817,21 @@ def get_iv():
         except Exception:
             pass
 
-    # 3-minute price change — look back 3 completed 1-min rows in oi_history.
-    # Falls back to current candle open->close if fewer than 3 rows exist yet.
-    price_chg = 0.0
-    price_window = "3m"
-    try:
-        history_rows = list(oi_history)
-        if len(history_rows) >= 3:
-            ref = history_rows[-3]
-            ref_spot = ref.get("spot_close") or ref.get("spot")
-            if ref_spot and ref_spot > 0:
-                price_chg = round((spot - ref_spot) / ref_spot * 100, 3)
-        elif len(history_rows) >= 1:
-            ref = history_rows[0]
-            ref_spot = ref.get("spot_close") or ref.get("spot")
-            if ref_spot and ref_spot > 0:
-                price_chg = round((spot - ref_spot) / ref_spot * 100, 3)
-                price_window = f"{len(history_rows)}m"
-        elif spot_open and spot_open > 0:
-            price_chg = round(((spot_close or spot) - spot_open) / spot_open * 100, 3)
-            price_window = "1m"
-    except Exception:
-        pass
-
-    # Spot-driven delta skew: for every tick, back-solve the strike that
-    # corresponds to each delta target given current spot + ATM IV.
-    # This means the strikes update automatically as spot moves — no fixed
-    # strike window, no tolerance hunting, no stale delta labels.
-    try:
-        from datetime import date as _date
-        _dte_days = max(0, (_date.fromisoformat(expiry_str[:10]) - now_ist().date()).days)
-    except Exception:
-        _dte_days = 0
-    _T_iv = max(_dte_days / 365.0, 1 / 365.0)
-
-    skew, rr = compute_skew_by_delta(float(spot), _T_iv, 0.065, iv_map)
-
-    # avg_rr uses only OTM levels (10/15/25) for signal — ATM/ITM have different dynamics
-    otm_rrs   = [rr[k] for k in ("10", "15", "25") if rr.get(k) is not None]
-    avg_rr    = round(sum(otm_rrs) / len(otm_rrs), 2) if otm_rrs else None
-    # full avg across all levels for reference
-    all_rrs   = [v for v in rr.values() if v is not None]
-    avg_rr_all = round(sum(all_rrs) / len(all_rrs), 2) if all_rrs else None
-
-    # Signal — 3-min price + skew combined.
-    #
-    # RR convention: RR = Put IV - Call IV
-    #   Positive RR -> puts more expensive -> bearish/hedge demand (normal equity skew)
-    #   Negative RR -> calls more expensive -> bullish chase / upside demand
-    #
-    # Previous logic only handled positive RR and had a dead zone for price moves
-    # between 0.05-0.3% where has_price=True but no condition fired -> always neutral.
-    # Fixed: thresholds lowered to 0.1%, negative RR handled explicitly.
-    signal = "neutral"
-    signal_basis = "price+skew"
-
-    if avg_rr is not None:
-        has_price = abs(price_chg) > 0.05   # at least a marginal move
-
-        if has_price:
-            if   price_chg >  0.3 and avg_rr <  -1: signal = "strong_bullish"   # strong up + calls clearly pricier
-            elif price_chg >  0.3 and avg_rr >= -1: signal = "weak_bullish"      # strong up + skew mixed
-            elif price_chg >  0.05 and avg_rr < -2: signal = "weak_bullish"      # any up move + calls clearly pricier
-            elif price_chg < -0.3 and avg_rr >   5: signal = "strong_bearish"    # strong down + puts very expensive
-            elif price_chg < -0.3 and avg_rr <=  5: signal = "short_covering"    # strong down + puts mild -> covering not panic
-            elif price_chg < -0.1 and avg_rr >   3: signal = "weak_bearish"      # mild down + put premium building
-            elif avg_rr >  6:                        signal = "tail_hedge"        # heavy put buying regardless of price move
-        else:
-            # Skew-only: price flat, read structure of vol surface alone
-            signal_basis = "skew_only"
-            rr10 = rr.get("10")
-            rr25 = rr.get("25")
-            if rr10 is not None and rr25 is not None:
-                divergence = rr10 - rr25   # positive = tail risk steepening
-                if   divergence > 4 and avg_rr >   5: signal = "tail_hedge"
-                elif avg_rr < -3:                      signal = "strong_bullish"  # calls very expensive vs puts
-                elif avg_rr < -1:                      signal = "weak_bullish"    # calls moderately expensive
-                elif avg_rr >   7:                     signal = "strong_bearish"
-                elif avg_rr >   4:                     signal = "short_covering"
-
     return jsonify({
-        "available":      True,
-        "as_of":          now_ist().strftime("%H:%M:%S"),
-        "spot":           round(spot) if spot else None,
-        "expiry_date":    expiry_str,
-        "dte":            dte,
-        "price_chg_pct":  price_chg,
-        "price_window":   price_window,
-        "iv_candle_avg":  IV_CANDLE_AVG,
-        "iv_map":         iv_map,
-        "skew":           skew,
-        "risk_reversal":  rr,
-        "avg_rr":         avg_rr,          # OTM only (10/15/25) — used for signal
-        "avg_rr_all":     avg_rr_all,      # all 5 levels for reference
-        "signal":         signal,
-        "signal_basis":   signal_basis,
+        "available":    True,
+        "as_of":        now_ist().strftime("%H:%M:%S"),
+        "spot":         round(spot, 2),
+        "expiry_date":  expiry_str,
+        "dte":          dte,
+        "anchor_spot":  round(anchor, 2) if anchor else None,
+        "roll_points":  ITM_ROLL_POINTS,
+        "strike_step":  STRIKE_STEP,
+        "window_sec":   ITM_WINDOW_SEC,
+        "iv_th":        ITM_IV_TH,
+        "spot_th":      ITM_SPOT_TH,
+        "window":       live_window,
+        "windows":      completed,          # oldest → newest
+        "scenarios":    ITM_SCENARIOS,
     })
 
 
