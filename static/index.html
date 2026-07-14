@@ -520,6 +520,7 @@ tr:last-child td{border-bottom:none;}
   <button class="tab-btn" id="tab-paper-trade-btn" onclick="switchTab('paper-trade')">🤖 Paper Trades</button>
   <button class="tab-btn" id="tab-iv-skew-btn" onclick="switchTab('iv-skew')">📐 ITM IV RoC</button>
   <button class="tab-btn" id="tab-straddle-btn" onclick="switchTab('straddle')">🎯 Straddle</button>
+  <button class="tab-btn" id="tab-premium-range-btn" onclick="switchTab('premium-range')">🎚 Premium Range</button>
   <button class="tab-btn" id="tab-openhighlow-btn" onclick="switchTab('openhighlow')">📍 OpenHighLow</button>
   <span class="tab-hint">Move heavy tables away from the main trading view</span>
 </div>
@@ -1516,6 +1517,78 @@ tr:last-child td{border-bottom:none;}
 
 </div><!-- end tab-straddle-panel -->
 
+<!-- ═══════════════════════════════════════════════════════════════════
+     PREMIUM RANGE TAB — straddle-implied R1/S1 per strike.
+     Data: /premium-range endpoint (?mode=live|anchored), polled every 5s.
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-premium-range-panel">
+
+<!-- Status / config bar -->
+<div class="date-bar" style="margin-bottom:12px;flex-wrap:wrap;row-gap:8px;">
+  <span><span class="conn-dot" id="pr-conn-dot" style="background:#ccc;"></span><span id="pr-status-label">Waiting for premium range data…</span></span>
+  <span style="color:#ccc;">|</span>
+  <span style="font-size:12px;color:#666;">Spot: <b id="pr-spot-val">—</b></span>
+  <span style="font-size:12px;color:#666;">ATM: <b id="pr-atm-val">—</b></span>
+  <span style="font-size:12px;color:#666;">Straddle: <b id="pr-straddle-val">—</b> <span id="pr-legs-val" style="color:#aaa;font-size:10px;"></span></span>
+  <span style="font-size:12px;color:#666;">Exp. move: <b id="pr-move-val">—</b></span>
+  <span style="font-size:12px;color:#666;">Spot band: <b id="pr-band-val">—</b></span>
+  <span style="font-size:12px;color:#666;">DTE: <b id="pr-dte-val">—</b></span>
+  <span style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+    <span style="font-size:11px;color:#888;">Mode:</span>
+    <button class="btn" id="pr-mode-live" onclick="prSetMode('live')" style="font-size:11px;">Live</button>
+    <button class="btn" id="pr-mode-anchored" onclick="prSetMode('anchored')" style="font-size:11px;">Anchored</button>
+    <button class="btn" id="pr-reanchor-btn" onclick="prReanchor()" style="font-size:11px;display:none;" title="Freeze a new snapshot at this moment (e.g. at trade entry)">⚓ Re-anchor now</button>
+    <button class="btn btn-primary" onclick="fetchPremiumRange()">Refresh now</button>
+  </span>
+</div>
+
+<!-- Anchor info strip (anchored mode only) -->
+<div id="pr-anchor-strip" style="display:none;background:#FDF6E9;border:0.5px solid #F0DFC0;border-radius:8px;padding:8px 14px;margin-bottom:12px;font-size:12px;color:#854F0B;">
+  ⚓ Anchored at <b id="pr-anchor-time">—</b> · spot <b id="pr-anchor-spot">—</b> · straddle <b id="pr-anchor-straddle">—</b> · band <b id="pr-anchor-band">—</b>.
+  Boundaries stay frozen all day (theta still applied); use <i>Re-anchor now</i> at trade entry to reset the frame.
+</div>
+
+<!-- Explainer -->
+<div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:11px;color:#777;line-height:1.55;">
+  <b style="color:#555;">R1</b> = premium if spot travels the full expected move (0.8 × ATM straddle) <i>in favour</i> of the option ·
+  <b style="color:#555;">S1</b> = premium if the move goes fully <i>against</i> it.
+  Boundaries include theta decay and an IV crush/pop adjustment.
+  The bar shows where LTP sits inside [S1 → R1]: near S1 (left, green zone) = favourable entry RR; near R1 (right) = the expected move is already paid out.
+  <b>Live</b> mode re-centres on spot (scan entries) · <b>Anchored</b> mode freezes the frame (manage open trades).
+</div>
+
+<!-- Strike table -->
+<div style="background:#fff;border:0.5px solid #ddd;border-radius:10px;padding:14px 18px;">
+  <div style="font-size:11px;font-weight:500;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">
+    Per-strike premium range — CALL (left) · PUT (right)
+    <span style="float:right;font-size:10px;color:#aaa;text-transform:none;letter-spacing:0;" id="pr-config-note"></span>
+  </div>
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="border-bottom:1px solid #eee;color:#888;font-size:10px;text-transform:uppercase;">
+          <th style="padding:6px 8px;text-align:right;color:#D85A30;">RR</th>
+          <th style="padding:6px 8px;text-align:right;color:#D85A30;">S1</th>
+          <th style="padding:6px 8px;text-align:center;color:#D85A30;min-width:110px;">CE LTP in range</th>
+          <th style="padding:6px 8px;text-align:left;color:#D85A30;">R1</th>
+          <th style="padding:6px 8px;text-align:right;color:#D85A30;">LTP</th>
+          <th style="padding:6px 8px;text-align:center;">Strike</th>
+          <th style="padding:6px 8px;text-align:left;color:#1D9E75;">LTP</th>
+          <th style="padding:6px 8px;text-align:right;color:#1D9E75;">R1</th>
+          <th style="padding:6px 8px;text-align:center;color:#1D9E75;min-width:110px;">PE LTP in range</th>
+          <th style="padding:6px 8px;text-align:left;color:#1D9E75;">S1</th>
+          <th style="padding:6px 8px;text-align:left;color:#1D9E75;">RR</th>
+        </tr>
+      </thead>
+      <tbody id="pr-table-body">
+        <tr><td colspan="11" style="padding:26px;text-align:center;color:#aaa;">Waiting for data…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- end tab-premium-range-panel -->
+
 <div class="tab-panel" id="tab-openhighlow-panel">
 
 <div class="date-bar" style="margin-bottom:12px;flex-wrap:wrap;row-gap:8px;">
@@ -2003,7 +2076,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 function switchTab(tabName) {
-  ['dashboard', 'option-chain', 'oi-movers', 'oi-change', 'paper-trade', 'iv-skew', 'straddle', 'openhighlow'].forEach(name => {
+  ['dashboard', 'option-chain', 'oi-movers', 'oi-change', 'paper-trade', 'iv-skew', 'straddle', 'premium-range', 'openhighlow'].forEach(name => {
     const panel = document.getElementById('tab-' + name + '-panel');
     const btn = document.getElementById('tab-' + name + '-btn');
     const active = name === tabName;
@@ -2035,6 +2108,9 @@ function switchTab(tabName) {
   if (tabName === 'straddle') {
     populateStraddleStrikes();
     renderStraddle();
+  }
+  if (tabName === 'premium-range') {
+    fetchPremiumRange();
   }
   if (tabName === 'openhighlow') {
     // Render instantly from the last /ltp poll, then let the 1s poll keep it live.
@@ -6520,6 +6596,143 @@ async function fetchIV() {
 
 // Poll /iv every 5 seconds (light payload, live tick RoC view)
 setInterval(() => { if (!pollingSuspended) fetchIV(); }, 5000);
+
+// ══════════════════════════════════════════════════════════════════
+// PREMIUM RANGE TAB — straddle-implied R1/S1 per strike.
+// Polls /premium-range every 5s. Live mode re-centres on spot;
+// anchored mode uses the backend's frozen day snapshot (theta live).
+// ══════════════════════════════════════════════════════════════════
+
+let prMode = 'live';   // 'live' | 'anchored'
+
+function prSetMode(mode) {
+  prMode = mode;
+  const lv = document.getElementById('pr-mode-live');
+  const an = document.getElementById('pr-mode-anchored');
+  const rb = document.getElementById('pr-reanchor-btn');
+  if (lv) lv.classList.toggle('btn-primary', mode === 'live');
+  if (an) an.classList.toggle('btn-primary', mode === 'anchored');
+  if (rb) rb.style.display = mode === 'anchored' ? '' : 'none';
+  const strip = document.getElementById('pr-anchor-strip');
+  if (strip && mode === 'live') strip.style.display = 'none';
+  fetchPremiumRange();
+}
+
+async function prReanchor() {
+  try {
+    const res = await fetch(BRIDGE + '/premium-range/anchor', { method: 'POST' });
+    await res.json();
+  } catch (e) { /* surfaced by the next fetch */ }
+  fetchPremiumRange();
+}
+
+// Mini bar: LTP position inside [S1 → R1]. pos 0 = S1, 1 = R1 (clamped ±0.5 beyond).
+function prRangeBar(pos) {
+  if (pos == null) return '<span style="color:#ccc;">—</span>';
+  const pct = Math.min(100, Math.max(0, pos * 100));
+  // near S1 = good entry (green marker), near R1 = paid out (orange marker)
+  const col = pos <= 0.35 ? '#1D9E75' : pos >= 0.75 ? '#D85A30' : '#888';
+  return `<div style="position:relative;height:8px;background:linear-gradient(90deg,#E1F5EE,#f0f0ec 45%,#FAECE7);border-radius:4px;min-width:96px;" title="position in [S1→R1]: ${(pos*100).toFixed(0)}%">
+    <div style="position:absolute;top:-2px;left:calc(${pct}% - 3px);width:6px;height:12px;background:${col};border-radius:2px;"></div>
+  </div>`;
+}
+
+function prFmt(v, dp = 2) {
+  return (v == null || !isFinite(v)) ? '—' : v.toFixed(dp);
+}
+
+function renderPremiumRange(data) {
+  const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setTxt('pr-spot-val',     data.spot != null ? data.spot.toLocaleString('en-IN') : '—');
+  setTxt('pr-atm-val',      data.atm  != null ? data.atm.toLocaleString('en-IN')  : '—');
+  setTxt('pr-straddle-val', prFmt(data.straddle));
+  setTxt('pr-legs-val',     data.straddle_legs ? `(CE ${prFmt(data.straddle_legs.ce)} + PE ${prFmt(data.straddle_legs.pe)})` : '');
+  setTxt('pr-move-val',     data.expected_move != null ? '±' + prFmt(data.expected_move, 0) + ' pts' : '—');
+  setTxt('pr-band-val',     data.spot_band ? `${prFmt(data.spot_band[0], 0)} – ${prFmt(data.spot_band[1], 0)}` : '—');
+  setTxt('pr-dte-val',      data.dte != null ? data.dte : '—');
+  const note = document.getElementById('pr-config-note');
+  if (note) note.textContent = `factor ${data.factor} · IV shift ±${data.iv_shift_pts} pts · theta ${data.theta_days}d · mode: ${data.mode}`;
+
+  // Anchor strip
+  const strip = document.getElementById('pr-anchor-strip');
+  if (strip) {
+    if (data.mode === 'anchored' && data.anchor) {
+      strip.style.display = '';
+      setTxt('pr-anchor-time',     data.anchor.time);
+      setTxt('pr-anchor-spot',     data.anchor.spot != null ? data.anchor.spot.toLocaleString('en-IN') : '—');
+      setTxt('pr-anchor-straddle', prFmt(data.anchor.straddle));
+      setTxt('pr-anchor-band',     data.anchor.band ? `${prFmt(data.anchor.band[0], 0)} – ${prFmt(data.anchor.band[1], 0)}` : '—');
+    } else {
+      strip.style.display = 'none';
+    }
+  }
+
+  // Pair CE/PE rows by strike, sorted descending (matches option chain).
+  const byStrike = {};
+  Object.values(data.strikes || {}).forEach(r => {
+    (byStrike[r.strike] = byStrike[r.strike] || {})[r.type] = r;
+  });
+  const strikes = Object.keys(byStrike).map(Number).sort((a, b) => b - a);
+
+  const tbody = document.getElementById('pr-table-body');
+  if (!tbody) return;
+  if (!strikes.length) {
+    tbody.innerHTML = '<tr><td colspan="11" style="padding:26px;text-align:center;color:#aaa;">No priced strikes yet…</td></tr>';
+    return;
+  }
+
+  const td  = 'padding:6px 8px;border-bottom:0.5px solid #f0f0ec;white-space:nowrap;font-variant-numeric:tabular-nums;';
+  const rrC = rr => rr == null ? '#aaa' : rr >= 1.5 ? '#1D9E75' : rr < 0.8 ? '#D85A30' : '#666';
+  tbody.innerHTML = strikes.map(st => {
+    const ce = byStrike[st].CE, pe = byStrike[st].PE;
+    const isAtm = st === data.atm;
+    const strikeCell = `<td style="${td}text-align:center;font-weight:500;${isAtm ? 'background:#EEEDFE;color:#534AB7;border-radius:4px;' : ''}">${st.toLocaleString('en-IN')}${isAtm ? ' <span style="font-size:9px;">ATM</span>' : ''}</td>`;
+    const side = (r, isCe) => {
+      if (!r) return isCe
+        ? `<td style="${td}"></td><td style="${td}"></td><td style="${td}"></td><td style="${td}"></td><td style="${td}"></td>`
+        : `<td style="${td}"></td><td style="${td}"></td><td style="${td}"></td><td style="${td}"></td><td style="${td}"></td>`;
+      const rr  = `<span style="color:${rrC(r.rr)};font-weight:500;">${r.rr != null ? r.rr.toFixed(2) : '—'}</span>`;
+      const s1  = `<span style="color:#888;">${prFmt(r.s1)}</span>`;
+      const r1  = `<span style="font-weight:500;">${prFmt(r.r1)}</span>`;
+      const ltp = `<b>${prFmt(r.ltp)}</b>`;
+      const bar = prRangeBar(r.pos);
+      return isCe
+        ? `<td style="${td}text-align:right;">${rr}</td><td style="${td}text-align:right;">${s1}</td><td style="${td}">${bar}</td><td style="${td}text-align:left;">${r1}</td><td style="${td}text-align:right;">${ltp}</td>`
+        : `<td style="${td}text-align:left;">${ltp}</td><td style="${td}text-align:right;">${r1}</td><td style="${td}">${bar}</td><td style="${td}text-align:left;">${s1}</td><td style="${td}text-align:left;">${rr}</td>`;
+    };
+    return `<tr>${side(ce, true)}${strikeCell}${side(pe, false)}</tr>`;
+  }).join('');
+}
+
+async function fetchPremiumRange() {
+  const dot   = document.getElementById('pr-conn-dot');
+  const label = document.getElementById('pr-status-label');
+  try {
+    const res  = await fetch(BRIDGE + '/premium-range?mode=' + prMode);
+    const data = await res.json();
+    if (!data.available) {
+      if (dot)   dot.style.background = '#EF9F27';
+      if (label) label.textContent = data.reason || 'Premium range not ready…';
+      return;
+    }
+    if (dot)   dot.style.background = '#1D9E75';
+    if (label) label.textContent = 'Live · updated ' + data.as_of;
+    renderPremiumRange(data);
+  } catch (e) {
+    if (dot)   dot.style.background = '#D85A30';
+    if (label) label.textContent    = 'Premium range fetch error — is the backend running?';
+  }
+}
+
+// Poll every 5s, but only while the tab is visible (payload covers all strikes).
+setInterval(() => {
+  if (pollingSuspended) return;
+  const panel = document.getElementById('tab-premium-range-panel');
+  if (panel && panel.classList.contains('active')) fetchPremiumRange();
+}, 5000);
+
+// Initialize mode button styling
+prSetMode('live');
 
 // ══════════════════════════════════════════════════════════════════
 // STRADDLE TRACKER TAB — combined CE+PE premium for a selected strike
