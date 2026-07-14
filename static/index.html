@@ -6433,7 +6433,7 @@ async function fetchIV() {
   const dot   = document.getElementById('iv-conn-dot');
   const label = document.getElementById('iv-status-label');
   try {
-    const res  = await fetch(API_BASE + '/iv');
+    const res  = await fetch(BRIDGE + '/iv');
     const data = await res.json();
     if (!data.available) {
       if (dot)   dot.style.background = '#EF9F27';
