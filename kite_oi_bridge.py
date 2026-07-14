@@ -2969,6 +2969,249 @@ def reset_csv():
     return jsonify({"status": "ok", "message": "Today's rows cleared. Session reset to 0."})
 
 
+# ── STRADDLE-IMPLIED PREMIUM RANGE (R1/S1 PER STRIKE) ────────────────────────
+#
+#   exp_move = PR_STRADDLE_FACTOR × ATM straddle (CE + PE LTP at ATM strike)
+#   For each strike, Black-Scholes repriced at both spot boundaries:
+#       CE:  R1 = price(spot + exp_move),   S1 = price(spot − exp_move)
+#       PE:  R1 = price(spot − exp_move),   S1 = price(spot + exp_move)
+#   Corrections:
+#       theta   — boundaries priced at T − PR_THETA_DAYS
+#       IV path — IV crushed PR_IV_SHIFT pts at the up-boundary, popped at
+#                 the down-boundary (Nifty spot/IV anticorrelation)
+#
+#   Two modes:
+#       live      — band re-centres on current spot + current straddle.
+#                   Best for scanning FRESH entries (what's achievable from here).
+#       anchored  — spot/straddle/IVs frozen at a snapshot (auto-captured on
+#                   first anchored call of the day, or re-captured via POST
+#                   /premium-range/anchor at trade entry). Boundaries stay
+#                   fixed all day; only theta keeps breathing. Best for
+#                   TARGETS/STOPS on open positions — no moving goalposts.
+
+PR_STRADDLE_FACTOR = float(os.environ.get("PR_STRADDLE_FACTOR", 0.8))
+PR_IV_SHIFT        = float(os.environ.get("PR_IV_SHIFT", 1.0))    # IV pts at boundaries
+PR_THETA_DAYS      = float(os.environ.get("PR_THETA_DAYS", 0.5))  # decay until target hit
+
+_pr_lock   = threading.Lock()
+_pr_anchor = None   # {"date","time","spot","straddle","legs","exp_move","band","ivs":{rk:{...}}}
+
+
+def _pr_T(days_left):
+    return max(days_left / 365.0, 1 / 365.0)
+
+
+def _pr_days_left(expiry_str):
+    try:
+        from datetime import date as _date
+        return max(0, (_date.fromisoformat(expiry_str[:10]) - now_ist().date()).days)
+    except Exception:
+        return None
+
+
+def _pr_atm_straddle(tokens, oi_snap, atm):
+    """(straddle, ce_ltp, pe_ltp) at the ATM strike — Nones if legs unpriced."""
+    ce_ltp = pe_ltp = None
+    for token, meta in tokens.items():
+        if float(meta["strike"]) != float(atm):
+            continue
+        ltp = float(oi_snap.get(token, {}).get("ltp", 0) or 0)
+        if ltp <= 0:
+            continue
+        if meta["instrument_type"] == "CE":
+            ce_ltp = ltp
+        elif meta["instrument_type"] == "PE":
+            pe_ltp = ltp
+    if ce_ltp is None or pe_ltp is None:
+        return None, ce_ltp, pe_ltp
+    return ce_ltp + pe_ltp, ce_ltp, pe_ltp
+
+
+def _pr_capture_anchor():
+    """Snapshot spot/straddle/per-strike IVs right now. Returns anchor or None.
+    Takes state_lock itself — do NOT call with the lock held."""
+    RISK_FREE = 0.065
+    with state_lock:
+        spot       = state["spot"]
+        atm        = state["atm_strike"]
+        expiry_str = state["expiry_date"]
+        tokens     = dict(state["tokens"])
+        oi_snap    = dict(state["oi"])
+
+    if not spot or not atm or not expiry_str:
+        return None
+    straddle, ce_atm, pe_atm = _pr_atm_straddle(tokens, oi_snap, atm)
+    if straddle is None:
+        return None
+    days_left = _pr_days_left(expiry_str)
+    if days_left is None:
+        return None
+
+    S, T     = float(spot), _pr_T(days_left)
+    exp_move = PR_STRADDLE_FACTOR * straddle
+
+    ivs = {}
+    for token, meta in tokens.items():
+        K, opt_type, rk = float(meta["strike"]), meta["instrument_type"], meta["role_key"]
+        ltp = float(oi_snap.get(token, {}).get("ltp", 0) or 0)
+        if ltp <= 0:
+            continue
+        iv = compute_iv(S, K, T, RISK_FREE, ltp, opt_type)
+        if iv is None or iv <= 0:
+            continue
+        ivs[rk] = {"strike": int(K), "type": opt_type,
+                   "iv": iv, "ltp_at_anchor": round(ltp, 2)}
+
+    anchor = {
+        "date":     now_ist().strftime("%Y-%m-%d"),
+        "time":     now_ist().strftime("%H:%M:%S"),
+        "spot":     round(S, 2),
+        "straddle": round(straddle, 2),
+        "legs":     {"ce": ce_atm, "pe": pe_atm},
+        "exp_move": round(exp_move, 2),
+        "band":     [round(S - exp_move, 2), round(S + exp_move, 2)],
+        "ivs":      ivs,
+    }
+    print(f"[{anchor['time']}] Premium-range anchor captured: spot {anchor['spot']}, "
+          f"straddle {anchor['straddle']}, band {anchor['band'][0]}–{anchor['band'][1]}")
+    return anchor
+
+
+@app.route("/premium-range/anchor", methods=["POST"])
+def pr_set_anchor():
+    """(Re)capture the anchored snapshot at this moment — e.g. at trade entry."""
+    global _pr_anchor
+    a = _pr_capture_anchor()
+    if a is None:
+        return jsonify({"available": False,
+                        "reason": "not ready — waiting for spot/ATM straddle"}), 503
+    with _pr_lock:
+        _pr_anchor = a
+    return jsonify({"available": True, "anchor": {k: v for k, v in a.items() if k != "ivs"}})
+
+
+@app.route("/premium-range")
+def get_premium_range():
+    """
+    Straddle-implied premium range per strike.
+    ?mode=live (default)  — band from current spot + current straddle
+    ?mode=anchored        — band frozen at the day's anchor (theta still live)
+    """
+    global _pr_anchor
+    RISK_FREE = 0.065
+    mode = (request.args.get("mode") or "live").lower()
+    if mode not in ("live", "anchored"):
+        mode = "live"
+
+    with state_lock:
+        spot       = state["spot"]
+        atm        = state["atm_strike"]
+        expiry_str = state["expiry_date"]
+        tokens     = dict(state["tokens"])
+        oi_snap    = dict(state["oi"])
+
+    if not spot or not atm or not expiry_str:
+        return jsonify({"available": False,
+                        "reason": "waiting for spot / ATM / expiry"})
+
+    days_left = _pr_days_left(expiry_str)
+    if days_left is None:
+        return jsonify({"available": False, "reason": "bad expiry date"})
+
+    S     = float(spot)
+    T     = _pr_T(days_left)
+    T_tgt = max(T - PR_THETA_DAYS / 365.0, 0.25 / 365.0)
+
+    anchor_meta = None
+    anchor_ivs  = None
+    if mode == "anchored":
+        with _pr_lock:
+            stale = (_pr_anchor is None or
+                     _pr_anchor["date"] != now_ist().strftime("%Y-%m-%d"))
+        if stale:
+            a = _pr_capture_anchor()
+            if a is None:
+                return jsonify({"available": False,
+                                "reason": "anchor not ready — straddle legs unpriced"})
+            with _pr_lock:
+                _pr_anchor = a
+        with _pr_lock:
+            anchor_meta = {k: v for k, v in _pr_anchor.items() if k != "ivs"}
+            anchor_ivs  = dict(_pr_anchor["ivs"])
+        spot_dn, spot_up = anchor_meta["band"]
+        straddle, legs, exp_move = (anchor_meta["straddle"],
+                                    anchor_meta["legs"], anchor_meta["exp_move"])
+    else:
+        straddle, ce_atm, pe_atm = _pr_atm_straddle(tokens, oi_snap, atm)
+        if straddle is None:
+            return jsonify({"available": False,
+                            "reason": "ATM straddle legs not priced yet"})
+        legs     = {"ce": ce_atm, "pe": pe_atm}
+        exp_move = PR_STRADDLE_FACTOR * straddle
+        spot_dn, spot_up = S - exp_move, S + exp_move
+
+    rows = {}
+    for token, meta in tokens.items():
+        K, opt_type, rk = float(meta["strike"]), meta["instrument_type"], meta["role_key"]
+        ltp = float(oi_snap.get(token, {}).get("ltp", 0) or 0)
+        if ltp <= 0:
+            continue
+
+        # IV: frozen at anchor when anchored (falls back to live for strikes
+        # that rolled in after the anchor), live otherwise.
+        iv = None
+        if anchor_ivs is not None:
+            a_row = anchor_ivs.get(rk)
+            if a_row is not None:
+                iv = a_row["iv"]
+        if iv is None:
+            iv = compute_iv(S, K, T, RISK_FREE, ltp, opt_type)
+        if iv is None or iv <= 0:
+            continue
+
+        iv_up = max(0.01, iv - PR_IV_SHIFT / 100.0)   # spot up  → IV crush
+        iv_dn = iv + PR_IV_SHIFT / 100.0              # spot down → IV pop
+
+        px_up = _bs_price(spot_up, K, T_tgt, RISK_FREE, iv_up, opt_type)
+        px_dn = _bs_price(spot_dn, K, T_tgt, RISK_FREE, iv_dn, opt_type)
+
+        r1, s1 = (px_up, px_dn) if opt_type == "CE" else (px_dn, px_up)
+
+        span = r1 - s1
+        pos  = (ltp - s1) / span if span > 1e-6 else None   # 0 = at S1, 1 = at R1
+        dn   = ltp - s1
+        rows[rk] = {
+            "strike":   int(K),
+            "type":     opt_type,
+            "ltp":      round(ltp, 2),
+            "iv":       round(iv * 100, 2),
+            "r1":       round(r1, 2),
+            "s1":       round(s1, 2),
+            "upside":   round(r1 - ltp, 2),
+            "downside": round(dn, 2),
+            "rr":       round((r1 - ltp) / dn, 2) if dn > 0.5 else None,
+            "pos":      round(min(1.5, max(-0.5, pos)), 3) if pos is not None else None,
+        }
+
+    return jsonify({
+        "available":     True,
+        "mode":          mode,
+        "as_of":         now_ist().strftime("%H:%M:%S"),
+        "spot":          round(S, 2),
+        "atm":           int(atm),
+        "straddle":      round(straddle, 2),
+        "straddle_legs": legs,
+        "factor":        PR_STRADDLE_FACTOR,
+        "expected_move": round(exp_move, 2),
+        "spot_band":     [round(spot_dn, 2), round(spot_up, 2)],
+        "iv_shift_pts":  PR_IV_SHIFT,
+        "theta_days":    PR_THETA_DAYS,
+        "dte":           days_left,
+        "anchor":        anchor_meta,        # null in live mode
+        "strikes":       rows,
+    })
+
+
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -3032,6 +3275,8 @@ if __name__ == "__main__":
     print(f"  GET  /depth/watch/stream/<id>  SSE live depth events")
     print(f"  POST /depth/watch/stop/<id>    cancel watcher early")
     print(f"  GET  /depth/watch/result/<id>  full result after done")
+    print(f"  GET  /premium-range   straddle-implied R1/S1 per strike (?mode=live|anchored)")
+    print(f"  POST /premium-range/anchor   re-capture the anchored snapshot (trade entry)")
     print(f"  GET  /health          status + OHLC buffer")
     print(f"  POST /reset-csv       wipe today's rows")
     print("\nPress Ctrl+C to stop.\n")
