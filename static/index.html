@@ -515,6 +515,7 @@ tr:last-child td{border-bottom:none;}
   <button class="tab-btn active" id="tab-dashboard-btn" onclick="switchTab('dashboard')">Dashboard</button>
   <button class="tab-btn" id="tab-option-chain-btn" onclick="switchTab('option-chain')">Option Chain & OI Moves</button>
   <button class="tab-btn" id="tab-oi-movers-btn" onclick="switchTab('oi-movers')">📊 OI Movers</button>
+  <button class="tab-btn" id="tab-recent-oi-btn" onclick="switchTab('recent-oi')">🕐 Recent OI</button>
   <button class="tab-btn" id="tab-oi-change-btn" onclick="switchTab('oi-change')">📈 Selected Strike OI</button>
 
   <button class="tab-btn" id="tab-paper-trade-btn" onclick="switchTab('paper-trade')">🤖 Paper Trades</button>
@@ -1119,6 +1120,56 @@ tr:last-child td{border-bottom:none;}
 
 </div><!-- end 4-section grid -->
 </div><!-- end tab-oi-movers-panel -->
+
+
+<div class="tab-panel" id="tab-recent-oi-panel">
+
+<div class="index-chart-card" id="recent-oi-card" style="margin-bottom:12px;">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+    <div>
+      <div class="index-chart-title">Recent OI Change</div>
+      <div class="index-chart-sub" id="recent-oi-sub">Total OI added/removed across all strikes over the selected window · latest —</div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <label style="font-size:12px;color:#666;">Window:</label>
+      <select id="recent-oi-window" onchange="renderRecentOI()">
+        <option value="1">1 min</option>
+        <option value="3">3 min</option>
+        <option value="5" selected>5 min</option>
+        <option value="10">10 min</option>
+        <option value="15">15 min</option>
+        <option value="30">30 min</option>
+        <option value="60">1 hour</option>
+        <option value="day">Whole day</option>
+      </select>
+      <span style="font-size:11px;color:#888;">Total CE Δ: <span id="recent-oi-ce-total" style="font-weight:500;color:#1a1a1a;">—</span></span>
+      <span style="font-size:11px;color:#888;">Total PE Δ: <span id="recent-oi-pe-total" style="font-weight:500;color:#1a1a1a;">—</span></span>
+    </div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+  <div class="table-card">
+    <div style="font-size:11px;font-weight:600;color:#712B13;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">📞 CE Strikes — by |Δ OI|</div>
+    <div class="overflow-x">
+      <table>
+        <thead><tr><th>Strike</th><th>Current OI</th><th>Baseline OI</th><th>Δ OI</th></tr></thead>
+        <tbody id="recent-oi-ce-body"><tr><td colspan="4" style="color:#aaa;text-align:center;padding:16px 0;">No data yet</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="table-card">
+    <div style="font-size:11px;font-weight:600;color:#085041;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">📤 PE Strikes — by |Δ OI|</div>
+    <div class="overflow-x">
+      <table>
+        <thead><tr><th>Strike</th><th>Current OI</th><th>Baseline OI</th><th>Δ OI</th></tr></thead>
+        <tbody id="recent-oi-pe-body"><tr><td colspan="4" style="color:#aaa;text-align:center;padding:16px 0;">No data yet</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- end tab-recent-oi-panel -->
 
 
 <div class="tab-panel" id="tab-oi-change-panel">
@@ -2076,7 +2127,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 function switchTab(tabName) {
-  ['dashboard', 'option-chain', 'oi-movers', 'oi-change', 'paper-trade', 'iv-skew', 'straddle', 'premium-range', 'openhighlow'].forEach(name => {
+  ['dashboard', 'option-chain', 'oi-movers', 'recent-oi', 'oi-change', 'paper-trade', 'iv-skew', 'straddle', 'premium-range', 'openhighlow'].forEach(name => {
     const panel = document.getElementById('tab-' + name + '-panel');
     const btn = document.getElementById('tab-' + name + '-btn');
     const active = name === tabName;
@@ -2093,6 +2144,9 @@ function switchTab(tabName) {
   }
   if (tabName === 'oi-movers') {
     drawOIMovers(minuteRows, atmStrike);
+  }
+  if (tabName === 'recent-oi') {
+    renderRecentOI();
   }
   if (tabName === 'oi-change') {
     ensureOIChangeSelection();
@@ -4154,6 +4208,105 @@ function drawOIMovers(rows, atmStr) {
   if(peT){peT.textContent=fmtDeltaShort(tPeDelta);peT.style.color=tPeDelta>=0?'#1D9E75':'#D85A30';}
   if(pcr)pcr.textContent=tCeOI>0?(tPeOI/tCeOI).toFixed(2):'—';
   if(subEl)subEl.textContent=`Dominant OI added/decreased for every ${intervalMin}-min interval · latest ${latest?.label||'—'}`;
+}
+
+// ── RECENT OI PANEL ──────────────────────────────────────────────
+// For the selected lookback window, compares CURRENT OI (from the latest
+// /oi poll, lastOIData) against a BASELINE OI pulled from the 1-min
+// history (minuteRows) at (now - window) — or the day's first row when
+// "Whole day" is selected. Shows total CE/PE change and per-strike
+// breakdown sorted by |Δ OI| descending.
+function renderRecentOI() {
+  const subEl   = document.getElementById('recent-oi-sub');
+  const ceBody  = document.getElementById('recent-oi-ce-body');
+  const peBody  = document.getElementById('recent-oi-pe-body');
+  const ceTotEl = document.getElementById('recent-oi-ce-total');
+  const peTotEl = document.getElementById('recent-oi-pe-total');
+  const sel     = document.getElementById('recent-oi-window');
+  if (!ceBody || !peBody) return;
+
+  const noData = (tbody) => { tbody.innerHTML = '<tr><td colspan="4" style="color:#aaa;text-align:center;padding:16px 0;">No data yet</td></tr>'; };
+
+  if (!lastOIData || !lastOIData.options) {
+    noData(ceBody); noData(peBody);
+    if (ceTotEl) ceTotEl.textContent = '—';
+    if (peTotEl) peTotEl.textContent = '—';
+    return;
+  }
+
+  function fmtOIShort(v){const n=Number(v)||0;const a=Math.abs(n);if(a>=1e7)return(n/1e7).toFixed(2)+' Cr';if(a>=1e5)return(n/1e5).toFixed(1)+' L';if(a>=1e3)return(n/1e3).toFixed(1)+' K';return Math.round(n).toLocaleString('en-IN');}
+  function fmtDeltaShort(v){const n=Number(v)||0;return(n>0?'+':'')+fmtOIShort(n);}
+
+  const windowVal = sel ? sel.value : '5';   // minutes, or "day"
+  const cleanRows = (minuteRows||[]).filter(r=>r&&(parseFloat(r.ts)||0)>0).sort((a,b)=>(parseFloat(a.ts)||0)-(parseFloat(b.ts)||0));
+
+  // Pick the baseline row: last completed 1-min row at/ before target time.
+  // "day" -> first row of the (filtered, market-hours) session.
+  let baselineRow = null;
+  let windowLabel = '';
+  if (windowVal === 'day') {
+    baselineRow = cleanRows[0] || null;
+    windowLabel = 'whole day';
+  } else {
+    const mins = parseFloat(windowVal) || 5;
+    windowLabel = 'last ' + (mins >= 60 ? (mins/60)+' hr' : mins+' min');
+    if (cleanRows.length) {
+      const nowTs = Date.now()/1000;
+      const targetTs = nowTs - mins*60;
+      baselineRow = cleanRows[0];
+      for (const r of cleanRows) {
+        if ((parseFloat(r.ts)||0) <= targetTs) baselineRow = r; else break;
+      }
+    }
+  }
+
+  if (!baselineRow) {
+    noData(ceBody); noData(peBody);
+    if (ceTotEl) ceTotEl.textContent = '—';
+    if (peTotEl) peTotEl.textContent = '—';
+    if (subEl) subEl.textContent = 'No 1-min history yet for this window · latest ' + (lastOIData.as_of||'—');
+    return;
+  }
+
+  const ceRows = [], peRows = [];
+  let totalCE = 0, totalPE = 0;
+
+  Object.keys(lastOIData.options).forEach(rk => {
+    const opt = lastOIData.options[rk];
+    if (!opt) return;
+    const currentOI  = Number(opt.oi) || 0;
+    const baselineOI = Number(baselineRow[rk + '_oi']);
+    const base = isNaN(baselineOI) ? currentOI : baselineOI;   // strike not tracked at baseline time -> no change
+    const delta = currentOI - base;
+    const entry = { strike: opt.strike, current: currentOI, base, delta, absDelta: Math.abs(delta) };
+    if (opt.type === 'CE') { ceRows.push(entry); totalCE += delta; }
+    else if (opt.type === 'PE') { peRows.push(entry); totalPE += delta; }
+  });
+
+  ceRows.sort((a,b) => b.absDelta - a.absDelta);
+  peRows.sort((a,b) => b.absDelta - a.absDelta);
+
+  function rowsHtml(rows) {
+    if (!rows.length) return '<tr><td colspan="4" style="color:#aaa;text-align:center;padding:16px 0;">No strikes tracked</td></tr>';
+    return rows.map(r => {
+      const color = r.delta > 0 ? '#D85A30' : (r.delta < 0 ? '#185FA5' : '#888');
+      return `<tr>
+        <td>${Number(r.strike).toLocaleString('en-IN')}</td>
+        <td>${fmtOIShort(r.current)}</td>
+        <td>${fmtOIShort(r.base)}</td>
+        <td style="color:${color};font-weight:500;">${fmtDeltaShort(r.delta)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  ceBody.innerHTML = rowsHtml(ceRows);
+  peBody.innerHTML = rowsHtml(peRows);
+
+  if (ceTotEl) { ceTotEl.textContent = fmtDeltaShort(totalCE); ceTotEl.style.color = totalCE >= 0 ? '#D85A30' : '#185FA5'; }
+  if (peTotEl) { peTotEl.textContent = fmtDeltaShort(totalPE); peTotEl.style.color = totalPE >= 0 ? '#D85A30' : '#185FA5'; }
+
+  const baselineLabel = baselineRow.time_label ? (' (baseline ' + baselineRow.time_label + ')') : '';
+  if (subEl) subEl.textContent = `Total OI change over ${windowLabel}${baselineLabel} · latest ${lastOIData.as_of||'—'}`;
 }
 
 // ── OPTION CHAIN ──────────────────────────────────────────────────
@@ -6328,6 +6481,7 @@ function _doRebuild() {
 
   drawCumOIChart(minuteRows);
   drawOIMovers(minuteRows, atmStrike);
+  if (document.getElementById('tab-recent-oi-panel')?.classList.contains('active')) renderRecentOI();
   renderOIChangeStrikeChips();
   if (document.getElementById('tab-oi-change-panel')?.classList.contains('active')) renderOIChangeChart();
 
