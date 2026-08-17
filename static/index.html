@@ -990,6 +990,45 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div>
 
+<!-- ── ORDER BOOK — ATM ± X STRIKES (CE+PE combined, auto-selected window) ── -->
+<div class="oc-maxpain-card" id="atmw-card" style="flex-wrap:wrap;">
+  <div class="oc-mp-block">
+    <div class="oc-mp-label">ATM ± X Order Book</div>
+    <div class="oc-mp-val" id="atmw-imbalance-val">—</div>
+    <div class="oc-mp-sub" id="atmw-strike-range">CE+PE combined buy/sell</div>
+  </div>
+  <div class="oc-mp-divider"></div>
+  <div class="oc-mp-block">
+    <div class="oc-mp-label">Range</div>
+    <select id="atmw-depth" onchange="renderATMWindowDepthTotals()" style="font-size:13px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;">
+      <option value="1">ATM ±1</option>
+      <option value="2">ATM ±2</option>
+      <option value="3" selected>ATM ±3</option>
+      <option value="5">ATM ±5</option>
+      <option value="8">ATM ±8</option>
+    </select>
+    <div class="oc-mp-sub">strikes each side of ATM</div>
+  </div>
+  <div class="oc-mp-bar-wrap" style="min-width:280px;">
+    <div class="oc-mp-bar-label">
+      <span id="atmw-sell-qty" style="color:#D85A30;font-weight:600;">Sell —</span>
+      <span>Buy / Sell Qty (whole book, CE+PE)</span>
+      <span id="atmw-buy-qty" style="color:#1D9E75;font-weight:600;">Buy —</span>
+    </div>
+    <div style="height:10px;border-radius:5px;overflow:hidden;display:flex;background:#f0f0ec;">
+      <div id="atmw-bar-sell" style="background:#D85A30;width:50%;transition:width .5s;"></div>
+      <div id="atmw-bar-buy" style="background:#1D9E75;width:50%;transition:width .5s;"></div>
+    </div>
+  </div>
+  <div style="flex-basis:100%;height:0;"></div>
+  <div class="overflow-x" style="width:100%;">
+    <table>
+      <thead><tr><th>Strike</th><th>CE Buy</th><th>CE Sell</th><th>PE Buy</th><th>PE Sell</th><th style="min-width:100px;">Split (CE+PE)</th></tr></thead>
+      <tbody id="atmw-strikes-body"><tr><td colspan="6" style="color:#aaa;text-align:center;padding:12px 0;">Waiting for data…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
 <div class="oc-card">
   <div class="oc-header">
     <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
@@ -5474,6 +5513,112 @@ function updateOptionChainLTP(ltpData) {
   }
 
   renderSelectedStrikeDepthTotals();
+  renderATMWindowDepthTotals();
+}
+
+// ── ORDER BOOK — ATM ± X STRIKES (auto window, CE+PE combined) ──────
+// Same buy_quantity/sell_quantity data as the Selected Strikes panel, but
+// the window is derived automatically from the current ATM strike and a
+// simple ±X selector instead of manual chip-clicking — quicker to read
+// while watching the option chain itself.
+function renderATMWindowDepthTotals() {
+  const body = document.getElementById('atmw-strikes-body');
+  if (!body) return;  // panel not in DOM yet
+
+  const valEl    = document.getElementById('atmw-imbalance-val');
+  const rangeEl  = document.getElementById('atmw-strike-range');
+  const buyQEl   = document.getElementById('atmw-buy-qty');
+  const sellQEl  = document.getElementById('atmw-sell-qty');
+  const barBuy   = document.getElementById('atmw-bar-buy');
+  const barSell  = document.getElementById('atmw-bar-sell');
+  const depthSel = document.getElementById('atmw-depth');
+  const depth    = parseInt(depthSel?.value) || 3;
+
+  if (!allStrikes.length || !atmStrike) {
+    body.innerHTML = '<tr><td colspan="6" style="color:#aaa;text-align:center;padding:12px 0;">Waiting for data…</td></tr>';
+    if (valEl) valEl.textContent = '—';
+    return;
+  }
+
+  // Same index-based windowing as the main Option Chain "Strikes around
+  // ATM" selector, so the two stay consistent with each other.
+  const sorted = [...allStrikes].sort((a,b)=>b-a);
+  const atmIdx = sorted.indexOf(atmStrike);
+  let strikes;
+  if (atmIdx >= 0) {
+    const lo = Math.max(0, atmIdx - depth);
+    const hi = Math.min(sorted.length - 1, atmIdx + depth);
+    strikes = sorted.slice(lo, hi + 1);
+  } else {
+    strikes = sorted;
+  }
+  strikes = [...strikes].sort((a,b)=>a-b);
+
+  if (rangeEl) {
+    rangeEl.textContent = strikes.length
+      ? `${strikes[0].toLocaleString('en-IN')} → ${strikes[strikes.length-1].toLocaleString('en-IN')} (${strikes.length} strikes)`
+      : 'CE+PE combined buy/sell';
+  }
+
+  let rows = '';
+  let combinedBuy = 0, combinedSell = 0, anyData = false;
+
+  strikes.forEach(st => {
+    const ceD = ocDepthTotalsCache['s'+st+'_ce'];
+    const peD = ocDepthTotalsCache['s'+st+'_pe'];
+    const ceBuy  = ceD && ceD.buy  != null ? ceD.buy  : null;
+    const ceSell = ceD && ceD.sell != null ? ceD.sell : null;
+    const peBuy  = peD && peD.buy  != null ? peD.buy  : null;
+    const peSell = peD && peD.sell != null ? peD.sell : null;
+
+    if (ceBuy  != null) combinedBuy  += ceBuy;
+    if (peBuy  != null) combinedBuy  += peBuy;
+    if (ceSell != null) combinedSell += ceSell;
+    if (peSell != null) combinedSell += peSell;
+    if (ceBuy != null || ceSell != null || peBuy != null || peSell != null) anyData = true;
+
+    const rowBuy  = (ceBuy  || 0) + (peBuy  || 0);
+    const rowSell = (ceSell || 0) + (peSell || 0);
+    const rowTotal = rowBuy + rowSell;
+    const buyPct = rowTotal > 0 ? (rowBuy / rowTotal * 100) : 50;
+    const isATM = st === atmStrike;
+
+    rows += `<tr${isATM ? ' style="background:#f5f3ff;font-weight:600;"' : ''}>
+      <td>${st.toLocaleString('en-IN')}${isATM ? ' · ATM' : ''}</td>
+      <td style="color:#1D9E75;">${ceBuy  != null ? fmtQty(ceBuy)  : '—'}</td>
+      <td style="color:#D85A30;">${ceSell != null ? fmtQty(ceSell) : '—'}</td>
+      <td style="color:#1D9E75;">${peBuy  != null ? fmtQty(peBuy)  : '—'}</td>
+      <td style="color:#D85A30;">${peSell != null ? fmtQty(peSell) : '—'}</td>
+      <td>
+        <div style="height:7px;border-radius:4px;overflow:hidden;display:flex;background:#f0f0ec;min-width:80px;">
+          <div style="background:#1D9E75;width:${buyPct.toFixed(1)}%;"></div>
+          <div style="background:#D85A30;width:${(100-buyPct).toFixed(1)}%;"></div>
+        </div>
+      </td>
+    </tr>`;
+  });
+
+  body.innerHTML = rows || '<tr><td colspan="6" style="color:#aaa;text-align:center;padding:12px 0;">No strikes in range</td></tr>';
+
+  if (anyData) {
+    const total = combinedBuy + combinedSell;
+    const imb = total > 0 ? (combinedBuy - combinedSell) / total : 0;
+    if (valEl) {
+      valEl.textContent = (imb >= 0 ? '+' : '') + (imb * 100).toFixed(1) + '%';
+      valEl.style.color = imb > 0.05 ? '#1D9E75' : (imb < -0.05 ? '#D85A30' : '#888');
+    }
+    if (buyQEl)  buyQEl.textContent  = 'Buy '  + fmtQty(combinedBuy);
+    if (sellQEl) sellQEl.textContent = 'Sell ' + fmtQty(combinedSell);
+    if (barBuy && barSell) {
+      const buyPct = total > 0 ? (combinedBuy / total * 100) : 50;
+      barBuy.style.width  = buyPct.toFixed(1) + '%';
+      barSell.style.width = (100 - buyPct).toFixed(1) + '%';
+    }
+  } else {
+    if (valEl)   valEl.textContent   = '—';
+    if (buyQEl)  buyQEl.textContent  = 'Buy —';
+    if (sellQEl) sellQEl.textContent = 'Sell —';
+  }
 }
 
 // ── INDEX TICKER (Option Chain tab) ──────────────────────────────
@@ -5687,9 +5832,26 @@ function updateOrderFlow(of) {
   const barSell  = document.getElementById('of-bar-sell');
   if (!valEl) return;   // panel not on this page
 
+  // Outside market hours there's no live order book to read — say so
+  // explicitly rather than leaving ambiguous dashes on screen.
+  if (of && of.market_open === false && of.imbalance == null) {
+    valEl.textContent = 'Market closed';
+    valEl.style.color = '#aaa';
+    valEl.style.fontSize = '13px';
+    if (depthEl) depthEl.textContent = '—';
+    if (trendEl) { trendEl.textContent = 'Reopens 9:15 AM IST'; trendEl.style.color = '#aaa'; }
+    if (buyQEl)  buyQEl.textContent  = 'Buy —';
+    if (sellQEl) sellQEl.textContent = 'Sell —';
+    if (barBuy)  barBuy.style.width  = '50%';
+    if (barSell) barSell.style.width = '50%';
+    drawOrderFlowSparkline([]);
+    return;
+  }
+
   if (!of || of.imbalance == null) {
     valEl.textContent = '—';
     valEl.style.color = '#888';
+    valEl.style.fontSize = '';
     if (depthEl) depthEl.textContent = '—';
     if (trendEl) { trendEl.textContent = '—'; trendEl.style.color = '#888'; }
     if (buyQEl)  buyQEl.textContent  = 'Buy —';
@@ -5697,6 +5859,8 @@ function updateOrderFlow(of) {
     drawOrderFlowSparkline([]);
     return;
   }
+
+  valEl.style.fontSize = '';
 
   const agg = of.imbalance;  // -1 (all sell) .. +1 (all buy)
   valEl.textContent = (agg >= 0 ? '+' : '') + (agg * 100).toFixed(1) + '%';
