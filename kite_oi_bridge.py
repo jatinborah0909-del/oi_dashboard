@@ -965,6 +965,120 @@ def _settlement_vwap_payload():
         "composite_live": _composite_settle(fut_live_spot,  live_synth,                         state.get("spot")),
     }
 
+# ── ORDER FLOW IMBALANCE (Nifty Futures) ──────────────────────────────────────
+# Kite's MODE_FULL tick for the front-month future carries buy_quantity /
+# sell_quantity — the AGGREGATE pending order qty across the whole exchange
+# order book for that contract (not just the visible top-5 depth) — plus a
+# 5-level depth snapshot. We track both:
+#   - aggregate imbalance = (buy_qty - sell_qty) / (buy_qty + sell_qty)
+#   - top-5 depth imbalance = same ratio using only the visible 5 levels
+# and keep a rolling ~10-min history so the frontend can chart a trend into
+# the close, not just show a single snapshot — useful for the last-10-min
+# closing move since order flow tends to build directionally before a strong
+# move rather than jumping there instantly.
+#
+# NOTE: this is standard Kite Connect quote/tick data (buy_quantity /
+# sell_quantity / depth), NOT the new SEBI Closing Auction Session (CAS)
+# fields (Reference Price / Indicative Close / Total Imbalance Qty). Those
+# CAS-specific fields are confirmed live on Kite's own web UI depth panel as
+# of Aug 2026 but I could not confirm they're exposed via the Kite Connect
+# API yet — verify live before wiring a CAS-specific panel to real fields.
+ORDER_FLOW_HISTORY_SECONDS = 600  # 10 minutes
+
+order_flow = {
+    "date":            None,
+    "buy_qty":         None,   # latest aggregate buy_quantity (whole book)
+    "sell_qty":        None,   # latest aggregate sell_quantity (whole book)
+    "depth_buy_qty":   None,   # Σ qty across visible top-5 buy levels
+    "depth_sell_qty":  None,   # Σ qty across visible top-5 sell levels
+    "history":         collections.deque(maxlen=1200),  # (epoch_s, agg_ratio, depth_ratio, buy_qty, sell_qty)
+    "last_sample_sec": None,
+}
+
+
+def _reset_order_flow_if_new_day(today):
+    if order_flow["date"] != today:
+        order_flow.update({
+            "date": today, "buy_qty": None, "sell_qty": None,
+            "depth_buy_qty": None, "depth_sell_qty": None,
+            "last_sample_sec": None,
+        })
+        order_flow["history"].clear()
+
+
+def _imbalance_ratio(buy, sell):
+    """(buy - sell) / (buy + sell) → -1 (all sell) .. +1 (all buy). None if no data."""
+    total = (buy or 0) + (sell or 0)
+    if total <= 0:
+        return None
+    return round(((buy or 0) - (sell or 0)) / total, 4)
+
+
+def _update_order_flow(tick):
+    """Called from on_ticks for every front-month FUT tick (MODE_FULL carries
+    buy_quantity/sell_quantity/depth even on ticks where price didn't change).
+    state_lock must be held by the caller."""
+    now = now_ist()
+    _reset_order_flow_if_new_day(now.strftime("%Y-%m-%d"))
+
+    buy_qty  = tick.get("buy_quantity")
+    sell_qty = tick.get("sell_quantity")
+    depth    = tick.get("depth", {}) or {}
+    buy_levels  = depth.get("buy",  []) or []
+    sell_levels = depth.get("sell", []) or []
+    depth_buy_qty  = sum(lvl.get("quantity", 0) for lvl in buy_levels)
+    depth_sell_qty = sum(lvl.get("quantity", 0) for lvl in sell_levels)
+
+    order_flow["buy_qty"]        = buy_qty
+    order_flow["sell_qty"]       = sell_qty
+    order_flow["depth_buy_qty"]  = depth_buy_qty
+    order_flow["depth_sell_qty"] = depth_sell_qty
+
+    # Sample into history at most once/sec — ticks can arrive several
+    # times/sec and we only need enough resolution for a 10-min sparkline.
+    sec_key = int(time.time())
+    if sec_key == order_flow["last_sample_sec"]:
+        return
+    order_flow["last_sample_sec"] = sec_key
+
+    agg_ratio   = _imbalance_ratio(buy_qty, sell_qty)
+    depth_ratio = _imbalance_ratio(depth_buy_qty, depth_sell_qty)
+    order_flow["history"].append((sec_key, agg_ratio, depth_ratio, buy_qty, sell_qty))
+
+    cutoff = sec_key - ORDER_FLOW_HISTORY_SECONDS
+    while order_flow["history"] and order_flow["history"][0][0] < cutoff:
+        order_flow["history"].popleft()
+
+
+def _order_flow_payload():
+    """Browser-friendly snapshot. Caller must hold state_lock."""
+    hist = list(order_flow["history"])
+    agg_ratio   = _imbalance_ratio(order_flow["buy_qty"], order_flow["sell_qty"])
+    depth_ratio = _imbalance_ratio(order_flow["depth_buy_qty"], order_flow["depth_sell_qty"])
+
+    # Trend: current ratio vs ~3 min ago — is buy/sell pressure building or fading?
+    trend_3m = None
+    if hist and agg_ratio is not None:
+        target = hist[-1][0] - 180
+        past = next((r for (t, r, *_rest) in hist if t >= target and r is not None), None)
+        if past is not None:
+            trend_3m = round(agg_ratio - past, 4)
+
+    return {
+        "buy_qty":         order_flow["buy_qty"],
+        "sell_qty":        order_flow["sell_qty"],
+        "imbalance":       agg_ratio,     # -1..+1, whole-book buy_qty vs sell_qty
+        "depth_buy_qty":   order_flow["depth_buy_qty"],
+        "depth_sell_qty":  order_flow["depth_sell_qty"],
+        "depth_imbalance": depth_ratio,   # -1..+1, top-5 visible levels only
+        "trend_3m":        trend_3m,      # +ve = buy pressure building, -ve = sell pressure building
+        "history": [
+            {"t": t, "r": r, "dr": dr}
+            for (t, r, dr, *_rest) in hist
+        ],
+    }
+
+
 # ── BROWSER LIVE STREAM (Server-Sent Events) ─────────────────────────────────
 # The Kite WebSocket already gives tick-by-tick updates to this backend.
 # These queues let Flask push the latest snapshot to all connected browsers
@@ -986,6 +1100,7 @@ def _make_live_payload_unlocked(elapsed_override=None):
         "bull_strike": state["bull_strike"],
         "expiry_date": state["expiry_date"],
         "settlement_vwap": _settlement_vwap_payload(),
+        "order_flow": _order_flow_payload(),
         "options": {},
         "live_candle": {"available": False},
     }
@@ -998,6 +1113,8 @@ def _make_live_payload_unlocked(elapsed_override=None):
             "symbol": meta["tradingsymbol"],
             "ltp": snap.get("ltp", 0),
             "oi": snap.get("oi", 0),
+            "buy_qty": snap.get("buy_qty"),
+            "sell_qty": snap.get("sell_qty"),
         }
 
     if minute_buffer["start_ts"] is not None and minute_buffer["start_snap"] is not None:
@@ -1960,6 +2077,10 @@ def build_ticker():
                         _update_day_oh(token, fut_ltp)   # active-month future OHL scan
                         if state["spot"]:
                             _update_basis(fut_ltp, state["spot"])
+                    # buy_quantity/sell_quantity/depth can update independently
+                    # of price, so this runs on every FUT tick, not just
+                    # price-changing ones.
+                    _update_order_flow(tick)
                     continue
 
                 if token not in state["tokens"]:
@@ -1990,6 +2111,8 @@ def build_ticker():
                     "oi":   current_oi,
                     "ltp":  current_ltp,
                     "qty":  current_qty,
+                    "buy_qty":  tick.get("buy_quantity"),   # whole-book aggregate (Total row in Kite depth)
+                    "sell_qty": tick.get("sell_quantity"),
                     "depth": {"buy": buy_levels, "sell": sell_levels},
                 }
                 _update_ltp_ohlc(token, current_ltp)
@@ -2219,6 +2342,7 @@ def get_ltp():
             "fut_ltp": state["fut_ltp"],
             "as_of":   now_ist().strftime("%H:%M:%S"),
             "settlement_vwap": _settlement_vwap_payload(),
+            "order_flow": _order_flow_payload(),
             "options": {},
         }
         for token, meta in state["tokens"].items():
@@ -2228,6 +2352,8 @@ def get_ltp():
                 "type":   meta["instrument_type"],
                 "symbol": meta["tradingsymbol"],
                 "ltp":    snap.get("ltp", 0),
+                "buy_qty":  snap.get("buy_qty"),
+                "sell_qty": snap.get("sell_qty"),
             }
         # Piggyback the OpenHighLow snapshot on the existing 1-second LTP poll
         # so that tab gets tick-by-tick refresh for free, with no extra timer.
