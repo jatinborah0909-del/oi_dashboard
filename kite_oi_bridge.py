@@ -1072,6 +1072,7 @@ def _order_flow_payload():
         "depth_sell_qty":  order_flow["depth_sell_qty"],
         "depth_imbalance": depth_ratio,   # -1..+1, top-5 visible levels only
         "trend_3m":        trend_3m,      # +ve = buy pressure building, -ve = sell pressure building
+        "market_open":     is_market_open(),
         "history": [
             {"t": t, "r": r, "dr": dr}
             for (t, r, dr, *_rest) in hist
