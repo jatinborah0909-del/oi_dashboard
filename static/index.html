@@ -956,6 +956,40 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div>
 
+<!-- ── ORDER FLOW (Nifty Futures — whole-book buy/sell imbalance) ── -->
+<div class="oc-maxpain-card" id="of-card">
+  <div class="oc-mp-block">
+    <div class="oc-mp-label">Order Book Imbalance</div>
+    <div class="oc-mp-val" id="of-imbalance-val">—</div>
+    <div class="oc-mp-sub">Nifty Fut · buy_qty vs sell_qty, whole book</div>
+  </div>
+  <div class="oc-mp-divider"></div>
+  <div class="oc-mp-block">
+    <div class="oc-mp-label">Top-5 Depth Imbalance</div>
+    <div class="oc-mp-val" style="font-size:14px;" id="of-depth-val">—</div>
+    <div class="oc-mp-sub">Visible bid/ask levels only</div>
+  </div>
+  <div class="oc-mp-divider"></div>
+  <div class="oc-mp-block">
+    <div class="oc-mp-label">3-min Trend</div>
+    <div class="oc-mp-val" style="font-size:13px;" id="of-trend">—</div>
+    <div class="oc-mp-sub">Δ imbalance vs 3 min ago</div>
+  </div>
+  <div class="oc-mp-bar-wrap" style="min-width:280px;">
+    <div class="oc-mp-bar-label">
+      <span id="of-sell-qty" style="color:#D85A30;font-weight:600;">Sell —</span>
+      <span>Buy / Sell Qty (whole book)</span>
+      <span id="of-buy-qty" style="color:#1D9E75;font-weight:600;">Buy —</span>
+    </div>
+    <div style="height:10px;border-radius:5px;overflow:hidden;display:flex;background:#f0f0ec;">
+      <div id="of-bar-sell" style="background:#D85A30;width:50%;transition:width .5s;"></div>
+      <div id="of-bar-buy" style="background:#1D9E75;width:50%;transition:width .5s;"></div>
+    </div>
+    <svg id="of-spark" viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:34px;margin-top:6px;display:block;"></svg>
+    <div style="font-size:10px;color:#aaa;text-align:center;margin-top:2px;">Imbalance trend — rolling last 10 min</div>
+  </div>
+</div>
+
 <div class="oc-card">
   <div class="oc-header">
     <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
@@ -1230,6 +1264,22 @@ tr:last-child td{border-bottom:none;}
 
     <div class="strike-panel-title" style="margin-top:12px;">Selected strikes</div>
     <div class="oi-change-selected-row" id="oi-change-selected-chips">—</div>
+
+    <div class="strike-panel-title" style="margin-top:12px;">Order Book Totals — Selected Strikes</div>
+    <div class="table-card" style="margin-top:6px;padding:12px 16px;">
+      <div class="overflow-x">
+        <table>
+          <thead><tr><th>Strike</th><th>Leg</th><th>Buy Qty</th><th>Sell Qty</th><th style="min-width:120px;">Buy/Sell Split</th></tr></thead>
+          <tbody id="of-strikes-totals-body"><tr><td colspan="5" style="color:#aaa;text-align:center;padding:16px 0;">Select strikes above to see order book totals</td></tr></tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:0.5px solid #eee;">
+        <div style="font-size:12px;color:#888;">Combined Buy: <span id="of-strikes-total-buy" style="color:#1D9E75;font-weight:600;">—</span></div>
+        <div style="font-size:12px;color:#888;">Combined Sell: <span id="of-strikes-total-sell" style="color:#D85A30;font-weight:600;">—</span></div>
+        <div style="font-size:12px;color:#888;">Combined Imbalance: <span id="of-strikes-total-imb" style="font-weight:600;">—</span></div>
+      </div>
+      <div style="font-size:10px;color:#aaa;margin-top:6px;">CE + PE whole-book buy_quantity/sell_quantity across all selected strikes — same numbers as Kite's own market-depth "Total" row, summed.</div>
+    </div>
 
     <div class="oi-change-legend">
       <span class="oi-change-leg-item"><span class="oi-change-line-sample" style="border-top-width:3px;"></span>CE / Call OI (solid)</span>
@@ -2882,6 +2932,7 @@ function updateLTP(data) {
 
   // ── Projected Settlement (15:00–15:30 IST spot VWAP)
   updateSettlementVwap(data.settlement_vwap, data.spot);
+  updateOrderFlow(data.order_flow);
 
   // ── OpenHighLow tab — piggybacks on this same 1s tick poll
   renderOpenHighLow(data.open_high_low);
@@ -4313,6 +4364,7 @@ function renderRecentOI() {
 // Stores latest LTP snapshot keyed by "s{strike}_{ce|pe}"
 const ocLtpCache     = {};  // { "s24000_ce": {ltp, prev}, ... }
 const ocOICache      = {};  // { "s24000_ce": current OI, ... }
+const ocDepthTotalsCache = {};  // { "s24000_ce": {buy, sell} whole-book totals, ... }
 const ocOIDeltaCache = {};  // { "s24000_ce": CHG OI since session start, ... }
 const ocOIBaseCache  = {};  // { "s24000_ce": session-START OI — set once, never overwritten }
 
@@ -5366,7 +5418,14 @@ function updateOptionChainLTP(ltpData) {
   let anyChange = false;
 
   Object.entries(opts).forEach(([key, v]) => {
-    if (!v || v.ltp == null) return;
+    if (!v) return;
+    // Order-book totals (Kite's "Total" row — whole-book buy_quantity /
+    // sell_quantity) are cached for every strike on every tick, independent
+    // of LTP change, so the Selected Strikes panel always has fresh numbers.
+    if (v.buy_qty != null || v.sell_qty != null) {
+      ocDepthTotalsCache[key] = { buy: v.buy_qty, sell: v.sell_qty };
+    }
+    if (v.ltp == null) return;
     const prev = ocLtpCache[key]?.ltp || 0;
     const cur  = pf(v.ltp);
 
@@ -5413,6 +5472,8 @@ function updateOptionChainLTP(ltpData) {
     const pulse = document.getElementById('oc-pulse');
     if (pulse) { pulse.classList.add('live'); setTimeout(()=>pulse.classList.remove('live'),1500); }
   }
+
+  renderSelectedStrikeDepthTotals();
 }
 
 // ── INDEX TICKER (Option Chain tab) ──────────────────────────────
@@ -5602,6 +5663,98 @@ function updateSettlementVwap(sv, spot) {
   }
 }
 
+// ── ORDER FLOW (Nifty Futures) ───────────────────────────────────────
+// Whole-book buy_quantity vs sell_quantity imbalance, top-5 depth
+// imbalance, a 3-min trend, and a rolling 10-min sparkline. Meant to help
+// read pressure building into the close, distinct from the settlement
+// VWAP estimates above (which project price, not who's in control).
+function fmtQty(n) {
+  if (n == null) return '—';
+  const abs = Math.abs(n);
+  if (abs >= 1e7) return (n / 1e7).toFixed(2) + 'Cr';
+  if (abs >= 1e5) return (n / 1e5).toFixed(2) + 'L';
+  if (abs >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(n);
+}
+
+function updateOrderFlow(of) {
+  const valEl    = document.getElementById('of-imbalance-val');
+  const depthEl  = document.getElementById('of-depth-val');
+  const trendEl  = document.getElementById('of-trend');
+  const buyQEl   = document.getElementById('of-buy-qty');
+  const sellQEl  = document.getElementById('of-sell-qty');
+  const barBuy   = document.getElementById('of-bar-buy');
+  const barSell  = document.getElementById('of-bar-sell');
+  if (!valEl) return;   // panel not on this page
+
+  if (!of || of.imbalance == null) {
+    valEl.textContent = '—';
+    valEl.style.color = '#888';
+    if (depthEl) depthEl.textContent = '—';
+    if (trendEl) { trendEl.textContent = '—'; trendEl.style.color = '#888'; }
+    if (buyQEl)  buyQEl.textContent  = 'Buy —';
+    if (sellQEl) sellQEl.textContent = 'Sell —';
+    drawOrderFlowSparkline([]);
+    return;
+  }
+
+  const agg = of.imbalance;  // -1 (all sell) .. +1 (all buy)
+  valEl.textContent = (agg >= 0 ? '+' : '') + (agg * 100).toFixed(1) + '%';
+  valEl.style.color = agg > 0.05 ? '#1D9E75' : (agg < -0.05 ? '#D85A30' : '#888');
+  valEl.title = 'Positive = more resting buy quantity than sell quantity across the whole order book (not just top-5 depth).';
+
+  if (depthEl) {
+    if (of.depth_imbalance != null) {
+      depthEl.textContent = (of.depth_imbalance >= 0 ? '+' : '') + (of.depth_imbalance * 100).toFixed(1) + '%';
+      depthEl.style.color = of.depth_imbalance > 0.05 ? '#1D9E75' : (of.depth_imbalance < -0.05 ? '#D85A30' : '#888');
+    } else {
+      depthEl.textContent = '—';
+    }
+  }
+
+  if (trendEl) {
+    if (of.trend_3m != null) {
+      if (of.trend_3m > 0.03) { trendEl.textContent = '▲ Buy pressure building'; trendEl.style.color = '#1D9E75'; }
+      else if (of.trend_3m < -0.03) { trendEl.textContent = '▼ Sell pressure building'; trendEl.style.color = '#D85A30'; }
+      else { trendEl.textContent = '— Stable'; trendEl.style.color = '#888'; }
+    } else {
+      trendEl.textContent = 'Building history…';
+      trendEl.style.color = '#aaa';
+    }
+  }
+
+  if (buyQEl)  buyQEl.textContent  = 'Buy ' + fmtQty(of.buy_qty);
+  if (sellQEl) sellQEl.textContent = 'Sell ' + fmtQty(of.sell_qty);
+
+  if (barBuy && barSell) {
+    const buyPct = ((agg + 1) / 2) * 100;  // map -1..1 → 0..100
+    barBuy.style.width  = buyPct.toFixed(1) + '%';
+    barSell.style.width = (100 - buyPct).toFixed(1) + '%';
+  }
+
+  drawOrderFlowSparkline(of.history || []);
+}
+
+function drawOrderFlowSparkline(hist) {
+  const svg = document.getElementById('of-spark');
+  if (!svg) return;
+  const pts = (hist || []).filter(p => p.r != null);
+  if (pts.length < 2) { svg.innerHTML = ''; return; }
+
+  const W = 100, H = 100;
+  const tMin = pts[0].t, tMax = pts[pts.length - 1].t;
+  const tSpan = Math.max(1, tMax - tMin);
+  const path = pts.map(p => {
+    const x = ((p.t - tMin) / tSpan) * W;
+    const y = H - ((Math.max(-1, Math.min(1, p.r)) + 1) / 2) * H;  // +1 → top, -1 → bottom
+    return x.toFixed(1) + ',' + y.toFixed(1);
+  }).join(' ');
+
+  svg.innerHTML =
+    `<line x1="0" y1="${H/2}" x2="${W}" y2="${H/2}" stroke="#e5e5e0" stroke-width="1.5" stroke-dasharray="3,3"/>` +
+    `<polyline points="${path}" fill="none" stroke="#534AB7" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>`;
+}
+
 // ── MAX PAIN ──────────────────────────────────────────────────────
 // Max Pain = strike where total OI loss for option buyers is maximised
 // i.e. the strike that causes the most financial pain to buyers at expiry
@@ -5779,6 +5932,7 @@ function renderOIChangeStrikeChips() {
     sub.textContent = `Visible: ${visible[0].toLocaleString('en-IN')} → ${visible[visible.length-1].toLocaleString('en-IN')} · Selected: ${oiChangeSelectedStrikes.length || 0} strike(s) · ${intervalMin}-min candles`;
   }
   renderOIChangeSelectedChips([...new Set(oiChangeSelectedStrikes.filter(Boolean))].sort((a,b)=>a-b));
+  renderSelectedStrikeDepthTotals();
 }
 
 function toggleOIChangeStrike(strike) {
@@ -5791,6 +5945,76 @@ function toggleOIChangeStrike(strike) {
   }
   renderOIChangeStrikeChips();
   renderOIChangeChart();
+}
+
+// ── ORDER BOOK TOTALS — Selected Strikes ─────────────────────────
+// Mirrors Kite's own market-depth "Total" row (whole-book buy_quantity /
+// sell_quantity, the green/red numbers under the 5-level depth) but rolled
+// up across whichever strikes are selected in this tab, CE and PE separately
+// plus one combined figure.
+function renderSelectedStrikeDepthTotals() {
+  const body = document.getElementById('of-strikes-totals-body');
+  if (!body) return;  // panel not in DOM yet
+
+  const strikes = [...new Set(oiChangeSelectedStrikes.filter(Boolean))].sort((a,b)=>a-b);
+  const buyEl  = document.getElementById('of-strikes-total-buy');
+  const sellEl = document.getElementById('of-strikes-total-sell');
+  const imbEl  = document.getElementById('of-strikes-total-imb');
+
+  if (!strikes.length) {
+    body.innerHTML = '<tr><td colspan="5" style="color:#aaa;text-align:center;padding:16px 0;">Select strikes above to see order book totals</td></tr>';
+    if (buyEl)  buyEl.textContent  = '—';
+    if (sellEl) sellEl.textContent = '—';
+    if (imbEl)  imbEl.textContent  = '—';
+    return;
+  }
+
+  let rows = '';
+  let combinedBuy = 0, combinedSell = 0, anyData = false;
+
+  strikes.forEach(st => {
+    ['ce', 'pe'].forEach(leg => {
+      const key  = 's' + st + '_' + leg;
+      const d    = ocDepthTotalsCache[key];
+      const buy  = d && d.buy  != null ? d.buy  : null;
+      const sell = d && d.sell != null ? d.sell : null;
+      if (buy  != null) combinedBuy  += buy;
+      if (sell != null) combinedSell += sell;
+      if (buy != null || sell != null) anyData = true;
+
+      const total  = (buy || 0) + (sell || 0);
+      const buyPct = total > 0 ? (buy / total * 100) : 50;
+      rows += `<tr>
+        <td>${st.toLocaleString('en-IN')}</td>
+        <td>${leg.toUpperCase()}</td>
+        <td style="color:#1D9E75;font-weight:500;">${buy  != null ? fmtQty(buy)  : '—'}</td>
+        <td style="color:#D85A30;font-weight:500;">${sell != null ? fmtQty(sell) : '—'}</td>
+        <td>
+          <div style="height:8px;border-radius:4px;overflow:hidden;display:flex;background:#f0f0ec;min-width:120px;">
+            <div style="background:#1D9E75;width:${buyPct.toFixed(1)}%;"></div>
+            <div style="background:#D85A30;width:${(100 - buyPct).toFixed(1)}%;"></div>
+          </div>
+        </td>
+      </tr>`;
+    });
+  });
+
+  body.innerHTML = rows || '<tr><td colspan="5" style="color:#aaa;text-align:center;padding:16px 0;">No order book data yet</td></tr>';
+
+  if (anyData) {
+    if (buyEl)  buyEl.textContent  = fmtQty(combinedBuy);
+    if (sellEl) sellEl.textContent = fmtQty(combinedSell);
+    if (imbEl) {
+      const total = combinedBuy + combinedSell;
+      const imb = total > 0 ? (combinedBuy - combinedSell) / total : 0;
+      imbEl.textContent = (imb >= 0 ? '+' : '') + (imb * 100).toFixed(1) + '%';
+      imbEl.style.color = imb > 0.05 ? '#1D9E75' : (imb < -0.05 ? '#D85A30' : '#888');
+    }
+  } else {
+    if (buyEl)  buyEl.textContent  = '—';
+    if (sellEl) sellEl.textContent = '—';
+    if (imbEl)  imbEl.textContent  = '—';
+  }
 }
 
 function selectOIChangeDefaultStrikes() {
