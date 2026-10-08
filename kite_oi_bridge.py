@@ -22,7 +22,8 @@ Dashboard tabs served: Option Chain & OI Moves · Selected Strike OI · Straddle
 Endpoints:
     GET  /                       → serves the dashboard HTML
     GET  /oi                     → snapshot for ALL strikes (OI, OI change)
-    GET  /ltp                    → live LTP + BS delta per strike, settlement VWAP,
+    GET  /ltp                    → live LTP + BS delta/gamma/GEX per strike, GEX summary
+                                   (net GEX, gamma flip, call/put wall), settlement VWAP,
                                    futures order flow, OpenHighLow snapshot
     GET  /oi/history             → 1-min rows for today or ?date=YYYY-MM-DD
     GET  /oi/dates               → dates that have history
@@ -138,20 +139,104 @@ def _years_to_expiry(expiry_str):
     return max(secs, 15 * 60) / (365.0 * 24 * 3600)
 
 
-def option_delta(S, K, T, ltp, opt_type):
-    """Signed Black-Scholes delta (CE 0..+1, PE -1..0) using the IV implied by
-    the option's own LTP. Returns None when there is nothing to price."""
+def _bs_gamma(S, K, T, r, sigma):
+    """Black-Scholes gamma (identical for CE and PE)."""
+    if T <= 0 or sigma <= 0 or S <= 0 or K <= 0:
+        return 0.0
+    d1 = (math.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * math.sqrt(T))
+    return math.exp(-0.5 * d1 * d1) / math.sqrt(2 * math.pi) / (S * sigma * math.sqrt(T))
+
+
+def option_greeks(S, K, T, ltp, opt_type):
+    """(delta, gamma, iv) from the IV implied by the option's own LTP.
+    delta is signed (CE 0..+1, PE -1..0); iv is a decimal (0.13 = 13%).
+    Returns (None, None, None) when there is nothing to price."""
     if not S or not K or not T or not ltp or ltp <= 0:
-        return None
+        return None, None, None
     iv = compute_iv(S, K, T, RISK_FREE, ltp, opt_type)
     if iv is None:
-        # Premium at/below intrinsic → no time value left: deep ITM, delta ±1.
+        # Premium at/below intrinsic → no time value left: deep ITM, delta ±1, no gamma.
         intrinsic = (S - K) if opt_type == "CE" else (K - S)
         if intrinsic > 0:
-            return 1.0 if opt_type == "CE" else -1.0
-        return None
+            return (1.0 if opt_type == "CE" else -1.0), 0.0, None
+        return None, None, None
     d = _bs_delta(S, K, T, RISK_FREE, iv, opt_type)   # always positive
-    return round(d if opt_type == "CE" else -d, 3)
+    return (round(d if opt_type == "CE" else -d, 3),
+            _bs_gamma(S, K, T, RISK_FREE, iv), iv)
+
+
+# ── GAMMA EXPOSURE (GEX) ──────────────────────────────────────────────────────
+# GEX per leg = gamma × OI × spot² × 1%   → ₹ change in dealer delta for a 1% move.
+# Sign convention (the standard "dealer GEX" one): dealers are assumed net LONG
+# the calls customers sold them and net SHORT the puts customers bought, so
+# call GEX counts positive and put GEX negative.
+#   Net GEX > 0 → dealers hedge against the move (buy dips / sell rips): pinning,
+#                 mean-reversion, lower realised vol.
+#   Net GEX < 0 → dealers hedge with the move: moves get amplified.
+# Gamma flip = spot level where total net GEX crosses zero (each strike's IV held
+# fixed, spot shifted). Totals only cover the tracked strike window
+# (OI_NUM_STRIKES) — widen it for a fuller picture.
+# Kite reports option OI in units (quantity), so no lot-size multiplier is
+# needed; set GEX_OI_MULTIPLIER if your feed ever reports OI in lots.
+GEX_OI_MULTIPLIER = float(os.environ.get("GEX_OI_MULTIPLIER", 1))
+
+
+def _leg_gex(spot, gamma, oi, opt_type):
+    """Signed ₹ GEX for one leg per 1% spot move."""
+    if gamma is None or not oi or not spot:
+        return 0.0
+    sign = 1.0 if opt_type == "CE" else -1.0
+    return sign * gamma * oi * GEX_OI_MULTIPLIER * spot * spot * 0.01
+
+
+def _gex_summary(spot, T, legs, strike_step):
+    """legs: list of dicts {strike, type, iv, oi, gex}. Returns the summary block."""
+    if not spot or not legs:
+        return None
+    total = sum(l["gex"] for l in legs)
+
+    by_strike = {}
+    for l in legs:
+        by_strike[l["strike"]] = by_strike.get(l["strike"], 0.0) + l["gex"]
+    ce = [l for l in legs if l["type"] == "CE" and l["gex"] > 0]
+    pe = [l for l in legs if l["type"] == "PE" and l["gex"] < 0]
+    call_wall = max(ce, key=lambda l: l["gex"])["strike"] if ce else None
+    put_wall  = min(pe, key=lambda l: l["gex"])["strike"] if pe else None
+
+    # Gamma flip: re-price total GEX across hypothetical spot levels spanning the
+    # tracked strike window, IV per leg held constant; take the zero crossing
+    # nearest to current spot (linear interpolation between grid points).
+    flip = None
+    priced = [l for l in legs if l["iv"] and l["oi"]]
+    strikes = sorted(by_strike)
+    if T and priced and len(strikes) >= 2:
+        lo, hi = strikes[0], strikes[-1]
+        step = max(strike_step / 10.0, 1.0)
+        def total_at(x):
+            return sum(_leg_gex(x, _bs_gamma(x, l["strike"], T, RISK_FREE, l["iv"]),
+                                l["oi"], l["type"]) for l in priced)
+        prev_x, prev_v = lo, total_at(lo)
+        x = lo + step
+        best = None
+        while x <= hi + 1e-9:
+            v = total_at(x)
+            if prev_v == 0 or (prev_v < 0) != (v < 0):
+                cross = prev_x if prev_v == 0 else prev_x + (x - prev_x) * (-prev_v) / (v - prev_v)
+                if best is None or abs(cross - spot) < abs(best - spot):
+                    best = cross
+            prev_x, prev_v = x, v
+            x += step
+        flip = round(best, 1) if best is not None else None
+
+    return {
+        "total":       round(total),            # ₹ per 1% move
+        "regime":      "positive" if total >= 0 else "negative",
+        "flip":        flip,
+        "call_wall":   call_wall,
+        "put_wall":    put_wall,
+        "per_strike":  {str(k): round(v) for k, v in by_strike.items()},
+        "window":      [strikes[0], strikes[-1]] if strikes else None,
+    }
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 
@@ -1588,19 +1673,29 @@ def get_ltp():
             "order_flow": _order_flow_payload(),
             "options": {},
         }
+        legs = []
         for token, meta in state["tokens"].items():
             snap = state["oi"].get(token, {})
             ltp  = snap.get("ltp", 0)
+            oi   = snap.get("oi", 0)
+            K    = float(meta["strike"])
+            otype = meta["instrument_type"]
+            delta, gamma, iv = option_greeks(spot, K, T, ltp, otype)
+            gex = _leg_gex(spot, gamma, oi, otype)
+            legs.append({"strike": int(K), "type": otype, "iv": iv, "oi": oi, "gex": gex})
             result["options"][meta["role_key"]] = {
                 "strike": meta["strike"],
-                "type":   meta["instrument_type"],
+                "type":   otype,
                 "symbol": meta["tradingsymbol"],
                 "ltp":    ltp,
-                "delta":  option_delta(spot, float(meta["strike"]), T, ltp,
-                                       meta["instrument_type"]),
+                "delta":  delta,
+                "gamma":  round(gamma, 7) if gamma is not None else None,
+                "iv":     round(iv * 100, 2) if iv else None,
+                "gex":    round(gex),                 # ₹ per 1% move, signed
                 "buy_qty":  snap.get("buy_qty"),
                 "sell_qty": snap.get("sell_qty"),
             }
+        result["gex"] = _gex_summary(spot, T, legs, STRIKE_STEP)
         # Piggyback the OpenHighLow snapshot on the existing 1-second LTP poll
         # so that tab gets tick-by-tick refresh for free, with no extra timer.
         result["open_high_low"] = _open_high_low_snapshot_unlocked()
@@ -1868,7 +1963,7 @@ if __name__ == "__main__":
     print(f"  GET  /oi/live-candle  latest forming candle snapshot")
     print(f"  GET  /                serves dashboard HTML")
     print(f"  GET  /oi              all strikes snapshot")
-    print(f"  GET  /ltp             latest LTP + delta snapshot")
+    print(f"  GET  /ltp             latest LTP + delta/gamma/GEX snapshot")
     print(f"  GET  /strikes         strike list")
     print(f"  GET  /oi/history      1-min rows + spot OHLC (today, or ?date=YYYY-MM-DD)")
     print(f"  GET  /oi/dates        dates that have history")
