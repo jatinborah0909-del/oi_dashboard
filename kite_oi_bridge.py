@@ -17,28 +17,27 @@ Index-specific behaviour
   INDEX=nifty   → table oi_history_nifty,   instrument name NIFTY,  exchange NSE, strike step 50
   INDEX=sensex  → table oi_history_sensex,  instrument name SENSEX, exchange BSE, strike step 100
 
-Endpoints (unchanged):
-    GET  /                 → serves the dashboard HTML
-    GET  /oi               → snapshot for ALL strikes + active bear/bull
-    GET  /ltp              → live LTP for all tokens
-    GET  /oi/history       → 1-min rows for today (all strikes + OHLC)
-    GET  /oi/live-candle   → currently forming 1-min candle
-    GET  /strikes          → strike list
-    GET  /oi/openhighlow   → OpenHighLow tab snapshot (also piggybacked on /ltp)
-    POST /oi/openhighlow/reseed → re-pull today's Open/High/Low from the exchange
-    POST /depth/watch/start            → create depth watcher (strike, type, seconds up to 600)
-    GET  /depth/watch/stream/<id>      → SSE: live tick-by-tick depth events
-    POST /depth/watch/stop/<id>        → cancel early
-    GET  /depth/watch/result/<id>      → full result after completion
-    GET  /health           → status + OHLC buffer
-    POST /reset-csv        → wipe today's rows, start fresh
+Dashboard tabs served: Option Chain & OI Moves · Selected Strike OI · Straddle · OpenHighLow
+
+Endpoints:
+    GET  /                       → serves the dashboard HTML
+    GET  /oi                     → snapshot for ALL strikes (OI, OI change)
+    GET  /ltp                    → live LTP + BS delta per strike, settlement VWAP,
+                                   futures order flow, OpenHighLow snapshot
+    GET  /oi/history             → 1-min rows for today or ?date=YYYY-MM-DD
+    GET  /oi/dates               → dates that have history
+    GET  /strikes                → strike list
+    GET  /oi/openhighlow         → OpenHighLow tab snapshot (also piggybacked on /ltp)
+    POST /oi/openhighlow/reseed  → re-pull today's Open/High/Low from the exchange
+    GET  /oi/openhighlow/debug   → explain why a strike is / isn't on the OHL lists
+    GET  /health                 → status + OHLC buffer
+    POST /reset-csv              → wipe today's rows, start fresh
 """
 
 import collections
 import json
 import os
 import threading
-import queue
 import time
 from datetime import datetime, timezone, timedelta, time as dtime
 
@@ -66,7 +65,7 @@ def is_market_open(dt=None):
 import math
 import psycopg2
 import psycopg2.extras
-from flask import Flask, jsonify, request, send_from_directory, Response
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from kiteconnect import KiteTicker, KiteConnect
 
@@ -118,388 +117,41 @@ def compute_iv(S, K, T, r, market_price, opt_type, tol=1e-5, max_iter=100):
             hi = mid
     return (lo + hi) / 2
 
-def _get_candle_close_ltps(tokens, n_candles):
-    """
-    Return {role_key: [ltp_close_c1, ltp_close_c2, ...]} for the last
-    n_candles completed 1-min rows. Falls back to live LTP when a row
-    doesn't have a close for that strike.
-    """
-    rows = list(oi_history)[-n_candles:] if len(oi_history) >= 1 else []
-    result = {meta["role_key"]: [] for meta in tokens.values()}
-    for row in rows:
-        for token, meta in tokens.items():
-            rk  = meta["role_key"]
-            ltp = (row.get(rk + "_ltp_close") or
-                   row.get(rk + "_ltp") or 0)
-            if ltp > 0:
-                result[rk].append(float(ltp))
-    return result
+# ── OPTION DELTA (Option Chain "Delta" column) ────────────────────────────────
+RISK_FREE = 0.065
 
 
-def _get_candle_close_ivs(tokens, n_candles):
-    """
-    Return {role_key: [iv_c1, iv_c2, ...]} from pre-computed iv_close
-    values already stored in oi_history rows.  When iv_close is present
-    we skip re-running Black-Scholes entirely — much faster.
-    Returns None if the rows don't have iv_close yet (first run or
-    rows written before this feature was deployed).
-    """
-    rows = list(oi_history)[-n_candles:] if len(oi_history) >= 1 else []
-    if not rows:
+def _years_to_expiry(expiry_str):
+    """Time to expiry in years, measured to 15:30 IST on expiry day rather than
+    in whole days, so delta stays sensible on expiry day itself.
+    Floored at 15 minutes so it never collapses to zero right at the close."""
+    if not expiry_str:
         return None
-    # Check whether the newest row actually has iv_close data
-    sample_rk = next(iter(tokens.values()))["role_key"] if tokens else None
-    if sample_rk and rows[-1].get(sample_rk + "_iv_close") is None:
-        return None   # rows pre-date this feature — fall back to LTP path
-    result = {meta["role_key"]: [] for meta in tokens.values()}
-    for row in rows:
-        for token, meta in tokens.items():
-            rk = meta["role_key"]
-            iv = row.get(rk + "_iv_close")
-            if iv is not None:
-                result[rk].append(float(iv))
-    return result
-
-
-def compute_iv_snapshot():
-    """
-    Compute IV and delta for every tracked strike.
-
-    Method (controlled by IV_CANDLE_AVG env var, default 3):
-      1. Pull LTP closes from the last IV_CANDLE_AVG completed 1-min candles.
-      2. Compute Black-Scholes IV for each candle-close LTP.
-      3. Average the IVs — smooths out spike candles.
-      4. Fall back to live LTP when fewer than IV_CANDLE_AVG candles exist.
-
-    Returns dict keyed by role_key:
-      {strike, type, ltp (latest), iv (% avg), iv_samples (list), delta}
-    """
-    RISK_FREE = 0.065
-
-    with state_lock:
-        spot       = state["spot"]
-        expiry_str = state["expiry_date"]
-        tokens     = dict(state["tokens"])
-        oi_snap    = dict(state["oi"])
-
-    if not spot or not expiry_str:
-        return {}
-
     try:
         from datetime import date as _date
-        today     = now_ist().date()
-        expiry    = _date.fromisoformat(expiry_str[:10])
-        days_left = max(0, (expiry - today).days)
+        d = _date.fromisoformat(str(expiry_str)[:10])
     except Exception:
-        return {}
-
-    T = max(days_left / 365.0, 1 / 365.0)
-    S = float(spot)
-
-    # Try to use pre-computed iv_close values from oi_history rows first.
-    # This avoids re-running Black-Scholes on data we already computed.
-    # Falls back to LTP-based computation for rows that pre-date this feature.
-    candle_ivs  = _get_candle_close_ivs(tokens, IV_CANDLE_AVG)
-    candle_ltps = None if candle_ivs is not None else _get_candle_close_ltps(tokens, IV_CANDLE_AVG)
-
-    result = {}
-    for token, meta in tokens.items():
-        rk       = meta["role_key"]
-        K        = float(meta["strike"])
-        opt_type = meta["instrument_type"]
-        live_ltp = float(oi_snap.get(token, {}).get("ltp", 0) or 0)
-
-        if candle_ivs is not None:
-            # Fast path: iv_close already stored — just average them
-            iv_samples = candle_ivs.get(rk, [])
-            if not iv_samples:
-                # Strike not in stored IVs (e.g. just rolled) — compute from live LTP
-                iv_live = compute_iv(S, K, T, RISK_FREE, live_ltp, opt_type) if live_ltp > 0 else None
-                if iv_live is None:
-                    continue
-                iv_samples = [round(iv_live * 100, 2)]
-        else:
-            # Slow path: compute IV from LTP candle closes (legacy rows)
-            ltp_list = (candle_ltps or {}).get(rk, [])
-            if not ltp_list:
-                ltp_list = [live_ltp] if live_ltp > 0 else []
-            if not ltp_list:
-                continue
-            iv_samples = []
-            for ltp in ltp_list:
-                iv = compute_iv(S, K, T, RISK_FREE, ltp, opt_type)
-                if iv is not None:
-                    iv_samples.append(round(iv * 100, 2))
-
-        if not iv_samples:
-            continue
-
-        avg_iv = round(sum(iv_samples) / len(iv_samples), 2)
-        delta  = _bs_delta(S, K, T, RISK_FREE, avg_iv / 100, opt_type)
-
-        result[rk] = {
-            "strike":     int(K),
-            "type":       opt_type,
-            "ltp":        round(live_ltp, 2),
-            "iv":         avg_iv,
-            "iv_samples": iv_samples,
-            "iv_n":       len(iv_samples),
-            "delta":      round(delta, 3),
-        }
-    return result
-
-def _find_by_delta(iv_map, target_delta, opt_type, tolerance=0.06):
-    """Return the iv_map entry closest to target_delta for a given opt_type."""
-    candidates = [
-        v for v in iv_map.values()
-        if v["type"] == opt_type and abs(v["delta"] - target_delta) <= tolerance
-    ]
-    if not candidates:
         return None
-    return min(candidates, key=lambda x: abs(x["delta"] - target_delta))
+    exp_dt = datetime(d.year, d.month, d.day,
+                      MARKET_CLOSE_HM[0], MARKET_CLOSE_HM[1], tzinfo=IST)
+    secs = (exp_dt - now_ist()).total_seconds()
+    return max(secs, 15 * 60) / (365.0 * 24 * 3600)
 
 
-def _target_strike_for_delta(S, T, r, atm_iv, target_delta, opt_type):
-    """
-    Invert Black-Scholes delta to find the strike that has a given delta,
-    using ATM IV as the vol seed.
-
-    For a CE:  delta = N(d1)  →  d1 = N_inv(delta)
-    For a PE:  delta = N(d1) - 1  →  d1 = N_inv(delta + 1)  [since we store |delta|]
-
-    d1 = (ln(S/K) + (r + 0.5σ²)T) / (σ√T)
-    Solving for K:
-        K = S * exp((r + 0.5σ²)T - d1 * σ√T)
-    """
-    import math
-
-    sigma = atm_iv / 100.0
-    if sigma <= 0 or T <= 0:
+def option_delta(S, K, T, ltp, opt_type):
+    """Signed Black-Scholes delta (CE 0..+1, PE -1..0) using the IV implied by
+    the option's own LTP. Returns None when there is nothing to price."""
+    if not S or not K or not T or not ltp or ltp <= 0:
         return None
-
-    # Map our always-positive delta convention back to N(d1)
-    # CE: delta = N(d1)              → d1 = N_inv(target_delta)
-    # PE: |delta| = 1 - N(d1)        → N(d1) = 1 - target_delta → d1 = N_inv(1 - target_delta)
-    nd1 = target_delta if opt_type == "CE" else (1.0 - target_delta)
-
-    # Clamp to avoid math domain errors at extreme deltas
-    nd1 = max(1e-6, min(1 - 1e-6, nd1))
-
-    # Inverse normal CDF via rational approximation (Beasley-Springer-Moro)
-    def _norm_inv(p):
-        a = [0, -3.969683028665376e+01,  2.209460984245205e+02,
-             -2.759285104469687e+02,  1.383577518672690e+02,
-             -3.066479806614716e+01,  2.506628277459239e+00]
-        b = [0, -5.447609879822406e+01,  1.615858368580409e+02,
-             -1.556989798598866e+02,  6.680131188771972e+01,
-             -1.328068155288572e+01]
-        c = [0, -7.784894002430293e-03, -3.223964580411365e-01,
-             -2.400758277161838e+00, -2.549732539343734e+00,
-              4.374664141464968e+00,  2.938163982698783e+00]
-        d = [0,  7.784695709041462e-03,  3.224671290700398e-01,
-              2.445134137142996e+00,  3.754408661907416e+00]
-        p_low, p_high = 0.02425, 1 - 0.02425
-        if p < p_low:
-            q = math.sqrt(-2 * math.log(p))
-            return (((((c[1]*q+c[2])*q+c[3])*q+c[4])*q+c[5])*q+c[6]) / \
-                   ((((d[1]*q+d[2])*q+d[3])*q+d[4])*q+1)
-        elif p <= p_high:
-            q = p - 0.5
-            r2 = q * q
-            return (((((a[1]*r2+a[2])*r2+a[3])*r2+a[4])*r2+a[5])*r2+a[6])*q / \
-                   (((((b[1]*r2+b[2])*r2+b[3])*r2+b[4])*r2+b[5])*r2+1)
-        else:
-            q = math.sqrt(-2 * math.log(1 - p))
-            return -(((((c[1]*q+c[2])*q+c[3])*q+c[4])*q+c[5])*q+c[6]) / \
-                    ((((d[1]*q+d[2])*q+d[3])*q+d[4])*q+1)
-
-    d1 = _norm_inv(nd1)
-    K = S * math.exp((r + 0.5 * sigma ** 2) * T - d1 * sigma * math.sqrt(T))
-    return K
-
-
-def compute_skew_by_delta(S, T, r, iv_map):
-    """
-    Compute IV skew at fixed delta targets (10/15/25/50/70) re-anchored to
-    current spot every call.
-
-    Steps for each delta level:
-      1. Use ATM IV as vol seed to back-solve the theoretical strike for that delta.
-      2. Snap to the nearest tracked strike (CE or PE independently).
-      3. Look up that strike's actual IV from iv_map.
-      4. Return the real IV at the real strike — not a delta-searched approximation.
-
-    This means that as spot moves, the strikes selected automatically shift
-    to the new delta-equivalent strikes. No tolerance fudging required.
-    """
-    DELTA_TARGETS = [
-        ("10", 0.10),
-        ("15", 0.15),
-        ("25", 0.25),
-        ("50", 0.50),
-        ("70", 0.70),
-    ]
-
-    # Build lookup: (strike, opt_type) → iv_map entry
-    strike_map = {}
-    for entry in iv_map.values():
-        strike_map[(entry["strike"], entry["type"])] = entry
-
-    if not strike_map:
-        return {}, {}
-
-    # Get all available strikes per type
-    ce_strikes = sorted(set(k for (k, t) in strike_map if t == "CE"))
-    pe_strikes = sorted(set(k for (k, t) in strike_map if t == "PE"))
-
-    if not ce_strikes or not pe_strikes:
-        return {}, {}
-
-    # Seed vol: use ATM CE IV (strike closest to spot)
-    atm_k = min(ce_strikes, key=lambda k: abs(k - S))
-    atm_entry = strike_map.get((atm_k, "CE"))
-    atm_iv = atm_entry["iv"] if atm_entry else None
-
-    # Fall back to median CE IV if ATM lookup fails
-    if atm_iv is None:
-        ce_ivs = [strike_map[(k, "CE")]["iv"] for k in ce_strikes if (k, "CE") in strike_map]
-        atm_iv = sorted(ce_ivs)[len(ce_ivs) // 2] if ce_ivs else 15.0
-
-    def snap(theoretical_k, available_strikes):
-        """Snap theoretical strike to nearest available tracked strike."""
-        if theoretical_k is None:
-            return None
-        return min(available_strikes, key=lambda k: abs(k - theoretical_k))
-
-    skew = {}
-    rr   = {}
-
-    for label, target_delta in DELTA_TARGETS:
-        # For OTM convention:
-        #   CE with target_delta → OTM call (strike > spot for delta < 0.5)
-        #   PE with target_delta → OTM put  (strike < spot for delta < 0.5)
-        # The inversion handles both OTM and ITM naturally via the delta formula.
-
-        ce_theoretical = _target_strike_for_delta(S, T, r, atm_iv, target_delta, "CE")
-        pe_theoretical = _target_strike_for_delta(S, T, r, atm_iv, target_delta, "PE")
-
-        ce_k = snap(ce_theoretical, ce_strikes)
-        pe_k = snap(pe_theoretical, pe_strikes)
-
-        ce_entry = strike_map.get((ce_k, "CE")) if ce_k is not None else None
-        pe_entry = strike_map.get((pe_k, "PE")) if pe_k is not None else None
-
-        skew[label] = {
-            "put_iv":      pe_entry["iv"]    if pe_entry else None,
-            "call_iv":     ce_entry["iv"]    if ce_entry else None,
-            "put_delta":   pe_entry["delta"] if pe_entry else None,
-            "call_delta":  ce_entry["delta"] if ce_entry else None,
-            "put_strike":  pe_k,
-            "call_strike": ce_k,
-            "put_ltp":     pe_entry["ltp"]   if pe_entry else None,
-            "call_ltp":    ce_entry["ltp"]   if ce_entry else None,
-            "put_iv_n":    pe_entry["iv_n"]  if pe_entry else None,
-            "call_iv_n":   ce_entry["iv_n"]  if ce_entry else None,
-            "atm_iv_seed": round(atm_iv, 2),          # useful for debugging
-            "ce_theoretical_k": round(ce_theoretical) if ce_theoretical else None,
-            "pe_theoretical_k": round(pe_theoretical) if pe_theoretical else None,
-        }
-
-        if pe_entry and ce_entry:
-            rr[label] = round(pe_entry["iv"] - ce_entry["iv"], 2)
-        else:
-            rr[label] = None
-
-    return skew, rr
-
-
-def _compute_iv_for_row(row: dict, tokens: dict, spot, expiry_str: str) -> dict:
-    """
-    Compute candle-close IV for every strike in `tokens` using the
-    ltp_close values already stored in `row`, then derive the 5 RR levels.
-
-    Returns a flat dict of fields to merge into the candle row:
-        {rk}_iv_close   — IV % at candle-close LTP   (e.g. s24300_ce_iv_close)
-        {rk}_delta      — BS delta at candle close    (overwrites OI delta field
-                          name clash: stored as {rk}_bs_delta instead)
-        iv_rr_10, iv_rr_15, iv_rr_25, iv_rr_50, iv_rr_70  — risk reversals
-        iv_atm_ce, iv_atm_pe  — ATM call/put IV for quick reference
-        iv_avg_rr       — average of OTM RRs (10/15/25)
-    """
-    RISK_FREE = 0.065
-    result    = {}
-
-    if not spot or not expiry_str:
-        return result
-
-    try:
-        from datetime import date as _date
-        today     = now_ist().date()
-        expiry    = _date.fromisoformat(expiry_str[:10])
-        days_left = max(0, (expiry - today).days)
-    except Exception:
-        return result
-
-    T = max(days_left / 365.0, 1 / 365.0)
-    S = float(spot)
-
-    # Build iv_map from candle-close LTPs stored in row
-    iv_map = {}
-    for token, meta in tokens.items():
-        rk       = meta["role_key"]
-        K        = float(meta["strike"])
-        opt_type = meta["instrument_type"]
-        ltp      = float(row.get(rk + "_ltp_close") or row.get(rk + "_ltp") or 0)
-        if ltp <= 0:
-            continue
-        iv = compute_iv(S, K, T, RISK_FREE, ltp, opt_type)
-        if iv is None:
-            continue
-        delta = _bs_delta(S, K, T, RISK_FREE, iv, opt_type)
-        iv_pct = round(iv * 100, 2)
-        result[rk + "_iv_close"] = iv_pct
-        result[rk + "_bs_delta"] = round(delta, 3)
-        iv_map[rk] = {
-            "strike": int(K),
-            "type":   opt_type,
-            "ltp":    ltp,
-            "iv":     iv_pct,
-            "iv_n":   1,
-            "delta":  round(delta, 3),
-        }
-
-    if not iv_map:
-        return result
-
-    # Derive RR at all 5 delta levels using spot-driven strike selection.
-    # Same logic as the live /iv endpoint — strikes are picked by inverting
-    # Black-Scholes delta so they track spot as it moves, not the fixed window.
-    skew_detail_full, rr_detail = compute_skew_by_delta(S, T, 0.065, iv_map)
-
-    rrs = {}
-    for label in ("10", "15", "25", "50", "70"):
-        rr_val = rr_detail.get(label)
-        result[f"iv_rr_{label}"] = rr_val
-        if rr_val is not None:
-            rrs[label] = rr_val
-            sd = skew_detail_full.get(label, {})
-            result[f"iv_rr_{label}_put_k"]  = sd.get("put_strike")
-            result[f"iv_rr_{label}_call_k"] = sd.get("call_strike")
-
-    # ATM IV convenience fields — snap to strike nearest spot
-    atm_k_ce  = min((e for e in iv_map.values() if e["type"] == "CE"),
-                    key=lambda e: abs(e["strike"] - S), default=None)
-    atm_k_pe  = min((e for e in iv_map.values() if e["type"] == "PE"),
-                    key=lambda e: abs(e["strike"] - S), default=None)
-    result["iv_atm_ce"] = atm_k_ce["iv"] if atm_k_ce else None
-    result["iv_atm_pe"] = atm_k_pe["iv"] if atm_k_pe else None
-
-    # avg_rr from OTM levels only
-    otm_rrs = [rrs[k] for k in ("10", "15", "25") if k in rrs and rrs[k] is not None]
-    result["iv_avg_rr"] = round(sum(otm_rrs) / len(otm_rrs), 2) if otm_rrs else None
-
-    return result
-
+    iv = compute_iv(S, K, T, RISK_FREE, ltp, opt_type)
+    if iv is None:
+        # Premium at/below intrinsic → no time value left: deep ITM, delta ±1.
+        intrinsic = (S - K) if opt_type == "CE" else (K - S)
+        if intrinsic > 0:
+            return 1.0 if opt_type == "CE" else -1.0
+        return None
+    d = _bs_delta(S, K, T, RISK_FREE, iv, opt_type)   # always positive
+    return round(d if opt_type == "CE" else -d, 3)
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 
@@ -544,25 +196,6 @@ if NUM_STRIKES % 2 == 0:
     NUM_STRIKES += 1          # force odd so ATM is centred
     print(f"Warning: OI_NUM_STRIKES must be odd — bumped to {NUM_STRIKES}")
 
-# IV_NUM_STRIKES: how many strikes around ATM to use for IV/skew computation.
-# Must be >= NUM_STRIKES to be meaningful; default 21 = ATM ±10 strikes.
-# A wider window ensures 70Δ (ITM) strikes are always in range.
-# Set IV_NUM_STRIKES=31 for ATM ±15 if you want deeper ITM coverage.
-# NOTE: IV strikes are computed from the SAME WebSocket tokens as OI.
-#       If IV_NUM_STRIKES > NUM_STRIKES, the extra strikes are fetched via
-#       kite.quote() at IV computation time (one REST call per /iv request).
-#       Keep IV_NUM_STRIKES <= NUM_STRIKES to avoid REST calls entirely.
-IV_NUM_STRIKES = int(os.environ.get("IV_NUM_STRIKES", max(21, NUM_STRIKES)))
-if IV_NUM_STRIKES % 2 == 0:
-    IV_NUM_STRIKES += 1
-    print(f"Warning: IV_NUM_STRIKES must be odd — bumped to {IV_NUM_STRIKES}")
-IV_HALF = IV_NUM_STRIKES // 2
-print(f"IV window: ATM ±{IV_HALF} strikes ({IV_NUM_STRIKES} total)")
-
-# IV_CANDLE_AVG: number of completed 1-min candles to average IV over.
-# Default 3 — smooths spike candles. Set IV_CANDLE_AVG=1 for raw candle-close.
-IV_CANDLE_AVG  = max(1, int(os.environ.get("IV_CANDLE_AVG", 3)))
-
 
 # ── APP ───────────────────────────────────────────────────────────────────────
 
@@ -600,12 +233,6 @@ def init_db():
                 );
                 CREATE INDEX IF NOT EXISTS idx_{DB_TABLE}_date
                     ON {DB_TABLE} (trade_date);
-                -- IV-specific indexes for fast backtesting queries
-                -- e.g. SELECT * WHERE iv_rr_25 > 5 AND trade_date = '2025-05-01'
-                CREATE INDEX IF NOT EXISTS idx_{DB_TABLE}_iv_rr25
-                    ON {DB_TABLE} ((data->>'iv_rr_25'));
-                CREATE INDEX IF NOT EXISTS idx_{DB_TABLE}_iv_avg_rr
-                    ON {DB_TABLE} ((data->>'iv_avg_rr'));
                 CREATE INDEX IF NOT EXISTS idx_{DB_TABLE}_date_time
                     ON {DB_TABLE} (trade_date, ts);
                 -- OpenHighLow latch-state persistence: one JSONB blob per
@@ -1078,93 +705,6 @@ def _order_flow_payload():
             for (t, r, dr, *_rest) in hist
         ],
     }
-
-
-# ── BROWSER LIVE STREAM (Server-Sent Events) ─────────────────────────────────
-# The Kite WebSocket already gives tick-by-tick updates to this backend.
-# These queues let Flask push the latest snapshot to all connected browsers
-# immediately, instead of waiting for /ltp or /oi/live-candle polling.
-stream_subscribers = []
-stream_lock = threading.Lock()
-
-def _make_live_payload_unlocked(elapsed_override=None):
-    """Build one browser-friendly payload. Caller must hold state_lock."""
-    now_ts = time.time()
-    payload = {
-        "type": "tick",
-        "as_of": now_ist().strftime("%H:%M:%S"),
-        "spot": state["spot"],
-        "fut_ltp": state["fut_ltp"],
-        "session_id": state["session_id"],
-        "atm_strike": state["atm_strike"],
-        "bear_strike": state["bear_strike"],
-        "bull_strike": state["bull_strike"],
-        "expiry_date": state["expiry_date"],
-        "settlement_vwap": _settlement_vwap_payload(),
-        "order_flow": _order_flow_payload(),
-        "options": {},
-        "live_candle": {"available": False},
-    }
-
-    for token, meta in state["tokens"].items():
-        snap = state["oi"].get(token, {})
-        payload["options"][meta["role_key"]] = {
-            "strike": meta["strike"],
-            "type": meta["instrument_type"],
-            "symbol": meta["tradingsymbol"],
-            "ltp": snap.get("ltp", 0),
-            "oi": snap.get("oi", 0),
-            "buy_qty": snap.get("buy_qty"),
-            "sell_qty": snap.get("sell_qty"),
-        }
-
-    if minute_buffer["start_ts"] is not None and minute_buffer["start_snap"] is not None:
-        start = minute_buffer["start_snap"]
-        elapsed = elapsed_override if elapsed_override is not None else round(now_ts - minute_buffer["start_ts"])
-        live = {
-            "available": True,
-            "elapsed_sec": elapsed,
-            "time_label": ts_to_ist(minute_buffer["start_ts"]).strftime("%H:%M") + "*",
-            "spot_open": round(minute_buffer["spot_open"]) if minute_buffer["spot_open"] else 0,
-            "spot_high": round(minute_buffer["spot_high"]) if minute_buffer["spot_high"] else 0,
-            "spot_low": round(minute_buffer["spot_low"]) if minute_buffer["spot_low"] else 0,
-            "spot_close": round(minute_buffer["spot_close"]) if minute_buffer["spot_close"] else 0,
-            "bear_strike": state["bear_strike"],
-            "bull_strike": state["bull_strike"],
-            "deltas": {},
-            "ltp_ohlc": {},
-        }
-        for token, meta in state["tokens"].items():
-            rk = meta["role_key"]
-            current_oi = state["oi"].get(token, {}).get("oi", 0)
-            start_oi = start.get(rk + "_oi", current_oi)
-            live["deltas"][rk] = {"oi": current_oi, "delta": current_oi - start_oi}
-            ohlc = minute_buffer["ltp_ohlc"].get(token, {})
-            if ohlc:
-                live["ltp_ohlc"][rk] = ohlc
-        payload["live_candle"] = live
-    return payload
-
-def _broadcast_live_payload(payload):
-    line = f"data: {json.dumps(payload, separators=(',', ':'))}\n\n"
-    stale = []
-    with stream_lock:
-        for q in list(stream_subscribers):
-            try:
-                if q.full():
-                    try:
-                        q.get_nowait()
-                    except Exception:
-                        pass
-                q.put_nowait(line)
-            except Exception:
-                stale.append(q)
-        for q in stale:
-            if q in stream_subscribers:
-                stream_subscribers.remove(q)
-
-def _broadcast_live_from_state_unlocked():
-    _broadcast_live_payload(_make_live_payload_unlocked())
 
 
 # ── INSTRUMENT HELPERS ────────────────────────────────────────────────────────
@@ -1716,31 +1256,6 @@ def _append_history():
         row[rk + "_baseline"]  = close.get(rk + "_baseline", 0)
         row[rk + "_delta"]     = close.get(rk + "_oi", 0) - start.get(rk + "_oi", 0)
 
-    # ── IV at candle close ───────────────────────────────────────────
-    # Compute Black-Scholes IV for every strike using the candle-close LTPs
-    # we just stored in `row`.  The result is merged into the same row so
-    # it lands in the JSONB blob alongside OI/LTP data — no schema change.
-    # Fields added: {rk}_iv_close, {rk}_bs_delta, iv_rr_10/15/25/50/70,
-    #               iv_rr_{n}_put_k, iv_rr_{n}_call_k, iv_atm_ce/pe, iv_avg_rr
-    try:
-        iv_fields = _compute_iv_for_row(
-            row,
-            dict(state["tokens"]),
-            state["spot"],
-            state["expiry_date"],
-        )
-        row.update(iv_fields)
-        iv_summary = (
-            f"RR25={iv_fields.get('iv_rr_25','?')} "
-            f"RR10={iv_fields.get('iv_rr_10','?')} "
-            f"ATM_CE={iv_fields.get('iv_atm_ce','?')} "
-            f"ATM_PE={iv_fields.get('iv_atm_pe','?')}"
-        )
-        print(f"[{row['time_label']}] IV close: {iv_summary}")
-    except Exception as _iv_err:
-        print(f"[{row['time_label']}] IV compute error (non-fatal): {_iv_err}")
-    # ─────────────────────────────────────────────────────────────────
-
     # Write to PostgreSQL (non-blocking — do it in a thread to avoid holding state_lock)
     threading.Thread(target=db_write_row, args=(row,), daemon=True).start()
     oi_history.append(row)
@@ -1761,279 +1276,6 @@ def _append_history():
         last_close = minute_buffer["ltp_ohlc"][token]["close"]
         new_ltp_ohlc[token] = {"open": last_close, "high": last_close, "low": last_close, "close": last_close}
     minute_buffer["ltp_ohlc"] = new_ltp_ohlc
-
-
-# ── ITM IV RATE-OF-CHANGE TRACKER ────────────────────────────────────────────
-# Fresh IV engine (replaces the old skew/RR signal):
-#   • Tracks TWO strikes: 2-strike ITM CALL (ATM − 2×step) and
-#     2-strike ITM PUT (ATM + 2×step).  Nifty example: spot 24000 →
-#     CE 23900, PE 24100.
-#   • On EVERY option tick, Black-Scholes IV is computed from tick LTP and
-#     the per-tick rate of change (RoC = iv_now − iv_prev, in IV points)
-#     is recorded.
-#   • Every 5 minutes the window closes: avg tick RoC, net ΔIV and RoC/min
-#     are computed per side, the spot move is measured, and the window is
-#     classified into one of 8 IV scenarios. A summary is PRINTED to the
-#     console and appended to history (served by /iv).
-#   • When spot moves ITM_ROLL_POINTS (default 2×STRIKE_STEP = 100 for
-#     Nifty) from the anchor, strikes re-anchor to the next 2-ITM pair.
-#     The per-tick baseline resets so the strike switch doesn't pollute RoC.
-#
-# All _itm_* functions are called with state_lock ALREADY HELD (from
-# on_ticks) unless noted. itm_iv is guarded by state_lock.
-
-ITM_WINDOW_SEC  = int(os.environ.get("ITM_WINDOW_SEC", 300))      # 5-min window
-ITM_ROLL_POINTS = float(os.environ.get("ITM_ROLL_POINTS", 2 * STRIKE_STEP))
-ITM_OFFSET      = 2 * STRIKE_STEP                                  # "2 strikes ITM"
-ITM_IV_TH       = float(os.environ.get("ITM_IV_TH",   0.15))       # IV pts: rising/falling threshold over window
-ITM_SPOT_TH     = float(os.environ.get("ITM_SPOT_TH", 0.08))       # % spot move: up/down threshold over window
-
-ITM_SCENARIOS = {
-    1: {"label": "Genuine fear — sell-off confirmed",
-        "desc":  "Spot falling + PE IV rising while CE IV is not. Real protective demand — trend continuation likely (SELL-side conviction)."},
-    2: {"label": "Suspect fall — TRAP / reversal risk",
-        "desc":  "Spot falling but PE IV flat or falling. Nobody paying up for protection — market doesn't believe the move. Watch for reversal."},
-    3: {"label": "Real momentum rally",
-        "desc":  "Spot rising + CE IV rising. Upside being chased with premium — genuine directional demand. Very sharp CE IV spikes near range highs can mark exhaustion."},
-    4: {"label": "IV-crush relief rally",
-        "desc":  "Spot rising while both IVs deflate. Hedges unwinding, calm continuation — good for sellers, bad for option buyers even with right direction."},
-    5: {"label": "Pre-event vol build-up",
-        "desc":  "Spot flat but both IVs rising. Market loading energy for a move without picking direction — breakout pending, premiums inflating."},
-    6: {"label": "Theta-crush rangebound",
-        "desc":  "Spot flat and both IVs bleeding. Sellers harvesting decay — no directional signal, short-premium regime."},
-    7: {"label": "Regime-change danger — both tails bid",
-        "desc":  "Spot falling and BOTH CE and PE IV rising. Whole distribution being repriced, not just one tail — genuine uncertainty, high danger."},
-    8: {"label": "Distrusted bounce — hedges held",
-        "desc":  "Spot rising but PE IV rising/elevated too. Smart money keeps protection on through the bounce — retest of lows often follows."},
-    0: {"label": "Neutral / mixed",
-        "desc":  "No clear combination of spot direction and IV behaviour in this window."},
-}
-
-
-def _itm_blank_side():
-    return {
-        "strike":    None,
-        "token":     None,
-        "ltp":       None,
-        "prev_iv":   None,     # last tick IV (baseline for next RoC)
-        "iv_first":  None,     # first IV of current 5-min window
-        "iv_live":   None,     # latest IV
-        "roc_sum":   0.0,      # Σ per-tick RoC (IV points)
-        "roc_last":  None,     # most recent per-tick RoC
-        "ticks":     0,        # ticks with a valid RoC this window
-    }
-
-
-itm_iv = {
-    "anchor_spot":     None,
-    "ce":              _itm_blank_side(),
-    "pe":              _itm_blank_side(),
-    "window_start":    None,   # datetime (IST)
-    "window_spot_open": None,
-    "rolls":           [],     # strike rolls inside the current window
-    "windows":         collections.deque(maxlen=150),   # completed 5-min summaries
-}
-
-
-def _itm_token_for(strike, opt_type):
-    """Find the websocket token for strike+type. state_lock must be held."""
-    rk = f"s{int(strike)}_{opt_type.lower()}"
-    for t, m in state["tokens"].items():
-        if m["role_key"] == rk:
-            return t
-    return None
-
-
-def _itm_T():
-    """Year-fraction to expiry from state. state_lock must be held."""
-    expiry_str = state.get("expiry_date")
-    if not expiry_str:
-        return None
-    try:
-        from datetime import date as _date
-        dte = max(0, (_date.fromisoformat(expiry_str[:10]) - now_ist().date()).days)
-        return max(dte / 365.0, 1 / 365.0)
-    except Exception:
-        return None
-
-
-def _itm_anchor(spot, reason="init"):
-    """(Re)select the 2-ITM strikes around current spot. state_lock held."""
-    atm = round(spot / STRIKE_STEP) * STRIKE_STEP
-    ce_k = atm - ITM_OFFSET        # ITM call = strike below spot
-    pe_k = atm + ITM_OFFSET        # ITM put  = strike above spot
-    old_ce = itm_iv["ce"]["strike"]
-    old_pe = itm_iv["pe"]["strike"]
-
-    for side, k in (("ce", ce_k), ("pe", pe_k)):
-        s = _itm_blank_side()
-        s["strike"] = k
-        s["token"]  = _itm_token_for(k, side.upper())
-        itm_iv[side] = s
-
-    itm_iv["anchor_spot"] = spot
-    if reason == "roll":
-        itm_iv["rolls"].append({
-            "time":  now_ist().strftime("%H:%M:%S"),
-            "spot":  round(spot, 2),
-            "from":  {"ce": old_ce, "pe": old_pe},
-            "to":    {"ce": ce_k,   "pe": pe_k},
-        })
-    print(f"[{now_ist().strftime('%H:%M:%S')}] ITM-IV strikes {reason}: "
-          f"spot={spot:.1f} ATM={atm} → CE {ce_k} / PE {pe_k}")
-
-
-def _itm_on_spot(spot):
-    """Called from on_ticks on every spot tick. state_lock held."""
-    if not spot:
-        return
-    if itm_iv["anchor_spot"] is None:
-        _itm_anchor(spot, "init")
-        itm_iv["window_start"]     = now_ist()
-        itm_iv["window_spot_open"] = spot
-        return
-    if abs(spot - itm_iv["anchor_spot"]) >= ITM_ROLL_POINTS:
-        _itm_anchor(spot, "roll")
-    _itm_maybe_close_window(spot)
-
-
-def _itm_on_option_tick(token, ltp):
-    """Called from on_ticks for every option tick. state_lock held."""
-    if not ltp or ltp <= 0:
-        return
-    side = None
-    if token == itm_iv["ce"]["token"]:
-        side = "ce"
-    elif token == itm_iv["pe"]["token"]:
-        side = "pe"
-    if side is None:
-        return
-
-    spot = state.get("spot")
-    T    = _itm_T()
-    if not spot or T is None:
-        return
-
-    s  = itm_iv[side]
-    iv = compute_iv(float(spot), float(s["strike"]), T, 0.065, float(ltp),
-                    side.upper())
-    if iv is None:
-        return
-    iv_pct = round(iv * 100, 4)
-
-    s["ltp"]     = float(ltp)
-    s["iv_live"] = iv_pct
-    if s["iv_first"] is None:
-        s["iv_first"] = iv_pct
-    if s["prev_iv"] is not None:
-        roc = round(iv_pct - s["prev_iv"], 4)      # IV points per tick
-        s["roc_last"] = roc
-        s["roc_sum"] += roc
-        s["ticks"]   += 1
-    s["prev_iv"] = iv_pct
-
-
-def _itm_side_summary(side_key):
-    """Snapshot metrics for one side of the current window."""
-    s = itm_iv[side_key]
-    d_iv = (round(s["iv_live"] - s["iv_first"], 4)
-            if (s["iv_live"] is not None and s["iv_first"] is not None) else None)
-    avg_roc = round(s["roc_sum"] / s["ticks"], 5) if s["ticks"] else None
-    return {
-        "strike":       s["strike"],
-        "ltp":          s["ltp"],
-        "iv_first":     s["iv_first"],
-        "iv_live":      s["iv_live"],
-        "d_iv":         d_iv,
-        "avg_tick_roc": avg_roc,
-        "roc_last":     s["roc_last"],
-        "ticks":        s["ticks"],
-    }
-
-
-def _itm_classify(spot_chg_pct, ce_d_iv, pe_d_iv):
-    """Map (spot direction × CE/PE IV direction) to one of the 8 scenarios."""
-    if spot_chg_pct is None or ce_d_iv is None or pe_d_iv is None:
-        return 0
-    spot_dir = "up" if spot_chg_pct > ITM_SPOT_TH else ("down" if spot_chg_pct < -ITM_SPOT_TH else "flat")
-    ce_dir   = "up" if ce_d_iv >  ITM_IV_TH else ("down" if ce_d_iv < -ITM_IV_TH else "flat")
-    pe_dir   = "up" if pe_d_iv >  ITM_IV_TH else ("down" if pe_d_iv < -ITM_IV_TH else "flat")
-
-    if spot_dir == "down":
-        if ce_dir == "up" and pe_dir == "up":  return 7   # both tails bid
-        if pe_dir == "up":                     return 1   # genuine fear
-        return 2                                          # PE flat/down → trap
-    if spot_dir == "up":
-        if pe_dir == "up":                     return 8   # distrusted bounce
-        if ce_dir == "up":                     return 3   # real momentum
-        if ce_dir == "down" and pe_dir == "down": return 4  # IV crush rally
-        return 0
-    # spot flat
-    if ce_dir == "up" and pe_dir == "up":      return 5   # pre-event build-up
-    if ce_dir == "down" and pe_dir == "down":  return 6   # theta crush
-    return 0
-
-
-def _itm_maybe_close_window(spot):
-    """Close + summarise the 5-min window when elapsed. state_lock held."""
-    ws = itm_iv["window_start"]
-    if ws is None:
-        return
-    elapsed = (now_ist() - ws).total_seconds()
-    if elapsed < ITM_WINDOW_SEC:
-        return
-
-    spot_open = itm_iv["window_spot_open"]
-    spot_chg_pct = (round((spot - spot_open) / spot_open * 100, 3)
-                    if spot_open else None)
-    minutes = elapsed / 60.0
-
-    summary = {
-        "start":        ws.strftime("%H:%M:%S"),
-        "end":          now_ist().strftime("%H:%M:%S"),
-        "spot_open":    round(spot_open, 2) if spot_open else None,
-        "spot_close":   round(spot, 2),
-        "spot_chg_pct": spot_chg_pct,
-        "rolls":        list(itm_iv["rolls"]),
-    }
-    for side in ("ce", "pe"):
-        sm = _itm_side_summary(side)
-        sm["roc_per_min"] = (round(sm["d_iv"] / minutes, 4)
-                             if sm["d_iv"] is not None and minutes > 0 else None)
-        summary[side] = sm
-
-    sc_id = _itm_classify(spot_chg_pct,
-                          summary["ce"]["d_iv"], summary["pe"]["d_iv"])
-    summary["scenario"] = {"id": sc_id, **ITM_SCENARIOS[sc_id]}
-    itm_iv["windows"].append(summary)
-
-    # ── the every-5-minute PRINT ──
-    def _fmt(sm, tag):
-        if sm["iv_first"] is None:
-            return f"  {tag:5s} s{sm['strike']}: no ticks this window"
-        return (f"  {tag:5s} s{sm['strike']}: IV {sm['iv_first']:.2f} → {sm['iv_live']:.2f}"
-                f"  ΔIV={sm['d_iv']:+.2f}"
-                f"  avgRoC={sm['avg_tick_roc'] if sm['avg_tick_roc'] is not None else 0:+.5f}/tick"
-                f"  ({sm['roc_per_min'] if sm['roc_per_min'] is not None else 0:+.3f} IVpts/min, {sm['ticks']} ticks)")
-    print("─" * 66)
-    print(f"[{summary['end']}] ITM IV 5-min window {summary['start']}–{summary['end']}")
-    print(_fmt(summary["ce"], "CALL"))
-    print(_fmt(summary["pe"], "PUT"))
-    print(f"  Spot: {summary['spot_open']} → {summary['spot_close']} "
-          f"({spot_chg_pct:+.2f}%)" if spot_chg_pct is not None else "  Spot: n/a")
-    print(f"  Scenario {sc_id} — {ITM_SCENARIOS[sc_id]['label']}")
-    print("─" * 66)
-
-    # reset window (keep strikes + prev_iv so tick RoC continues seamlessly)
-    for side in ("ce", "pe"):
-        s = itm_iv[side]
-        s["iv_first"] = s["iv_live"]
-        s["roc_sum"]  = 0.0
-        s["roc_last"] = None
-        s["ticks"]    = 0
-    itm_iv["window_start"]     = now_ist()
-    itm_iv["window_spot_open"] = spot
-    itm_iv["rolls"]            = []
 
 
 # ── TICKER ────────────────────────────────────────────────────────────────────
@@ -2063,7 +1305,6 @@ def build_ticker():
                     _update_spot_ohlc(new_spot)
                     _update_settlement_vwap(new_spot)
                     _check_roll(new_spot)
-                    _itm_on_spot(new_spot)
                     # Refresh basis whenever spot updates
                     if state["fut_ltp"]:
                         _update_basis(state["fut_ltp"], new_spot)
@@ -2117,7 +1358,6 @@ def build_ticker():
                     "depth": {"buy": buy_levels, "sell": sell_levels},
                 }
                 _update_ltp_ohlc(token, current_ltp)
-                _itm_on_option_tick(token, current_ltp)
 
             # ── Synthetic spot from ATM CE − PE + K ─────────────────────────
             # Computed once per tick batch (after all ticks processed) using
@@ -2139,7 +1379,6 @@ def build_ticker():
                 _update_synth_vwap(ce_ltp, pe_ltp, atm, ce_qty, pe_qty)
 
             _append_history()
-            _broadcast_live_from_state_unlocked()
 
     def on_connect(ws, response):
         with state_lock:
@@ -2338,9 +1577,12 @@ def get_oi():
 @app.route("/ltp")
 def get_ltp():
     with state_lock:
+        spot = state["spot"]
+        T    = _years_to_expiry(state["expiry_date"])
         result = {
-            "spot":    state["spot"],
+            "spot":    spot,
             "fut_ltp": state["fut_ltp"],
+            "expiry_date": state["expiry_date"],
             "as_of":   now_ist().strftime("%H:%M:%S"),
             "settlement_vwap": _settlement_vwap_payload(),
             "order_flow": _order_flow_payload(),
@@ -2348,11 +1590,14 @@ def get_ltp():
         }
         for token, meta in state["tokens"].items():
             snap = state["oi"].get(token, {})
+            ltp  = snap.get("ltp", 0)
             result["options"][meta["role_key"]] = {
                 "strike": meta["strike"],
                 "type":   meta["instrument_type"],
                 "symbol": meta["tradingsymbol"],
-                "ltp":    snap.get("ltp", 0),
+                "ltp":    ltp,
+                "delta":  option_delta(spot, float(meta["strike"]), T, ltp,
+                                       meta["instrument_type"]),
                 "buy_qty":  snap.get("buy_qty"),
                 "sell_qty": snap.get("sell_qty"),
             }
@@ -2524,533 +1769,6 @@ def get_dates():
         return jsonify({"dates": []})
 
 
-@app.route("/oi/live-candle")
-def live_candle():
-    with state_lock:
-        if minute_buffer["start_ts"] is None or minute_buffer["start_snap"] is None:
-            return jsonify({"available": False})
-
-        now          = time.time()
-        current_snap = _current_snap(now)
-        start        = minute_buffer["start_snap"]
-        elapsed      = round(now - minute_buffer["start_ts"])
-
-        result = {
-            "available":   True,
-            "elapsed_sec": elapsed,
-            "time_label":  ts_to_ist(minute_buffer["start_ts"]).strftime("%H:%M") + "*",
-            "spot_open":   round(minute_buffer["spot_open"])  if minute_buffer["spot_open"]  else 0,
-            "spot_high":   round(minute_buffer["spot_high"])  if minute_buffer["spot_high"]  else 0,
-            "spot_low":    round(minute_buffer["spot_low"])   if minute_buffer["spot_low"]   else 0,
-            "spot_close":  round(minute_buffer["spot_close"]) if minute_buffer["spot_close"] else 0,
-            "bear_strike": state["bear_strike"],
-            "bull_strike": state["bull_strike"],
-            "deltas":      {},
-        }
-
-        for token, meta in state["tokens"].items():
-            rk         = meta["role_key"]
-            current_oi = state["oi"].get(token, {}).get("oi", 0)
-            start_oi   = start.get(rk + "_oi", current_oi)
-            result["deltas"][rk] = {
-                "oi":    current_oi,
-                "delta": current_oi - start_oi,
-            }
-
-    return jsonify(result)
-
-
-
-@app.route("/stream")
-def stream_ticks():
-    """Push tick-by-tick snapshots to the browser using Server-Sent Events."""
-    q = queue.Queue(maxsize=10)
-    with stream_lock:
-        stream_subscribers.append(q)
-
-    def gen():
-        try:
-            # Send an initial snapshot immediately so the chart does not wait for the next tick.
-            with state_lock:
-                initial = _make_live_payload_unlocked(elapsed_override=0)
-            yield f"data: {json.dumps(initial, separators=(',', ':'))}\n\n"
-            while True:
-                try:
-                    yield q.get(timeout=15)
-                except queue.Empty:
-                    yield ": keepalive\n\n"
-        finally:
-            with stream_lock:
-                if q in stream_subscribers:
-                    stream_subscribers.remove(q)
-
-    return Response(gen(), mimetype="text/event-stream", headers={
-        "Cache-Control": "no-cache",
-        "X-Accel-Buffering": "no",
-    })
-
-# ── DEPTH WATCHER — background tasks + SSE streaming ─────────────────────────
-#
-# Architecture:
-#   POST /depth/watch/start              → creates a watcher, returns watch_id
-#   GET  /depth/watch/stream/<watch_id>  → SSE: one event/sec while running,
-#                                          then a final "done" event with summary
-#   POST /depth/watch/stop/<watch_id>    → cancel early
-#   GET  /depth/watch/result/<watch_id>  → full result after completion
-#
-# This avoids the 120-s HTTP timeout: the SSE connection is a long-lived
-# streaming response (same pattern as /stream), not a blocking request.
-# Duration up to 600 s (10 min). Watchers auto-expire after 30 min.
-
-_dw_watchers = {}          # watch_id → watcher dict
-_dw_lock     = threading.Lock()
-
-
-def _dw_interpret(opt_type, oi_delta, avg_imb, samples_n):
-    if oi_delta < -5000 and avg_imb > 0.1:
-        return (f"{opt_type} shorts covering via limit buys — OI fell {oi_delta:,} "
-                f"over {samples_n}s, bid side heavier. Piggyback on big_bid_prices.")
-    if oi_delta < -5000 and avg_imb < -0.1:
-        return (f"{opt_type} OI falling but ask side heavy — likely market-order "
-                f"covering or mixed signals. Check LTP direction.")
-    if oi_delta < -1000 and abs(avg_imb) < 0.1:
-        return (f"{opt_type} OI declining ({oi_delta:,}), depth balanced — "
-                f"moderate unwinding, no strong limit-order signal.")
-    if oi_delta > 5000 and avg_imb < -0.1:
-        return (f"Fresh {opt_type} shorts being added — OI rising +{oi_delta:,}, "
-                f"ask side heavy. Sellers entering via limit orders.")
-    if oi_delta > 5000 and avg_imb > 0.1:
-        return (f"{opt_type} OI rising +{oi_delta:,} with bid-heavy book — "
-                f"possible long buildup or other-side short covering.")
-    return (f"No dominant signal yet. OI delta={oi_delta:,}, "
-            f"avg imbalance={avg_imb:+.3f} over {samples_n}s.")
-
-
-def _dw_build_summary(opt_type, samples, bid_tracker, ask_tracker, big):
-    if not samples:
-        return {}
-    oi_start  = samples[0]["oi"]
-    oi_end    = samples[-1]["oi"]
-    ltp_start = samples[0]["ltp"]
-    ltp_end   = samples[-1]["ltp"]
-    imb_vals  = [s["imbalance"] for s in samples]
-    avg_imb   = round(sum(imb_vals) / len(imb_vals), 3)
-    oi_delta  = oi_end - oi_start
-
-    big_bids = sorted(
-        [{"price": p, "peak_qty": v["peak"], "seen_count": v["count"]}
-         for p, v in bid_tracker.items() if v["peak"] >= big],
-        key=lambda x: -x["peak_qty"]
-    )
-    big_asks = sorted(
-        [{"price": p, "peak_qty": v["peak"], "seen_count": v["count"]}
-         for p, v in ask_tracker.items() if v["peak"] >= big],
-        key=lambda x: -x["peak_qty"]
-    )
-    return {
-        "oi_start":       oi_start,
-        "oi_end":         oi_end,
-        "oi_delta":       oi_delta,
-        "ltp_start":      ltp_start,
-        "ltp_end":        ltp_end,
-        "avg_imbalance":  avg_imb,
-        "min_imbalance":  min(imb_vals),
-        "max_imbalance":  max(imb_vals),
-        "big_bid_prices": big_bids,
-        "big_ask_prices": big_asks,
-        "interpretation": _dw_interpret(opt_type, oi_delta, avg_imb, len(samples)),
-    }
-
-
-def _dw_worker(watch_id):
-    """Background thread: samples depth every second, pushes to per-watcher queue."""
-    with _dw_lock:
-        w = _dw_watchers.get(watch_id)
-    if not w:
-        return
-
-    token    = w["token"]
-    opt_type = w["opt_type"]
-    duration = w["duration"]
-    big      = w["big"]
-    q        = w["queue"]
-
-    samples     = []
-    bid_tracker = {}
-    ask_tracker = {}
-
-    for i in range(duration):
-        # Check for stop signal
-        with _dw_lock:
-            if _dw_watchers.get(watch_id, {}).get("stopped"):
-                break
-
-        snap        = state["oi"].get(token, {})
-        depth       = snap.get("depth", {})
-        buy_levels  = depth.get("buy",  [])
-        sell_levels = depth.get("sell", [])
-
-        total_bid = sum(l.get("quantity", 0) for l in buy_levels)
-        total_ask = sum(l.get("quantity", 0) for l in sell_levels)
-        denom     = total_bid + total_ask
-
-        for lv in buy_levels:
-            p, qty = lv.get("price", 0), lv.get("quantity", 0)
-            if p:
-                if p not in bid_tracker:
-                    bid_tracker[p] = {"peak": qty, "count": 1}
-                else:
-                    bid_tracker[p]["peak"]   = max(bid_tracker[p]["peak"], qty)
-                    bid_tracker[p]["count"] += 1
-
-        for lv in sell_levels:
-            p, qty = lv.get("price", 0), lv.get("quantity", 0)
-            if p:
-                if p not in ask_tracker:
-                    ask_tracker[p] = {"peak": qty, "count": 1}
-                else:
-                    ask_tracker[p]["peak"]   = max(ask_tracker[p]["peak"], qty)
-                    ask_tracker[p]["count"] += 1
-
-        sample = {
-            "t":          now_ist().strftime("%H:%M:%S"),
-            "seq":        i + 1,
-            "ltp":        snap.get("ltp", 0),
-            "oi":         snap.get("oi", 0),
-            "bid_qty":    total_bid,
-            "ask_qty":    total_ask,
-            "imbalance":  round((total_bid - total_ask) / denom, 3) if denom else 0,
-            "best_bid":   buy_levels[0].get("price", 0)  if buy_levels  else 0,
-            "best_ask":   sell_levels[0].get("price", 0) if sell_levels else 0,
-            "bid_levels": buy_levels,
-            "ask_levels": sell_levels,
-        }
-        samples.append(sample)
-
-        # Rolling summary pushed with every tick so UI updates live
-        rolling = _dw_build_summary(opt_type, samples, bid_tracker, ask_tracker, big)
-
-        event = {
-            "type":       "tick",
-            "seq":        i + 1,
-            "remaining":  duration - i - 1,
-            "sample":     sample,
-            "rolling":    rolling,
-        }
-        try:
-            q.put_nowait(json.dumps(event))
-        except Exception:
-            pass
-
-        time.sleep(1)
-
-    # Final summary
-    final_summary = _dw_build_summary(opt_type, samples, bid_tracker, ask_tracker, big)
-    done_event = {
-        "type":    "done",
-        "samples": samples,
-        "summary": final_summary,
-    }
-    try:
-        q.put_nowait(json.dumps(done_event))
-    except Exception:
-        pass
-
-    # Store result for /result endpoint
-    with _dw_lock:
-        if watch_id in _dw_watchers:
-            _dw_watchers[watch_id]["result"]   = done_event
-            _dw_watchers[watch_id]["finished"] = True
-
-
-@app.route("/depth/watch/start", methods=["POST"])
-def dw_start():
-    """
-    Create a depth watcher background task.
-
-    JSON body (or query params):
-        strike     int    e.g. 24000
-        type       CE|PE
-        seconds    int    1–600  (up to 10 minutes)
-        threshold  int    big-order cutoff in lots, default 500
-
-    Returns: { watch_id, strike, type, symbol, duration }
-    """
-    data = request.get_json(silent=True) or {}
-
-    def _p(key, default):
-        return data.get(key) or request.args.get(key, default)
-
-    try:
-        strike   = int(_p("strike", 0))
-        opt_type = str(_p("type", "CE")).upper()
-        duration = min(max(int(_p("seconds", 30)), 1), 600)
-        big      = max(1, int(_p("threshold", 500)))
-    except (ValueError, TypeError):
-        return jsonify({"error": "Invalid params"}), 400
-
-    if opt_type not in ("CE", "PE"):
-        return jsonify({"error": "type must be CE or PE"}), 400
-
-    role_key = f"s{strike}_{opt_type.lower()}"
-    with state_lock:
-        token  = next((t for t, m in state["tokens"].items()
-                       if m["role_key"] == role_key), None)
-        symbol = state["tokens"][token]["tradingsymbol"] if token else None
-
-    if token is None:
-        tracked = sorted(f"{m['strike']}{m['instrument_type']}"
-                         for m in state["tokens"].values())
-        return jsonify({"error": f"{role_key} not tracked. Available: {tracked}"}), 404
-
-    import uuid
-    watch_id = uuid.uuid4().hex[:8]
-
-    watcher = {
-        "watch_id":  watch_id,
-        "strike":    strike,
-        "opt_type":  opt_type,
-        "symbol":    symbol,
-        "duration":  duration,
-        "big":       big,
-        "token":     token,
-        "queue":     __import__("queue").Queue(maxsize=700),
-        "stopped":   False,
-        "finished":  False,
-        "result":    None,
-        "created_at": time.time(),
-    }
-
-    with _dw_lock:
-        # Prune stale watchers (> 30 min old)
-        cutoff = time.time() - 1800
-        stale  = [k for k, v in _dw_watchers.items() if v["created_at"] < cutoff]
-        for k in stale:
-            del _dw_watchers[k]
-        _dw_watchers[watch_id] = watcher
-
-    threading.Thread(target=_dw_worker, args=(watch_id,), daemon=True).start()
-    print(f"[{now_ist().strftime('%H:%M:%S')}] Depth watcher {watch_id} started: "
-          f"{strike}{opt_type} {duration}s threshold={big}")
-
-    return jsonify({
-        "watch_id": watch_id,
-        "strike":   strike,
-        "type":     opt_type,
-        "symbol":   symbol,
-        "duration": duration,
-    })
-
-
-@app.route("/depth/watch/stream/<watch_id>")
-def dw_stream(watch_id):
-    """SSE stream for a running depth watcher. Sends one event/sec."""
-    with _dw_lock:
-        w = _dw_watchers.get(watch_id)
-    if not w:
-        return Response("data: {\"error\":\"watch_id not found\"}\n\n",
-                        mimetype="text/event-stream", status=404)
-
-    q = w["queue"]
-
-    def gen():
-        while True:
-            try:
-                msg = q.get(timeout=20)
-                yield f"data: {msg}\n\n"
-                parsed = json.loads(msg)
-                if parsed.get("type") == "done":
-                    break
-            except __import__("queue").Empty:
-                yield ": keepalive\n\n"
-                # If worker finished but queue is empty, close
-                with _dw_lock:
-                    if _dw_watchers.get(watch_id, {}).get("finished"):
-                        break
-
-    return Response(gen(), mimetype="text/event-stream", headers={
-        "Cache-Control":    "no-cache",
-        "X-Accel-Buffering": "no",
-    })
-
-
-@app.route("/depth/watch/stop/<watch_id>", methods=["POST"])
-def dw_stop(watch_id):
-    """Signal a running watcher to stop after the current second."""
-    with _dw_lock:
-        w = _dw_watchers.get(watch_id)
-    if not w:
-        return jsonify({"error": "watch_id not found"}), 404
-    w["stopped"] = True
-    return jsonify({"status": "stop signal sent", "watch_id": watch_id})
-
-
-@app.route("/depth/watch/result/<watch_id>")
-def dw_result(watch_id):
-    """Return the full result of a completed watcher."""
-    with _dw_lock:
-        w = _dw_watchers.get(watch_id)
-    if not w:
-        return jsonify({"error": "watch_id not found"}), 404
-    if not w["finished"]:
-        return jsonify({"status": "still_running",
-                        "watch_id": watch_id}), 202
-    return jsonify(w["result"])
-
-
-@app.route("/iv")
-def get_iv():
-    """
-    ITM IV rate-of-change tracker (fresh implementation).
-
-    Tracks the 2-strike ITM CALL (ATM − 2×step) and 2-strike ITM PUT
-    (ATM + 2×step). IV is computed on every tick; the per-tick RoC is
-    averaged over a 5-minute window, classified into one of 8 scenarios,
-    printed to the console and returned here.
-    """
-    with state_lock:
-        spot       = state["spot"]
-        expiry_str = state["expiry_date"]
-
-        if not spot or itm_iv["anchor_spot"] is None:
-            return jsonify({"available": False,
-                            "reason": "ITM IV tracker not ready — waiting for ticks"})
-
-        # Safety: also close the window from here in case ticks pause.
-        _itm_maybe_close_window(spot)
-
-        ws = itm_iv["window_start"]
-        elapsed = (now_ist() - ws).total_seconds() if ws else 0
-        spot_open = itm_iv["window_spot_open"]
-        live_window = {
-            "start":        ws.strftime("%H:%M:%S") if ws else None,
-            "elapsed_s":    int(elapsed),
-            "remaining_s":  max(0, ITM_WINDOW_SEC - int(elapsed)),
-            "spot_open":    round(spot_open, 2) if spot_open else None,
-            "spot_chg_pct": (round((spot - spot_open) / spot_open * 100, 3)
-                             if spot_open else None),
-            "ce":           _itm_side_summary("ce"),
-            "pe":           _itm_side_summary("pe"),
-            "rolls":        list(itm_iv["rolls"]),
-        }
-        completed = list(itm_iv["windows"])
-        anchor    = itm_iv["anchor_spot"]
-
-    dte = None
-    if expiry_str:
-        try:
-            from datetime import date as _date
-            dte = max(0, (_date.fromisoformat(expiry_str[:10]) - now_ist().date()).days)
-        except Exception:
-            pass
-
-    return jsonify({
-        "available":    True,
-        "as_of":        now_ist().strftime("%H:%M:%S"),
-        "spot":         round(spot, 2),
-        "expiry_date":  expiry_str,
-        "dte":          dte,
-        "anchor_spot":  round(anchor, 2) if anchor else None,
-        "roll_points":  ITM_ROLL_POINTS,
-        "strike_step":  STRIKE_STEP,
-        "window_sec":   ITM_WINDOW_SEC,
-        "iv_th":        ITM_IV_TH,
-        "spot_th":      ITM_SPOT_TH,
-        "window":       live_window,
-        "windows":      completed,          # oldest → newest
-        "scenarios":    ITM_SCENARIOS,
-    })
-
-
-@app.route("/iv/history")
-def get_iv_history():
-    """
-    Return per-minute IV snapshots for a given date, extracted from the
-    stored JSONB rows.  Each row already has iv_rr_*, iv_atm_*, iv_avg_rr
-    and per-strike iv_close fields written at candle-close time.
-
-    Query params:
-        date=YYYY-MM-DD   (default: today)
-        strikes=1         include per-strike iv_close fields (default: 0)
-
-    Response: list of dicts, one per minute, newest-last:
-    [
-      {
-        "time_label": "09:15",
-        "ts": 1234567890.0,
-        "spot_close": 24312,
-        "iv_rr_10": 3.2,  "iv_rr_15": 2.8,  "iv_rr_25": 2.1,
-        "iv_rr_50": -0.4, "iv_rr_70": -1.1,
-        "iv_atm_ce": 17.4, "iv_atm_pe": 18.1,
-        "iv_avg_rr": 2.7,
-        # if strikes=1:
-        "s24300_ce_iv_close": 17.4,
-        "s24300_pe_iv_close": 18.1,
-        ...
-      },
-      ...
-    ]
-    """
-    date_param    = request.args.get("date", "").strip()
-    include_strikes = request.args.get("strikes", "0").strip() == "1"
-
-    IV_FIELDS = (
-        "time_label", "ts", "spot_close", "spot_open", "spot_high", "spot_low",
-        "iv_rr_10", "iv_rr_15", "iv_rr_25", "iv_rr_50", "iv_rr_70",
-        "iv_rr_10_put_k", "iv_rr_10_call_k",
-        "iv_rr_15_put_k", "iv_rr_15_call_k",
-        "iv_rr_25_put_k", "iv_rr_25_call_k",
-        "iv_rr_50_put_k", "iv_rr_50_call_k",
-        "iv_rr_70_put_k", "iv_rr_70_call_k",
-        "iv_atm_ce", "iv_atm_pe", "iv_avg_rr",
-    )
-
-    try:
-        if date_param:
-            from datetime import date as _date
-            _date.fromisoformat(date_param)
-            rows = db_read_by_date(date_param)
-        else:
-            rows = db_read_today()
-    except ValueError:
-        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    out = []
-    for row in rows:
-        rec = {k: row.get(k) for k in IV_FIELDS}
-        if include_strikes:
-            for k, v in row.items():
-                if k.endswith("_iv_close") or k.endswith("_bs_delta"):
-                    rec[k] = v
-        out.append(rec)
-
-    return jsonify(out)
-
-
-@app.route("/iv/dates")
-def get_iv_dates():
-    """
-    Return dates that have at least one row with iv_rr_25 populated.
-    Useful for the frontend date picker to show which days have IV data.
-    """
-    try:
-        with get_db() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    f"""
-                    SELECT DISTINCT trade_date
-                    FROM {DB_TABLE}
-                    WHERE (data->>'iv_rr_25') IS NOT NULL
-                    ORDER BY trade_date DESC
-                    """
-                )
-                dates = [str(r[0]) for r in cur.fetchall()]
-        return jsonify({"dates": dates})
-    except Exception as e:
-        return jsonify({"dates": [], "error": str(e)})
-
 
 @app.route("/health")
 def health():
@@ -3094,249 +1812,6 @@ def reset_csv():
         minute_buffer["ltp_ohlc"]      = {}
     print(f"[{now_ist().strftime('%H:%M:%S')}] DB reset. Session 0.")
     return jsonify({"status": "ok", "message": "Today's rows cleared. Session reset to 0."})
-
-
-# ── STRADDLE-IMPLIED PREMIUM RANGE (R1/S1 PER STRIKE) ────────────────────────
-#
-#   exp_move = PR_STRADDLE_FACTOR × ATM straddle (CE + PE LTP at ATM strike)
-#   For each strike, Black-Scholes repriced at both spot boundaries:
-#       CE:  R1 = price(spot + exp_move),   S1 = price(spot − exp_move)
-#       PE:  R1 = price(spot − exp_move),   S1 = price(spot + exp_move)
-#   Corrections:
-#       theta   — boundaries priced at T − PR_THETA_DAYS
-#       IV path — IV crushed PR_IV_SHIFT pts at the up-boundary, popped at
-#                 the down-boundary (Nifty spot/IV anticorrelation)
-#
-#   Two modes:
-#       live      — band re-centres on current spot + current straddle.
-#                   Best for scanning FRESH entries (what's achievable from here).
-#       anchored  — spot/straddle/IVs frozen at a snapshot (auto-captured on
-#                   first anchored call of the day, or re-captured via POST
-#                   /premium-range/anchor at trade entry). Boundaries stay
-#                   fixed all day; only theta keeps breathing. Best for
-#                   TARGETS/STOPS on open positions — no moving goalposts.
-
-PR_STRADDLE_FACTOR = float(os.environ.get("PR_STRADDLE_FACTOR", 0.8))
-PR_IV_SHIFT        = float(os.environ.get("PR_IV_SHIFT", 1.0))    # IV pts at boundaries
-PR_THETA_DAYS      = float(os.environ.get("PR_THETA_DAYS", 0.5))  # decay until target hit
-
-_pr_lock   = threading.Lock()
-_pr_anchor = None   # {"date","time","spot","straddle","legs","exp_move","band","ivs":{rk:{...}}}
-
-
-def _pr_T(days_left):
-    return max(days_left / 365.0, 1 / 365.0)
-
-
-def _pr_days_left(expiry_str):
-    try:
-        from datetime import date as _date
-        return max(0, (_date.fromisoformat(expiry_str[:10]) - now_ist().date()).days)
-    except Exception:
-        return None
-
-
-def _pr_atm_straddle(tokens, oi_snap, atm):
-    """(straddle, ce_ltp, pe_ltp) at the ATM strike — Nones if legs unpriced."""
-    ce_ltp = pe_ltp = None
-    for token, meta in tokens.items():
-        if float(meta["strike"]) != float(atm):
-            continue
-        ltp = float(oi_snap.get(token, {}).get("ltp", 0) or 0)
-        if ltp <= 0:
-            continue
-        if meta["instrument_type"] == "CE":
-            ce_ltp = ltp
-        elif meta["instrument_type"] == "PE":
-            pe_ltp = ltp
-    if ce_ltp is None or pe_ltp is None:
-        return None, ce_ltp, pe_ltp
-    return ce_ltp + pe_ltp, ce_ltp, pe_ltp
-
-
-def _pr_capture_anchor():
-    """Snapshot spot/straddle/per-strike IVs right now. Returns anchor or None.
-    Takes state_lock itself — do NOT call with the lock held."""
-    RISK_FREE = 0.065
-    with state_lock:
-        spot       = state["spot"]
-        atm        = state["atm_strike"]
-        expiry_str = state["expiry_date"]
-        tokens     = dict(state["tokens"])
-        oi_snap    = dict(state["oi"])
-
-    if not spot or not atm or not expiry_str:
-        return None
-    straddle, ce_atm, pe_atm = _pr_atm_straddle(tokens, oi_snap, atm)
-    if straddle is None:
-        return None
-    days_left = _pr_days_left(expiry_str)
-    if days_left is None:
-        return None
-
-    S, T     = float(spot), _pr_T(days_left)
-    exp_move = PR_STRADDLE_FACTOR * straddle
-
-    ivs = {}
-    for token, meta in tokens.items():
-        K, opt_type, rk = float(meta["strike"]), meta["instrument_type"], meta["role_key"]
-        ltp = float(oi_snap.get(token, {}).get("ltp", 0) or 0)
-        if ltp <= 0:
-            continue
-        iv = compute_iv(S, K, T, RISK_FREE, ltp, opt_type)
-        if iv is None or iv <= 0:
-            continue
-        ivs[rk] = {"strike": int(K), "type": opt_type,
-                   "iv": iv, "ltp_at_anchor": round(ltp, 2)}
-
-    anchor = {
-        "date":     now_ist().strftime("%Y-%m-%d"),
-        "time":     now_ist().strftime("%H:%M:%S"),
-        "spot":     round(S, 2),
-        "straddle": round(straddle, 2),
-        "legs":     {"ce": ce_atm, "pe": pe_atm},
-        "exp_move": round(exp_move, 2),
-        "band":     [round(S - exp_move, 2), round(S + exp_move, 2)],
-        "ivs":      ivs,
-    }
-    print(f"[{anchor['time']}] Premium-range anchor captured: spot {anchor['spot']}, "
-          f"straddle {anchor['straddle']}, band {anchor['band'][0]}–{anchor['band'][1]}")
-    return anchor
-
-
-@app.route("/premium-range/anchor", methods=["POST"])
-def pr_set_anchor():
-    """(Re)capture the anchored snapshot at this moment — e.g. at trade entry."""
-    global _pr_anchor
-    a = _pr_capture_anchor()
-    if a is None:
-        return jsonify({"available": False,
-                        "reason": "not ready — waiting for spot/ATM straddle"}), 503
-    with _pr_lock:
-        _pr_anchor = a
-    return jsonify({"available": True, "anchor": {k: v for k, v in a.items() if k != "ivs"}})
-
-
-@app.route("/premium-range")
-def get_premium_range():
-    """
-    Straddle-implied premium range per strike.
-    ?mode=live (default)  — band from current spot + current straddle
-    ?mode=anchored        — band frozen at the day's anchor (theta still live)
-    """
-    global _pr_anchor
-    RISK_FREE = 0.065
-    mode = (request.args.get("mode") or "live").lower()
-    if mode not in ("live", "anchored"):
-        mode = "live"
-
-    with state_lock:
-        spot       = state["spot"]
-        atm        = state["atm_strike"]
-        expiry_str = state["expiry_date"]
-        tokens     = dict(state["tokens"])
-        oi_snap    = dict(state["oi"])
-
-    if not spot or not atm or not expiry_str:
-        return jsonify({"available": False,
-                        "reason": "waiting for spot / ATM / expiry"})
-
-    days_left = _pr_days_left(expiry_str)
-    if days_left is None:
-        return jsonify({"available": False, "reason": "bad expiry date"})
-
-    S     = float(spot)
-    T     = _pr_T(days_left)
-    T_tgt = max(T - PR_THETA_DAYS / 365.0, 0.25 / 365.0)
-
-    anchor_meta = None
-    anchor_ivs  = None
-    if mode == "anchored":
-        with _pr_lock:
-            stale = (_pr_anchor is None or
-                     _pr_anchor["date"] != now_ist().strftime("%Y-%m-%d"))
-        if stale:
-            a = _pr_capture_anchor()
-            if a is None:
-                return jsonify({"available": False,
-                                "reason": "anchor not ready — straddle legs unpriced"})
-            with _pr_lock:
-                _pr_anchor = a
-        with _pr_lock:
-            anchor_meta = {k: v for k, v in _pr_anchor.items() if k != "ivs"}
-            anchor_ivs  = dict(_pr_anchor["ivs"])
-        spot_dn, spot_up = anchor_meta["band"]
-        straddle, legs, exp_move = (anchor_meta["straddle"],
-                                    anchor_meta["legs"], anchor_meta["exp_move"])
-    else:
-        straddle, ce_atm, pe_atm = _pr_atm_straddle(tokens, oi_snap, atm)
-        if straddle is None:
-            return jsonify({"available": False,
-                            "reason": "ATM straddle legs not priced yet"})
-        legs     = {"ce": ce_atm, "pe": pe_atm}
-        exp_move = PR_STRADDLE_FACTOR * straddle
-        spot_dn, spot_up = S - exp_move, S + exp_move
-
-    rows = {}
-    for token, meta in tokens.items():
-        K, opt_type, rk = float(meta["strike"]), meta["instrument_type"], meta["role_key"]
-        ltp = float(oi_snap.get(token, {}).get("ltp", 0) or 0)
-        if ltp <= 0:
-            continue
-
-        # IV: frozen at anchor when anchored (falls back to live for strikes
-        # that rolled in after the anchor), live otherwise.
-        iv = None
-        if anchor_ivs is not None:
-            a_row = anchor_ivs.get(rk)
-            if a_row is not None:
-                iv = a_row["iv"]
-        if iv is None:
-            iv = compute_iv(S, K, T, RISK_FREE, ltp, opt_type)
-        if iv is None or iv <= 0:
-            continue
-
-        iv_up = max(0.01, iv - PR_IV_SHIFT / 100.0)   # spot up  → IV crush
-        iv_dn = iv + PR_IV_SHIFT / 100.0              # spot down → IV pop
-
-        px_up = _bs_price(spot_up, K, T_tgt, RISK_FREE, iv_up, opt_type)
-        px_dn = _bs_price(spot_dn, K, T_tgt, RISK_FREE, iv_dn, opt_type)
-
-        r1, s1 = (px_up, px_dn) if opt_type == "CE" else (px_dn, px_up)
-
-        span = r1 - s1
-        pos  = (ltp - s1) / span if span > 1e-6 else None   # 0 = at S1, 1 = at R1
-        dn   = ltp - s1
-        rows[rk] = {
-            "strike":   int(K),
-            "type":     opt_type,
-            "ltp":      round(ltp, 2),
-            "iv":       round(iv * 100, 2),
-            "r1":       round(r1, 2),
-            "s1":       round(s1, 2),
-            "upside":   round(r1 - ltp, 2),
-            "downside": round(dn, 2),
-            "rr":       round((r1 - ltp) / dn, 2) if dn > 0.5 else None,
-            "pos":      round(min(1.5, max(-0.5, pos)), 3) if pos is not None else None,
-        }
-
-    return jsonify({
-        "available":     True,
-        "mode":          mode,
-        "as_of":         now_ist().strftime("%H:%M:%S"),
-        "spot":          round(S, 2),
-        "atm":           int(atm),
-        "straddle":      round(straddle, 2),
-        "straddle_legs": legs,
-        "factor":        PR_STRADDLE_FACTOR,
-        "expected_move": round(exp_move, 2),
-        "spot_band":     [round(spot_dn, 2), round(spot_up, 2)],
-        "iv_shift_pts":  PR_IV_SHIFT,
-        "theta_days":    PR_THETA_DAYS,
-        "dte":           days_left,
-        "anchor":        anchor_meta,        # null in live mode
-        "strikes":       rows,
-    })
 
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
@@ -3391,21 +1866,15 @@ if __name__ == "__main__":
     print(f"  GET  /oi              all strikes snapshot")
     print(f"  GET  /ltp             latest LTP snapshot")
     print(f"  GET  /oi/live-candle  latest forming candle snapshot")
-    print(f"  GET  /stream          browser SSE stream for tick-by-tick chart updates")
+    print(f"  GET  /                serves dashboard HTML")
+    print(f"  GET  /oi              all strikes snapshot")
+    print(f"  GET  /ltp             latest LTP + delta snapshot")
     print(f"  GET  /strikes         strike list")
+    print(f"  GET  /oi/history      1-min rows + spot OHLC (today, or ?date=YYYY-MM-DD)")
+    print(f"  GET  /oi/dates        dates that have history")
     print(f"  GET  /oi/openhighlow  OpenHighLow tab snapshot (CE/PE Open=High & Open=Low)")
     print(f"  POST /oi/openhighlow/reseed  re-pull today's Open/High/Low from the exchange")
-    print(f"  GET  /oi/history      1-min rows + spot OHLC (today, or ?date=YYYY-MM-DD)")
-    print(f"  GET  /iv/history      per-minute IV + RR values (today, or ?date=YYYY-MM-DD&strikes=1)")
-    print(f"  GET  /iv/dates        dates that have IV data")
-    print(f"  POST /depth/watch/start   create depth watcher (?strike=N&type=CE|PE&seconds=N&threshold=N)")
-    print(f"  GET  /depth/watch/stream/<id>  SSE live depth events")
-    print(f"  POST /depth/watch/stop/<id>    cancel watcher early")
-    print(f"  GET  /depth/watch/result/<id>  full result after done")
-    print(f"  GET  /premium-range   straddle-implied R1/S1 per strike (?mode=live|anchored)")
-    print(f"  POST /premium-range/anchor   re-capture the anchored snapshot (trade entry)")
+    print(f"  GET  /oi/openhighlow/debug   ?strike=N — why a strike is / isn't listed")
     print(f"  GET  /health          status + OHLC buffer")
     print(f"  POST /reset-csv       wipe today's rows")
-    print("\nPress Ctrl+C to stop.\n")
-
     app.run(host="0.0.0.0", port=FLASK_PORT, debug=False, use_reloader=False)
