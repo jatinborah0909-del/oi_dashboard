@@ -318,7 +318,21 @@ tr:last-child td{border-bottom:none;}
 .oc-depth-select{font-size:12px;padding:3px 8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;color:#1a1a1a;cursor:pointer;}
 
 .oc-scroll{overflow-x:auto;overflow-y:auto;max-height:600px;border-radius:6px;}
-.oc-table{width:100%;border-collapse:collapse;font-size:12px;min-width:940px;}
+.oc-table{width:100%;border-collapse:collapse;font-size:12px;min-width:1100px;}
+.oc-th-gex{background:#f0f0ec;color:#444;text-align:center;padding:6px 8px;border-bottom:1.5px solid #ddd;font-weight:600;font-size:11px;white-space:nowrap;}
+.oc-td-gex{min-width:170px;padding:5px 10px;border-bottom:0.5px solid #f2f2ee;background:#fafaf8;}
+.oc-gex-wrap{display:flex;align-items:center;gap:6px;}
+.oc-gex-track{position:relative;flex:1;height:6px;background:#f0f0ec;border-radius:3px;min-width:60px;}
+.oc-gex-track::after{content:'';position:absolute;left:50%;top:-2px;width:1px;height:10px;background:#c8c8c2;}
+.oc-gex-bar{position:absolute;top:0;height:100%;border-radius:3px;transition:width .4s;}
+.oc-gex-bar.pos{background:#1D9E75;} .oc-gex-bar.neg{background:#D85A30;}
+.oc-gex-num{min-width:50px;text-align:right;font-size:11px;font-variant-numeric:tabular-nums;font-weight:500;}
+.oc-gex-num.pos{color:#0F6E56;} .oc-gex-num.neg{color:#B14419;}
+.oc-gex-tags{width:44px;flex-shrink:0;display:flex;gap:2px;}
+.oc-gex-tag{font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;letter-spacing:.03em;white-space:nowrap;}
+.oc-gex-tag.cw{background:#FAECE7;color:#712B13;}
+.oc-gex-tag.pw{background:#E1F5EE;color:#085041;}
+.oc-gex-tag.flip{background:#EEEDFE;color:#534AB7;}
 .oc-dl{color:#534AB7;font-size:11px;font-variant-numeric:tabular-nums;}
 .oc-table thead{position:sticky;top:0;z-index:5;}
 
@@ -335,7 +349,8 @@ tr:last-child td{border-bottom:none;}
 /* Body cells */
 .oc-td{padding:5px 10px;border-bottom:0.5px solid #f2f2ee;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .oc-td-call{text-align:right;padding-right:10px;}
-.oc-td-strike{text-align:center;font-weight:600;font-size:12px;color:#1a1a1a;padding:5px 14px;}
+.oc-td-strike{text-align:center;font-weight:600;font-size:12px;color:#1a1a1a;padding:5px 14px;min-width:104px;}
+.oc-atm-line{padding-right:44px !important;}
 .oc-td-put{text-align:left;padding-left:10px;}
 
 /* ATM row highlight */
@@ -514,6 +529,42 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div>
 
+<!-- ── GAMMA EXPOSURE (dealer GEX across tracked strikes) ── -->
+<div class="oc-maxpain-card" id="gex-card" style="flex-wrap:wrap;">
+  <div class="oc-mp-block">
+    <div class="oc-mp-label">Net Gamma Exposure</div>
+    <div class="oc-mp-val" id="gex-total">—</div>
+    <div class="oc-mp-sub">₹ Cr per 1% spot move</div>
+  </div>
+  <div class="oc-mp-divider"></div>
+  <div class="oc-mp-block" style="max-width:270px;">
+    <div class="oc-mp-label">Regime</div>
+    <div class="oc-mp-val" style="font-size:13px;" id="gex-regime">—</div>
+    <div class="oc-mp-sub" id="gex-regime-sub">Waiting for live data…</div>
+  </div>
+  <div class="oc-mp-divider"></div>
+  <div class="oc-mp-block">
+    <div class="oc-mp-label" title="Spot level where total net GEX crosses zero (each strike's IV held constant)">Gamma Flip</div>
+    <div class="oc-mp-val" style="color:#534AB7;" id="gex-flip">—</div>
+    <div class="oc-mp-sub" id="gex-flip-sub"></div>
+  </div>
+  <div class="oc-mp-divider"></div>
+  <div class="oc-mp-block">
+    <div class="oc-mp-label" title="Strike with the largest positive call GEX — tends to act as resistance">Call Wall</div>
+    <div class="oc-mp-val" style="color:#712B13;font-size:16px;" id="gex-cw">—</div>
+    <div class="oc-mp-sub" id="gex-cw-sub">largest call GEX</div>
+  </div>
+  <div class="oc-mp-divider"></div>
+  <div class="oc-mp-block">
+    <div class="oc-mp-label" title="Strike with the largest negative put GEX — tends to act as support">Put Wall</div>
+    <div class="oc-mp-val" style="color:#085041;font-size:16px;" id="gex-pw">—</div>
+    <div class="oc-mp-sub" id="gex-pw-sub">largest put GEX</div>
+  </div>
+  <div style="flex-basis:100%;font-size:10px;color:#aaa;line-height:1.5;" id="gex-note">
+    GEX = gamma × OI × spot² × 1%. Standard dealer convention: dealers assumed long calls / short puts, so call GEX counts positive and put GEX negative.
+  </div>
+</div>
+
 <div class="oc-card">
   <div class="oc-header">
     <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
@@ -568,6 +619,7 @@ tr:last-child td{border-bottom:none;}
         <tr>
           <th class="oc-th-call" colspan="5">CALL</th>
           <th class="oc-th-strike" rowspan="2" style="border-bottom:1.5px solid #ddd;">Strike</th>
+          <th class="oc-th-gex" rowspan="2" title="Net dealer gamma exposure at this strike (call GEX + put GEX), ₹ Cr per 1% spot move">Net GEX<div style="font-size:9px;font-weight:400;color:#888;">₹ Cr / 1% move</div></th>
           <th class="oc-th-put" colspan="5">PUT</th>
         </tr>
         <tr>
@@ -584,7 +636,7 @@ tr:last-child td{border-bottom:none;}
         </tr>
       </thead>
       <tbody id="oc-body">
-        <tr><td colspan="11" style="text-align:center;padding:24px;color:#aaa;font-size:13px;">Waiting for OI data…</td></tr>
+        <tr><td colspan="12" style="text-align:center;padding:24px;color:#aaa;font-size:13px;">Waiting for OI data…</td></tr>
       </tbody>
     </table>
   </div>
@@ -1184,6 +1236,7 @@ function updateLTP(data) {
   // ── Projected Settlement (15:00–15:30 IST)
   updateSettlementVwap(data.settlement_vwap, data.spot);
   updateOrderFlow(data.order_flow);
+  updateGex(data.gex);
 
   // ── OpenHighLow tab — piggybacks on this same 1s tick poll
   renderOpenHighLow(data.open_high_low);
@@ -1495,6 +1548,8 @@ const ocLtpCache     = {};  // { "s24000_ce": {ltp, prev}, ... }
 const ocOICache      = {};  // { "s24000_ce": current OI, ... }
 const ocDepthTotalsCache = {};  // { "s24000_ce": {buy, sell} whole-book totals, ... }
 const ocOIDeltaCache = {};  // { "s24000_ce": CHG OI since session start, ... }
+const ocGexCache     = {};  // { 24000: net ₹ GEX per 1% move (CE + PE) }
+let   gexSummary     = null;
 const ocDeltaCache   = {};  // { "s24000_ce": BS delta (CE 0..1, PE -1..0) from /ltp }
 const ocOIBaseCache  = {};  // { "s24000_ce": session-START OI — set once, never overwritten }
 
@@ -1503,6 +1558,84 @@ function fmtOI(v) {
   if (v >= 1e5) return (v/1e5).toFixed(2)+' L';
   if (v >= 1e3) return (v/1e3).toFixed(1)+' K';
   return Math.round(v).toLocaleString('en-IN');
+}
+
+// ── GAMMA EXPOSURE ────────────────────────────────────────────────
+function fmtCr(v, signed = true) {
+  if (v == null || !isFinite(v)) return '—';
+  const cr = v / 1e7, a = Math.abs(cr);
+  const body = a >= 10 ? Math.round(a).toLocaleString('en-IN') : a.toFixed(1);
+  return (signed ? (cr > 0 ? '+' : cr < 0 ? '−' : '') : '') + body;
+}
+
+function gexCellHtml(st, maxAbs) {
+  const v = ocGexCache[st];
+  if (v == null) return '<span class="oc-gex-num" style="color:#ccc;">—</span>';
+  const pos = v >= 0;
+  const w   = maxAbs > 0 ? Math.min(50, Math.abs(v) / maxAbs * 50) : 0;
+  let tags = '';
+  if (gexSummary) {
+    if (st === gexSummary.call_wall) tags += '<span class="oc-gex-tag cw" title="Call wall">CW</span>';
+    if (st === gexSummary.put_wall)  tags += '<span class="oc-gex-tag pw" title="Put wall">PW</span>';
+    if (gexSummary.flip != null && Math.abs(st - gexSummary.flip) <= STRIKE_STEP / 2)
+      tags += `<span class="oc-gex-tag flip" title="Gamma flip ≈ ${gexSummary.flip}">FLIP</span>`;
+  }
+  return `<div class="oc-gex-wrap">
+    <div class="oc-gex-track"><div class="oc-gex-bar ${pos ? 'pos' : 'neg'}" style="${pos ? 'left' : 'right'}:50%;width:${w.toFixed(1)}%;"></div></div>
+    <span class="oc-gex-num ${pos ? 'pos' : 'neg'}">${fmtCr(v)}</span><span class="oc-gex-tags">${tags}</span>
+  </div>`;
+}
+
+function gexMaxAbs(strikes) {
+  return strikes.reduce((m, st) => Math.max(m, Math.abs(ocGexCache[st] || 0)), 0);
+}
+
+// Live refresh of the GEX column + summary card from each /ltp poll
+function updateGex(g) {
+  if (!g) return;
+  gexSummary = g;
+  Object.entries(g.per_strike || {}).forEach(([k, v]) => { ocGexCache[Number(k)] = v; });
+
+  // Column cells (only rows currently in the table)
+  const rows = [...document.querySelectorAll('#oc-body tr[data-strike]')].map(r => Number(r.dataset.strike));
+  const maxAbs = gexMaxAbs(rows);
+  rows.forEach(st => {
+    const el = document.getElementById('oc-gex-' + st);
+    if (el) el.innerHTML = gexCellHtml(st, maxAbs);
+  });
+
+  // Summary card
+  const set = (id, txt, color) => {
+    const el = document.getElementById(id); if (!el) return;
+    el.textContent = txt; if (color !== undefined) el.style.color = color;
+  };
+  const pos = g.total >= 0;
+  set('gex-total', fmtCr(g.total) + ' Cr', pos ? '#0F6E56' : '#B14419');
+  set('gex-regime', pos ? '▲ Positive gamma' : '▼ Negative gamma', pos ? '#0F6E56' : '#B14419');
+  set('gex-regime-sub', pos
+    ? 'Dealers hedge against the move — dips bought, rips sold. Expect pinning / mean-reversion.'
+    : 'Dealers hedge with the move — selling into falls, buying into rallies. Expect bigger swings.');
+
+  if (g.flip != null) {
+    set('gex-flip', Math.round(g.flip).toLocaleString('en-IN'));
+    if (currentSpot) {
+      const d = currentSpot - g.flip;
+      set('gex-flip-sub', `Spot ${Math.abs(d).toFixed(0)} pts ${d >= 0 ? 'above' : 'below'} flip`);
+    }
+  } else {
+    set('gex-flip', 'Outside window');
+    set('gex-flip-sub', 'No zero-crossing inside tracked strikes');
+  }
+  set('gex-cw', g.call_wall != null ? g.call_wall.toLocaleString('en-IN') : '—');
+  set('gex-pw', g.put_wall  != null ? g.put_wall.toLocaleString('en-IN')  : '—');
+  set('gex-cw-sub', g.call_wall != null ? fmtCr(ocGexCache[g.call_wall]) + ' Cr net' : 'largest call GEX');
+  set('gex-pw-sub', g.put_wall  != null ? fmtCr(ocGexCache[g.put_wall])  + ' Cr net' : 'largest put GEX');
+
+  const note = document.getElementById('gex-note');
+  if (note && g.window) {
+    note.textContent = `GEX = gamma × OI × spot² × 1%, summed over tracked strikes ${g.window[0].toLocaleString('en-IN')}–${g.window[1].toLocaleString('en-IN')} (widen OI_NUM_STRIKES for more). ` +
+      'Standard dealer convention: dealers assumed long calls / short puts, so call GEX counts positive and put GEX negative.';
+  }
 }
 
 function fmtGreek(v) {
@@ -1678,6 +1811,7 @@ function renderOptionChain() {
   });
 
   const spot = currentSpot;
+  const gexMax = gexMaxAbs(strikes);
 
   const rows = strikes.map(st => {
     const ceKey = 's'+st+'_ce';
@@ -1738,6 +1872,7 @@ function renderOptionChain() {
         <span class="oc-ltp" id="oc-ce-${st}">${fmtLtp(ceLtp)}</span>${ceChgHtml}
       </td>
       <td class="${tdStrCls}">${st}</td>
+      <td class="oc-td-gex" id="oc-gex-${st}">${gexCellHtml(st, gexMax)}</td>
       <td class="${tdPutCls}" style="text-align:left;padding-left:14px;">
         <span class="oc-ltp" id="oc-pe-${st}">${fmtLtp(peLtp)}</span>${peChgHtml}
       </td>
@@ -1755,7 +1890,7 @@ function renderOptionChain() {
     </tr>`;
   }).join('');
 
-  document.getElementById('oc-body').innerHTML = rows || '<tr><td colspan="11" style="text-align:center;padding:20px;color:#aaa;">No data</td></tr>';
+  document.getElementById('oc-body').innerHTML = rows || '<tr><td colspan="12" style="text-align:center;padding:20px;color:#aaa;">No data</td></tr>';
 
   // Update meta
   const atmTxt = atm ? atm : '—';
